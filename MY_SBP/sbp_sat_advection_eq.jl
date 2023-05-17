@@ -37,8 +37,8 @@ function SBP(m::Int64)
   H[m-3:m, m-3:m] = rotr90(spdiagm([17/48, 59/48, 43/48, 49/48]), 2)
   
   # D₁ Matrix (Discrete First derivative operator)
-  D1 = spdiagm(-2=>(1/12)*ones(m-2), -1=>(8/12)*ones(m-1), 
-        1=>(8/12)*ones(m-1), 2=>(1/12)*ones(m-2))
+  D1 = spdiagm(-2=>(1/12)*ones(m-2), -1=>(-8/12)*ones(m-1),
+        1=>(8/12)*ones(m-1), 2=>(-1/12)*ones(m-2))
   D1[1:4, 1:6] = [-24/17 59/34 -4/17 -3/34 0 0; 
                   -1/2 0 1/2 0 0 0; 
                   4/43 -59/86 0 59/86 -4/43 0; 
