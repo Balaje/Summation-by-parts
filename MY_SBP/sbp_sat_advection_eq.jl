@@ -11,16 +11,19 @@
 using SparseArrays
 using LinearAlgebra
 using StaticArrays
+using Plots
 
 # Define the problem
 a = 1.0
 c = 2.0
 ϵ = 0.1
+w = sqrt(c^2 - a^2)/(2ϵ)
+b = (c-a)/(2ϵ)
 # Mixed boundary condition on x=0, Neumann boundary cndition on x=1
 α = 1
 β = 0
 u(x,t) = sin(w*(x-c*t))*exp(-b*x)
-f(x) = sin(w*x)*exp(-b*x)
+f(x) = u(x,0)
 g₀(t) = (b-α)*sin(w*c*t) + w*cos(w*c*t)
 g₁(t) = β*sin(w*(1-c*t))*exp(-b) + exp(-b)*w*cos(w*(1-c*t)) - b*exp(-b)*sin(w*(1-c*t))
 
@@ -70,25 +73,81 @@ function SBP(m::Int64)
   D2 = D2/(h^2)
   D1 = D1/h
  
+  # Compatible second derivate D2c
   M = BS-H*D2
-  # Q = H*D1
   S = BS
-
-  # Boundary term 
-  S[1,:] = -S[1,:]
+  #S[1,:] = -S[1,:]
   for i=2:size(S,1)-1
     S[i,i] = 0;    
   end
-
   B = spzeros(Float64,m,m)
   B[1,1] = -1
   B[m,m] = 1
-
   D2c = H\(-M+B*D1)
 
-  H, D1, D2, S, D2c
-end
+  E₀ = spzeros(Float64,m,m)
+  Eₙ = spzeros(Float64,m,m)
+  E₀[1,1] = 1.0  
+  Eₙ[m,m] = 1.0
+  e₀ = diag(E₀)
+  eₙ = diag(Eₙ)
+  Id = I(length(e₀))
 
+  Hinv = H\Id
+
+  (H, Hinv), D1, (D2,D2c), S, (E₀, Eₙ, e₀, eₙ, Id)
+end
 function SBP(k::Int64, N::Int64, domain::Tuple{Float64,Float64})
   display("To be implemented")
+end
+
+"""
+The RHS function for the Runge Kutta Iteration
+"""
+function f!(res::Vector{T}, t::Float64, v::Vector{T}; kwargs) where T <: Number
+  coeffs, sbp, τ₀₁, ics = args
+  a,ϵ,α,β = coeffs
+  τ₀, τ₁ = τ₀₁
+  g₀, g₁ = ics
+  HHinv, D1, D2s, S, unit_vecs = sbp
+  Hinv, = HHinv
+  E₀, Eₙ, e₀, eₙ, Id = unit_vecs
+  D2, _ = D2s
+  copyto!(res, -a*D1*v + ϵ*D2*v - τ₀*(Hinv*(E₀*(α*Id+S)*v - e₀*g₀(t))) - τ₁*(Hinv*(Eₙ*(β*Id+S)*v - eₙ*g₁(t))))
+  res
+end
+
+"""
+The Runge Kutta scheme
+"""
+function RK4!(res::Vector{T}, Δt::Float64, t::Float64, u::Vector{T}; kwargs) where T<:Number
+  k₁ = f!(res, t, u; kwargs=kwargs)
+  k₂ = f!(res, t + 0.5*Δt, u + 0.5*Δt*k₁; kwargs=kwargs)
+  k₃ = f!(res, t + 0.5*Δt, u + 0.5*Δt*k₂; kwargs=kwargs)
+  k₄ = f!(res, t + Δt, u + Δt*k₃; kwargs=kwargs)
+  copyto!(res, (u + (Δt)/6*(k₁ + 2k₂ + 2k₃ + k₄)))  
+  res
+end
+
+# Discretization parameters
+N = 11
+x = LinRange(0,1,N)
+sbp = SBP(N);
+τ₀ = -ϵ
+τ₁ = ϵ
+args = (a,ϵ,α,β), sbp, (τ₀, τ₁), (g₀, g₁)
+tf = 1.0
+Δt = 0.1*(tf/(N-1))^2
+ntime = ceil(Int64,tf/Δt)
+plt = plot()
+let
+  u₀ = f.(x)
+  global u₁ = zero(u₀)
+  t = 0.0
+  for i=1:ntime
+    u₀ = RK4!(u₁, Δt, t, u₀; kwargs=args)
+    t = t+Δt
+  end
+  plot!(plt, x, u.(x,tf), lc=:red, lw=1, ls=:dash)
+  plot!(plt, x, u₁, lc=:blue, lw=2)
 end
