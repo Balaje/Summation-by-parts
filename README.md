@@ -2,7 +2,7 @@
 
 Contains code to implement the summation by parts finite difference methods for some problems.
 
-## Advection-diffusion equation
+## Advection-diffusion equation (MY_SBP/ folder)
 
 Consider the one-dimensional model problem [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub)
 
@@ -30,11 +30,13 @@ $$
 
 Solving the problem using the SBP finite difference method and using Simultaneous Approximation Term (SAT) for applying the boundary condition:
 
-Solution at `T=1.0` s | | Rate |
---- | --- | --- |
-![](./MY_SBP/Images/sol.png) | ![](./MY_SBP/Images/rate.png) | 4.206668554230709, 4.184137602101776, 4.12890189205842, 4.083294430882183
-Solution at `T=4.0` s | | |
-![](./MY_SBP/Images/sol4.0.png) | ![](./MY_SBP/Images/rate4.0.png) | 4.177707021531643, 4.171771585661089, 4.128172006795482, 4.08626801731685
+Solution at `T=1.0` s | |
+--- | --- |
+![](./MY_SBP/Images/sol.png) | ![](./MY_SBP/Images/rate.png)
+Solution at `T=4.0` s |
+![](./MY_SBP/Images/sol4.0.png) | ![](./MY_SBP/Images/rate4.0.png) |
+
+The nuemrical values of the convergence rates at `T=1.0` s and `T=4.0` s are $[4.2067, 4.1841, 4.1289, 4.0833]$ and $[ 4.1777, 4.1718, 4.1282, 4.0863]$, respectively.
 
 The spatial axis is discretized using $N = 30,60,100,200,300$ points (similar to the paper) and using the SBP method whose order of accuracy is 4 in the interior. The temporal direction was discretized using the fourth order Runge-Kutta scheme with $\Delta t = 5\times 10^{-5}$. The observed rate of convergence in the spatial direction and is in agreement with the theory.
 
