@@ -50,7 +50,7 @@ const τ₀ = -ϵ
 const τ₁ = ϵ
 # Plots
 plt = plot()
-plt1 = plot()
+#plt1 = plot()
 # Spatial Discretization
 N = [40, 60, 100, 200, 300]  
 L²Error = zeros(Float64, size(N,1))
@@ -79,8 +79,8 @@ end
 plot!(plt, x, u.(x,tf), lc=:red, lw=2, ls=:dash, label="Exact solution")
 plot!(plt, x, f.(x), lc=:black, lw=1, ls=:dash, label="Initial condition")
 rate = log.(L²Error[2:end]./L²Error[1:end-1])./(log.(N[1:end-1]./N[2:end]))
-plot!(plt1, 1 ./(N), L²Error, xscale=:log10, yscale=:log10, label="L²Error")
-plot!(plt1, 1 ./(N), 1 ./(N).^4, ls=:dash, lw=0.5, label="h⁴")
+plot!(plt1, 1 ./(N), L²Error, xscale=:log10, yscale=:log10, label="L²Error (τ₀ = "*string(τ₀)*")")
+plot!(plt1, 1 ./(N), 500 ./(N).^4, ls=:dash, lw=0.5, label="h⁴")
 ### ### ### ### ### ### ### ### 
 # Running this gives
 # julia> rate
