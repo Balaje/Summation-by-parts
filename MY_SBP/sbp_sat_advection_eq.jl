@@ -130,25 +130,51 @@ function RK4!(res::Vector{T}, Δt::Float64, t::Float64, u::Vector{T}, kwargs) wh
   res .= (u + (Δt)/6*(k₁ + 2k₂ + 2k₃ + k₄))  
 end
 
-# Discretization parameters
-N = 51
-x = LinRange(0,1,N)
-sbp = SBP(N);
-τ₀ = -ϵ
-τ₁ = ϵ
-args = (a,ϵ,α,β), sbp, (τ₀, τ₁), (g₀, g₁)
+# Temporal Discretization parameters
 tf = 1.0
-Δt = 1e-3
+Δt = 5e-5
 ntime = ceil(Int64,tf/Δt)
+# Penalty parameters
+const τ₀ = -ϵ
+const τ₁ = ϵ
+# Plots
 plt = plot()
-let
-  u₀ = f.(x)
-  global u₁ = zero(u₀)  
-  t = 0.0
-  for i=1:ntime
-    u₀ = RK4!(u₁, Δt, t, u₀, args)    
-    t = t+Δt
+plt1 = plot()
+N = [40, 60, 100, 200, 300]  
+L²Error = zeros(Float64, size(N,1))
+for (n,i) ∈ zip(N,1:length(N))
+  let
+    x = LinRange(0,1,n+1)
+    sbp = SBP(n+1);
+    H = sbp[1][1]; # Norm matrix for the l2error
+    args = (a,ϵ,α,β), sbp, (τ₀, τ₁), (g₀, g₁)
+    let
+      u₀ = f.(x)
+      global u₁ = zero(u₀)  
+      t = 0.0
+      for i=1:ntime
+        u₀ = RK4!(u₁, Δt, t, u₀, args)    
+        t = t+Δt
+      end      
+      plot!(plt, x, u₁, lc=:blue, lw=0.5, label="Approx. solution n="*string(n))
+
+      e = u.(x,tf) - u₁
+      L²Error[i] = sqrt(e'*H*e)
+    end
+    println("Done n = "*string(n))
   end
-  plot!(plt, x, u.(x,tf), lc=:red, lw=2, ls=:dash, label="Exact solution")
-  plot!(plt, x, u₁, lc=:blue, lw=0.5, label="Approximate Solution")
 end
+plot!(plt, x, u.(x,tf), lc=:red, lw=2, ls=:dash, label="Exact solution")
+plot!(plt, x, f.(x), lc=:black, lw=1, ls=:dash, label="Initial condition")
+rate = log.(L²Error[2:end]./L²Error[1:end-1])./(log.(N[1:end-1]./N[2:end]))
+plot!(plt1, 1 ./(N), L²Error, xscale=:log10, yscale=:log10, label="L²Error")
+plot!(plt1, 1 ./(N), 1 ./(N).^4, ls=:dash, lw=0.5, label="h⁴")
+### ### ### ### ### ### ### ### 
+# Running this gives
+# julia> rate
+# 4-element Vector{Float64}:
+#  4.206668554230709
+#  4.184137602101776
+#  4.12890189205842
+#  4.083294430882183
+### ### ### ### ### ### ### ### 
