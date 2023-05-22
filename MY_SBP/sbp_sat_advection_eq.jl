@@ -17,8 +17,8 @@ const ϵ = 0.1
 const w = sqrt(c^2 - a^2)/(2ϵ)
 const b = (c-a)/(2ϵ)
 # Mixed boundary condition on x=0, Neumann boundary cndition on x=1
-const α = 1
-const β = 0
+const α = 1.0
+const β = 0.0
 u(x,t) = sin(w*(x-c*t))*exp(-b*x)
 f(x) = u(x,0)
 g₀(t) = (b-α)*sin(w*c*t) + w*cos(w*c*t)
