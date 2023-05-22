@@ -13,7 +13,7 @@ const α = √(2) - 1
 const w = 10
 const b = 1
 const c = 1
-v(x,t) =  [-sin(w*(x-c*t))*exp(-b*x), sin(w*(x+c*t))*exp(-b*x)]
+v(x,t) =  [-sin(w*(x-c*t))*exp(-b*x), sin(w*(x+c*t))*exp(-b*x)]'
 
 """
 Function to compute the boundary data at given time t:
@@ -26,9 +26,9 @@ function BoundaryData(t)
   I₂ = @SMatrix [1 0; 0 1];
   Iᵣ = @SMatrix [0 1; 1 0];
   v₀ = @SVector [sin(w*c*t), sin(w*c*t)]
-  ∂ₓv₀ = @SVector [w*cos(w*c*t) + b*sin(w*c*t), w*cos(w*c*t) - b*sin(w*c*t)]
+  ∂ₓv₀ = @SVector [-w*cos(w*c*t) + b*sin(w*c*t), w*cos(w*c*t) - b*sin(w*c*t)]
   v₁ = @SVector [-sin(w*(1-c*t))*exp(-b); sin(w*(1+c*t))*exp(-b)]
-  ∂ₓv₁ = @SVector [exp(-b)*w*cos(w*(1-c*t)) - b*exp(-b)*sin(w*(1-c*t)), exp(-b)*w*cos(w*(1+c*t)) - b*exp(-b)*sin(w*(1+c*t))]
+  ∂ₓv₁ = @SVector [-exp(-b)*w*cos(w*(1-c*t)) + b*exp(-b)*sin(w*(1-c*t)), exp(-b)*w*cos(w*(1+c*t)) - b*exp(-b)*sin(w*(1+c*t))]
   (I₀*Λ*v₀ + (I₁ - I₀)*𝒟*∂ₓv₀, I₁*Λ*v₁ + (I₀ - (I₂+α*Iᵣ)*I₁)*𝒟*∂ₓv₁)
 end
 
@@ -37,11 +37,11 @@ The non-zero forcing term in the RHS of the PDE
 """
 function F(x,t)
   ∂ₜv = @SVector [w*c*cos(w*(x-c*t))*exp(-b*x), w*c*cos(w*(x+c*t))*exp(-b*x)]
-  ∂ₓv = @SVector [exp(-b*x)*w*cos(w*(x-c*t)) - b*exp(-b*x)*sin(w*(x-c*t)), 
+  ∂ₓv = @SVector [-exp(-b*x)*w*cos(w*(x-c*t)) + b*exp(-b*x)*sin(w*(x-c*t)), 
                   exp(-b*x)*w*cos(w*(x+c*t)) - b*exp(-b*x)*sin(w*(x+c*t))]
-  ∂ₓₓv = @SVector [exp(-b*x)*w*(-w*sin(w*(x-c*t))) - b*exp(-b*x)*w*cos(w*(x-c*t)) - b*(-b*exp(-b*x)*sin(w*(x-c*t))+exp(-b*x)*w*cos(w*(x-c*t))), 
+  ∂ₓₓv = @SVector [-exp(-b*x)*w*(-w*sin(w*(x-c*t))) + b*exp(-b*x)*w*cos(w*(x-c*t)) + b*(-b*exp(-b*x)*sin(w*(x-c*t))+exp(-b*x)*w*cos(w*(x-c*t))), 
                    exp(-b*x)*w*(-w*sin(w*(x+c*t))) - b*exp(-b*x)*w*cos(w*(x+c*t)) - b*(-b*exp(-b*x)*sin(w*(x+c*t))+exp(-b*x)*w*cos(w*(x+c*t)))]
-  ∂ₜv + Λ*∂ₓv - 𝒟*∂ₓₓv
+  (∂ₜv + Λ*∂ₓv - 𝒟*∂ₓₓv)'
 end
 
 """
@@ -58,7 +58,7 @@ Fancy definition of the Kronecker product.
 """
 RHS of the discrete time-stepping
 """
-function f(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where T <: Number  
+function g(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where T <: Number  
   sbp, pterms = kwargs
   Σ₀, Σ₁ = pterms
   HHinv, D1, D2s, S, unit_vecs = sbp
@@ -80,19 +80,36 @@ end
 
 
 # Temporal Discretization parameters
-tf = 1.0
-Δt = 5e-5
+tf = 0.1
+Δt = 5e-4
 ntime = ceil(Int64,tf/Δt)
 # Spatial discretization parameters
-n = 10;
+n = 20;
 Σ₀ = [-1 0; 0 1];
 Σ₁ = [-1 α; 0 1];
 pterms = Σ₀, Σ₁;
+plt = plot()
+plt1 = plot()
 let
   x = LinRange(0,1,n+1)
   sbp = SBP(n+1);
   H = sbp[1][1]; # Norm matrix for the l2error
   args = sbp, pterms
-  for i=1:ntime    
-  end
+  let
+    v₀ = vec(reduce(vcat, V₀.(x)))
+    global v₁ = zero(v₀)  
+    t = 0.0
+    for i=1:ntime
+      Fvec = vec(reduce(vcat, F.(x,t)))
+      fargs = Δt, t, v₀, Fvec
+      v₀ = RK4!(v₁, g, fargs, args)    
+      t = t+Δt
+      (i % 1000 == 0) && println("Done t="*string(t))
+    end                    
+    plot!(plt, x, v₁[1:n+1], lc=:blue, lw=1, label="Approx. solution (v⁽¹⁾) n="*string(n))    
+    plot!(plt1, x, v₁[n+2:end], lc=:blue, lw=1, label="Approx. solution v⁽²⁾ n="*string(n))    
+  end  
+  vex = vec(reduce(vcat, v.(x,tf)))
+  plot!(plt, x, vex[1:n+1], lc=:black, lw=2, label="Exact solution (v⁽¹⁾)", ls=:dash)
+  plot!(plt1, x, vex[n+2:end], lc=:black, lw=2, label="Exact solution (v⁽²⁾)", ls=:dash)
 end
