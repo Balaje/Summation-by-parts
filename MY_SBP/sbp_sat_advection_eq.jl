@@ -26,7 +26,7 @@ g₁(t) = β*sin(w*(1-c*t))*exp(-b) + exp(-b)*w*cos(w*(1-c*t)) - b*exp(-b)*sin(w
 """
 The RHS function for the Runge Kutta Iteration
 """
-function f(t::Float64, v::AbstractVector{T}, kwargs) where T <: Number  
+function f(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where T <: Number  
   coeffs, sbp, τ₀₁, ics = kwargs
   a,ϵ,α,β = coeffs
   τ₀, τ₁ = τ₀₁
@@ -37,7 +37,7 @@ function f(t::Float64, v::AbstractVector{T}, kwargs) where T <: Number
   D2, _ = D2s
   g0 = g₀(t)
   g1 = g₁(t)
-  -a*D1*v + ϵ*D2*v - τ₀*(Hinv*(E₀*(α*Id+S)*v - e₀*g0)) - τ₁*(Hinv*(Eₙ*(β*Id+S)*v - eₙ*g1))
+  -a*D1*v + ϵ*D2*v - τ₀*(Hinv*(E₀*(α*Id+S)*v - e₀*g0)) - τ₁*(Hinv*(Eₙ*(β*Id+S)*v - eₙ*g1)) + F
 end
 
 # Begin solving the problem
@@ -46,8 +46,8 @@ tf = 1.0
 Δt = 5e-5
 ntime = ceil(Int64,tf/Δt)
 # Penalty parameters
-const τ₀ = -ϵ
-const τ₁ = ϵ
+τ₀ = -ϵ
+τ₁ = ϵ
 # Plots
 plt = plot()
 plt1 = plot()
@@ -65,7 +65,8 @@ for (n,i) ∈ zip(N,1:length(N))
       global u₁ = zero(u₀)  
       t = 0.0
       for i=1:ntime
-        u₀ = RK4!(u₁, Δt, t, u₀, args)    
+        fargs = Δt, t, u₀, zero(x)
+        u₀ = RK4!(u₁, f, fargs, args)    
         t = t+Δt
       end      
       plot!(plt, x, u₁, lc=:blue, lw=0.5, label="Approx. solution n="*string(n))
