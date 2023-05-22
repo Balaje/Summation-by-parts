@@ -83,7 +83,7 @@ end
 
 # Temporal Discretization parameters
 Δt = 1e-5
-tf = 0.1
+tf = 1e-1
 ntime = ceil(Int64,tf/Δt)
 # Spatial discretization parameters
 Σ₀ = [-1 0; 0 1];
@@ -111,17 +111,17 @@ for (n,i) ∈ zip(N,1:length(N))
         (i % 1000 == 0) && println("Done t="*string(t))
       end  
       vex = vec(reduce(vcat, v.(x, t)))      
-      e = vex - v₁
-      HI = I(2) ⊗ H
-      L²Error[i] = sqrt(e'*HI*e)
-      plot!(plt, x, v₁[1:n+1], lc=:blue, lw=1, label="Approx. solution (v⁽¹⁾) n="*string(n))    
-      plot!(plt1, x, v₁[n+2:end], lc=:blue, lw=1, label="Approx. solution v⁽²⁾ n="*string(n))    
+      e = vex[1:n+1] - v₁[1:n+1]
+      # HI = I(2) ⊗ H
+      L²Error[i] = sqrt(e'*H*e)         
     end      
   end
   println("Done n = "*string(n))
   println(" ")
 end
 
+scatter!(plt, LinRange(0,1,N[end]+1), v₁[1:N[end]+1], label="Approx. solution (v⁽¹⁾) n="*string(N[end]))    
+scatter!(plt1, LinRange(0,1,N[end]+1), v₁[N[end]+2:end], label="Approx. solution v⁽²⁾ n="*string(N[end])) 
 xplot = 0:0.01:1
 vex = vec(reduce(vcat, v.(xplot,tf)))
 plot!(plt, xplot, vex[1:length(xplot)], lc=:black, lw=2, label="Exact solution (v⁽¹⁾)", ls=:dash)
