@@ -1,5 +1,12 @@
-##### ###### ###### ###### ###### ###### ###### #
-## Example 2 in Mattsson and Nordstrom
+##### ###### ###### ###### ###### ###### ###### ###### ######
+## Refer Mattsson and Nordstrom, 2004
+## Consider the incomplete parabolic system
+##  vₜ + Cvₓ = Dvₓₓ,  0<x<1, t>0
+##    v(x,0) = f(x), 0<x<1, t=0
+##    L₀v = g₀(t), x=0, t>0
+##    L₁v = g₁(t), x=0, t>0
+## Here C = [1 1; 1 -1], D = [0 0; 0 ϵ], v = [v⁽¹⁾, v⁽²⁾]ᵀ
+##### ###### ###### ###### ###### ###### ###### ###### ######
 
 
 include("include.jl")
@@ -13,7 +20,7 @@ const α = √(2) - 1
 const w = 10.0
 const b = 1.0
 const c = 1.0
-v(x,t) =  [-sin(w*(x-c*t))*exp(-b*x), sin(w*(x+c*t))*exp(-b*x)]'
+v(x,t) =  (@SVector [-sin(w*(x-c*t))*exp(-b*x), sin(w*(x+c*t))*exp(-b*x)])'
 
 """
 Function to compute the boundary data at given time t:
@@ -111,9 +118,9 @@ for (n,i) ∈ zip(N,1:length(N))
         (i % 1000 == 0) && println("Done t="*string(t))
       end  
       vex = vec(reduce(vcat, v.(x, t)))      
-      e = vex[1:n+1] - v₁[1:n+1]
-      # HI = I(2) ⊗ H
-      L²Error[i] = sqrt(e'*H*e)         
+      e = vex - v₁
+      HI = I(2) ⊗ H
+      L²Error[i] = sqrt(e'*HI*e)         
     end      
   end
   println("Done n = "*string(n))
