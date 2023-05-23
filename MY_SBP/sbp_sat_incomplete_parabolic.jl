@@ -98,7 +98,7 @@ ntime = ceil(Int64,tf/Δt)
 pterms = Σ₀, Σ₁;
 plt = plot()
 plt1 = plot()
-N = [30,60,90,120,150]
+N = [10,20,30,40,50]
 L²Error = zeros(Float64,length(N))
 for (n,i) ∈ zip(N,1:length(N))
   let
