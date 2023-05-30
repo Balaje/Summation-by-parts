@@ -19,7 +19,7 @@ QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
 METHOD = SBP(M);
 HHinv, D1, D2s, S, Ids = METHOD;
 H, Hinv = HHinv;
-D2, D2c = D2s;
+# D2, D2c = D2s;
 E₀, Eₙ, e₀, eₙ, Id = Ids;
 
 # Finite difference operators along the (q,r) direction
@@ -31,3 +31,8 @@ Hq = H; Hr = H;
 𝐃𝐫 = (I(2) ⊗ I(M) ⊗ Dr);
 𝐒𝐪 = (I(2) ⊗ Sq ⊗ I(M));
 𝐒𝐫 = (I(2) ⊗ I(M) ⊗ Sr);
+
+𝐃𝐪𝐪a₁₁ = SBP_VARIABLE_4(M, 𝐀[1])
+𝐃𝐪𝐪a₁₂ = SBP_VARIABLE_4(M, 𝐀[2])
+𝐃𝐪𝐪a₂₁ = SBP_VARIABLE_4(M, 𝐀[3])
+𝐃𝐪𝐪a₂₂ = SBP_VARIABLE_4(M, 𝐀[4])

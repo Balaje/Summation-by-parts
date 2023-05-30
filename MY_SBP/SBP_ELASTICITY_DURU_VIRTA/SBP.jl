@@ -1,4 +1,5 @@
 using SparseArrays
+using Test
 
 """
 The SBP scheme with fourth order accuracy in the interior.
@@ -157,3 +158,7 @@ function SBP_VARIABLE_4(N::Int64, c::Vector{Float64})
   
   H, D2, S
 end
+
+D2 = SBP(40)[3][1];
+D2_var = SBP_VARIABLE_4(40, ones(40))[2];
+@test D2 ≈ D2_var
