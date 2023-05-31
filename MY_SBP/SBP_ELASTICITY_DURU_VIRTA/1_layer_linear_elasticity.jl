@@ -1,6 +1,9 @@
 include("geometry.jl");
 include("material_props.jl");
 include("SBP.jl");
+include("../time-stepping.jl");
+
+using Plots
 
 """
 The material property tensor in the physical coordinates
@@ -67,7 +70,7 @@ end
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 101; # No of points along the axes
+M = 11; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -82,19 +85,19 @@ QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
 METHOD = SBP(M);
 
 # Penalty terms for applying the boundary conditions using the SAT method
-const τ₀ = -0.5;
-const τ₁ = 0.5;
-const τ₂ = 0.5;
-const τ₃ = -0.5;
+τ₀ = 0.5;
+τ₁ = -0.5;
+τ₂ = -0.5;
+τ₃ = 0.5;
 pterms = (τ₀, τ₁, τ₂, τ₃)
 
 
 """
-The right hand elastic wave equation, i.e.,
-  U'' = f(t,U)
+The stiffness term (K) in the elastic wave equation
+  Ü + KU = f
 """
-function f(tₙ::T, U::AbstractVecOrMat{T}, F::AbstractVecOrMat{T}, kwargs) where T<:Number
-  METHOD, pterms, coeffs = kwargs
+function K(stencil)
+  METHOD, pterms, coeffs = stencil
   𝐀ₜ, 𝐁ₜ, 𝐂ₜ = coeffs
 
   # Collect all the necessary finite difference matrices from the method
@@ -104,7 +107,7 @@ function f(tₙ::T, U::AbstractVecOrMat{T}, F::AbstractVecOrMat{T}, kwargs) wher
   #       H because Hinv is precomputed
   HHinv, D1, D2s, S, Ids = METHOD;
   H, Hinv = HHinv;
-  # E₀, Eₙ, e₀, eₙ, Id = Ids; # Needed for non-zero boundary conditions
+  E₀, Eₙ, e₀, eₙ, Id = Ids; # Needed for non-zero boundary conditions
 
   # Finite difference operators along the (q,r) direction
   Dq = D1; Dr = D1
@@ -119,6 +122,10 @@ function f(tₙ::T, U::AbstractVecOrMat{T}, F::AbstractVecOrMat{T}, kwargs) wher
   𝐒𝐪 = (I(2) ⊗ Sq ⊗ I(M));
   𝐒𝐫 = (I(2) ⊗ I(M) ⊗ Sr);  
   𝐇𝐪𝐫⁻¹ = (I(2) ⊗ Hqinv ⊗ Hrinv);
+  𝐄₀𝐪 = (I(2) ⊗ E₀ ⊗ I(M));
+  𝐄₀𝐫 = (I(2) ⊗ I(M) ⊗ E₀);
+  𝐄ₙ𝐪 = (I(2) ⊗ Eₙ ⊗ I(M));  
+  𝐄ₙ𝐫 = (I(2) ⊗ I(M) ⊗ Eₙ);
 
   # The variable SBP operator
   𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪(𝐀ₜ);
@@ -129,10 +136,48 @@ function f(tₙ::T, U::AbstractVecOrMat{T}, F::AbstractVecOrMat{T}, kwargs) wher
   𝐁 = sparsify(𝐁ₜ);
   𝐂 = sparsify(𝐂ₜ);
   
-  𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪*𝐂*𝐃𝐫 + 𝐃𝐪*𝐂'*𝐃𝐫); # The Elastic wave-equation operator
+  display(𝐄₀𝐪)
+  display(𝐄₀𝐫)
+  display(𝐄ₙ𝐪)
+  display(𝐄ₙ𝐫)
+
+  𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪*𝐂*𝐃𝐫 + 𝐃𝐫*𝐂'*𝐃𝐪); # The Elastic wave-equation operator
   𝐓𝐪 = (𝐀*𝐒𝐪 + 𝐂*𝐃𝐫); # The horizontal traction operator
   𝐓𝐫 = (𝐁*𝐒𝐫 + 𝐂'*𝐃𝐪); # The vertical traction operator
 
-  𝐏*U + 𝐇𝐪𝐫⁻¹*(τ₀*𝐓𝐫*U + τ₁*𝐓𝐪*U + τ₂*𝐓𝐫*U + τ₃*𝐓𝐪*U) + F # The RHS evaluated at the nth level
+  𝐏 + 𝐇𝐪𝐫⁻¹*(τ₀*𝐄₀𝐫*𝐓𝐫 + τ₁*𝐄ₙ𝐪*𝐓𝐪 + τ₂*𝐄ₙ𝐫*𝐓𝐫 + τ₃*𝐄₀𝐪*𝐓𝐪) # The "stiffness term"  
 end
 
+# Assume an initial condition and load vector.
+U₀(x) = (@SVector [0.0, 0.0])';
+Uₜ₀(x) = (@SVector [0.0, 0.0])';
+F(x,t) = (@SVector [0.0, cos(π*x[1])*cos(π*x[2])*sin(π*t)])';
+
+# Begin solving the problem
+# Temporal Discretization parameters
+tf = 1.0
+Δt = 1e-3
+ntime = ceil(Int64,tf/Δt)
+# Plots
+plt = plot()
+plt1 = plot()
+
+args = METHOD, pterms, (𝐀ₜ, 𝐁ₜ, 𝐂ₜ)
+stima = K(args)
+massma = ρ*spdiagm(ones(size(stima,1)))
+let
+  u₀ = vec(reduce(vcat, U₀.(QR)));
+  v₀ = vec(reduce(vcat, Uₜ₀.(QR)));  
+  global u₁ = zero(u₀)  
+  global v₁ = zero(v₀)  
+  t = 0.0
+  for i=1:ntime    
+    Fvec = vec(reduce(vcat, F.(QR,t) + F.(QR,t+Δt)))    
+    fargs = Δt, t, u₀, v₀, Fvec
+    u₁,v₁ = CN(stima, massma, fargs)
+    t = t+Δt
+    u₀ = u₁
+    v₀ = v₁
+    (i % 10 == 0) && println("Done t="*string(t)*"\t sum(u₀) = "*string(sum(u₀)))
+  end  
+end

@@ -27,10 +27,10 @@ c₂(v) = @SVector [v, 0.1*sin(2π*v)]
 c₄(v) = @SVector [v, 1.0 + 0.1*sin(2π*v)]
 
 # Get the intersection points
-const P₁₂ = SVector{2}(P(c₁,c₂));
-const P₃₄ = SVector{2}(P(c₃,c₄));
-const P₄₁ = SVector{2}(P(c₄,c₁));
-const P₂₃ = SVector{2}(P(c₂,c₃));
+P₁₂ = SVector{2}(P(c₁,c₂));
+P₃₄ = SVector{2}(P(c₃,c₄));
+P₄₁ = SVector{2}(P(c₄,c₁));
+P₂₃ = SVector{2}(P(c₂,c₃));
 
 """
 The transfinite interpolation formula
