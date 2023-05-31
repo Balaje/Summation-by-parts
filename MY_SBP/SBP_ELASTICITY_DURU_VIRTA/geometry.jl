@@ -58,22 +58,12 @@ Fancy defintion of the Kronecker product
 ⊗(A,B) = kron(A,B)
 
 """
-Function to return the material tensors in the transformed coordinates
-"""
-function t(S, r)  
-  invJ = J⁻¹(S, r)    
-  Pr = 𝒫(r)
-  S = invJ ⊗ I(2)
-  S*Pr*S'
-end
-Aₜ(r) = t(𝒮,r)[1:2, 1:2];
-Bₜ(r) = t(𝒮,r)[3:4, 3:4];
-Cₜ(r) = t(𝒮,r)[1:2, 3:4];
-
-"""
 Evaluate the material tensor on the grid and sort accordingly
 """
-function ToGrid(A::Function, R::AbstractVecOrMat{SVector{2,T}}) where T<:Number
+struct OnGrid
+  X::Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
+end
+function OnGrid(A::Function, R::AbstractVecOrMat{SVector{2,T}}) where T<:Number
   AX = A.(R)
-  (getindex.(AX, 1, 1), getindex.(AX, 1, 2), getindex.(AX, 2, 1), getindex.(AX, 2, 2))
+  OnGrid((getindex.(AX, 1, 1), getindex.(AX, 1, 2), getindex.(AX, 2, 1), getindex.(AX, 2, 2)))
 end
