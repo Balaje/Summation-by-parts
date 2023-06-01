@@ -13,8 +13,8 @@ end
 """
 The Crank-Nicolson scheme (vₜₜ = f(t,v))
 """
-function CN(K::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float64, Int64}, args::Tuple{T, T, Vector{T}, Vector{T}, Vector{T}}) where T<:Number  
-  Δt, t, u, v, F = args  
+function CN(K::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float64, Int64}, args::Tuple{T, Vector{T}, Vector{T}, Vector{T}}) where T<:Number  
+  Δt, u, v, F = args  
   M⁺ = (M + (Δt/2)^2*K)
   M⁻ = (M - (Δt/2)^2*K)  
   u₁ = M⁺\(M⁻*u + Δt*M*v + (Δt)^2/4*F)

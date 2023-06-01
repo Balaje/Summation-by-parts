@@ -21,10 +21,10 @@ end
 Parametric Representation of the boundary
 Define c₁, c₂, c₃, c₄
 """
-c₁(u) = @SVector [0.1*sin(2π*u), u]
-c₃(u) = @SVector [1.0 + 0.1*sin(2π*u), u]
-c₂(v) = @SVector [v, 0.1*sin(2π*v)]
-c₄(v) = @SVector [v, 1.0 + 0.1*sin(2π*v)]
+c₁(u) = @SVector [0.0, u]
+c₃(u) = @SVector [1.0, u]
+c₂(v) = @SVector [v, 0.0]
+c₄(v) = @SVector [v, 1.0]
 
 # Get the intersection points
 P₁₂ = SVector{2}(P(c₁,c₂));
@@ -35,8 +35,8 @@ P₂₃ = SVector{2}(P(c₂,c₃));
 """
 The transfinite interpolation formula
 """
-𝒮(x) = (1-x[2])*c₁(x[1]) + x[2]*c₃(x[1]) + (1-x[1])*c₂(x[2]) + x[1]*c₄(x[2]) - 
-((1-x[1])*(1-x[2])*P₁₂ + x[1]*x[2]*P₃₄ + x[1]*(1-x[2])*P₄₁ + (1-x[1])*x[2]*P₂₃);
+𝒮(x) = (1-x[1])*c₁(x[2]) + x[1]*c₃(x[2]) + (1-x[2])*c₂(x[1]) + x[2]*c₄(x[1]) - 
+((1-x[2])*(1-x[1])*P₁₂ + x[2]*x[1]*P₃₄ + x[2]*(1-x[1])*P₄₁ + (1-x[2])*x[1]*P₂₃);
 
 """
 Function to return the Jacobian of the transformation

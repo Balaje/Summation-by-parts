@@ -46,8 +46,8 @@ Must pass the OnGrid operation on the
 function 𝐃𝐪𝐪(𝐀::OnGrid)
   X = 𝐀.X
   M = size(X[1], 1)
-  [SBP_VARIABLE_4(M, X[1])[2] SBP_VARIABLE_4(M, X[2])[2];
-   SBP_VARIABLE_4(M, X[3])[2] SBP_VARIABLE_4(M, X[4])[2]]
+  dropzeros([SBP_VARIABLE_4(M, X[1])[2] SBP_VARIABLE_4(M, X[2])[2];
+   SBP_VARIABLE_4(M, X[3])[2] SBP_VARIABLE_4(M, X[4])[2]])
 end
 
 """
@@ -60,8 +60,8 @@ Sparsify the OnGrid function. Does the operation
 """
 function sparsify(A::OnGrid)
   X = A.X
-  [spdiagm(X[1]) spdiagm(X[2]); 
-   spdiagm(X[3]) spdiagm(X[4])]
+  dropzeros([spdiagm(X[1]) spdiagm(X[2]); 
+   spdiagm(X[3]) spdiagm(X[4])])
 end
 
 
@@ -70,7 +70,7 @@ end
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 11; # No of points along the axes
+M = 21; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -85,10 +85,10 @@ QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
 METHOD = SBP(M);
 
 # Penalty terms for applying the boundary conditions using the SAT method
-τ₀ = 0.5;
-τ₁ = -0.5;
-τ₂ = -0.5;
-τ₃ = 0.5;
+τ₀ = -1;
+τ₁ = 1;
+τ₂ = -1;
+τ₃ = 1;
 pterms = (τ₀, τ₁, τ₂, τ₃)
 
 
@@ -101,9 +101,8 @@ function K(stencil)
   𝐀ₜ, 𝐁ₜ, 𝐂ₜ = coeffs
 
   # Collect all the necessary finite difference matrices from the method
-  # NOTE: Here D2s, Ids, H are not needed. 
+  # NOTE: Here D2s, H are not needed. 
   #       The D2s matrix is not needed since we use the variable SBP operator
-  #       Ids is not needed now because we use zero boundary condition. (To be done...)
   #       H because Hinv is precomputed
   HHinv, D1, D2s, S, Ids = METHOD;
   H, Hinv = HHinv;
@@ -112,7 +111,7 @@ function K(stencil)
   # Finite difference operators along the (q,r) direction
   Dq = D1; Dr = D1
   Sq = S; Sr = S;
-  # Hq = H; Hr = H;
+  Hq = H; Hr = H;
   Hqinv = Hinv; Hrinv = Hinv;
   τ₀, τ₁, τ₂, τ₃ = pterms
 
@@ -121,11 +120,11 @@ function K(stencil)
   𝐃𝐫 = (I(2) ⊗ I(M) ⊗ Dr);
   𝐒𝐪 = (I(2) ⊗ Sq ⊗ I(M));
   𝐒𝐫 = (I(2) ⊗ I(M) ⊗ Sr);  
-  𝐇𝐪𝐫⁻¹ = (I(2) ⊗ Hqinv ⊗ Hrinv);
-  𝐄₀𝐪 = (I(2) ⊗ E₀ ⊗ I(M));
-  𝐄₀𝐫 = (I(2) ⊗ I(M) ⊗ E₀);
-  𝐄ₙ𝐪 = (I(2) ⊗ Eₙ ⊗ I(M));  
-  𝐄ₙ𝐫 = (I(2) ⊗ I(M) ⊗ Eₙ);
+  
+  𝐇𝐪₀⁻¹ = (I(2) ⊗ (Hqinv*E₀) ⊗ I(M)); # q (x) = 0
+  𝐇𝐫₀⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*E₀)); # r (y) = 0
+  𝐇𝐪ₙ⁻¹ = (I(2) ⊗ (Hqinv*Eₙ) ⊗ I(M)); # q (x) = 1 
+  𝐇𝐫ₙ⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*Eₙ)); # r (y) = 1 
 
   # The variable SBP operator
   𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪(𝐀ₜ);
@@ -135,23 +134,18 @@ function K(stencil)
   𝐀 = sparsify(𝐀ₜ);
   𝐁 = sparsify(𝐁ₜ);
   𝐂 = sparsify(𝐂ₜ);
-  
-  display(𝐄₀𝐪)
-  display(𝐄₀𝐫)
-  display(𝐄ₙ𝐪)
-  display(𝐄ₙ𝐫)
 
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪*𝐂*𝐃𝐫 + 𝐃𝐫*𝐂'*𝐃𝐪); # The Elastic wave-equation operator
   𝐓𝐪 = (𝐀*𝐒𝐪 + 𝐂*𝐃𝐫); # The horizontal traction operator
   𝐓𝐫 = (𝐁*𝐒𝐫 + 𝐂'*𝐃𝐪); # The vertical traction operator
 
-  𝐏 + 𝐇𝐪𝐫⁻¹*(τ₀*𝐄₀𝐫*𝐓𝐫 + τ₁*𝐄ₙ𝐪*𝐓𝐪 + τ₂*𝐄ₙ𝐫*𝐓𝐫 + τ₃*𝐄₀𝐪*𝐓𝐪) # The "stiffness term"  
+  (𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪)) # The "stiffness term"  
 end
 
 # Assume an initial condition and load vector.
-U₀(x) = (@SVector [0.0, 0.0])';
+U₀(x) = (@SVector [sin(π*x[1])*sin(π*x[2]), 0.0])';
 Uₜ₀(x) = (@SVector [0.0, 0.0])';
-F(x,t) = (@SVector [0.0, cos(π*x[1])*cos(π*x[2])*sin(π*t)])';
+F(x,t) = (@SVector [0.0, 1.0])';
 
 # Begin solving the problem
 # Temporal Discretization parameters
@@ -163,6 +157,17 @@ plt = plot()
 plt1 = plot()
 
 args = METHOD, pterms, (𝐀ₜ, 𝐁ₜ, 𝐂ₜ)
+
+# The SBP matrices
+HHinv, D1, D2s, S, Ids = METHOD;
+H, Hinv = HHinv;
+E₀, Eₙ, e₀, eₙ, Id = Ids;
+Dq = D1; Dr = D1
+Sq = S; Sr = S;
+Hq = H; Hr = H;
+Hqinv = Hinv; Hrinv = Hinv;
+τ₀, τ₁, τ₂, τ₃ = pterms
+
 stima = K(args)
 massma = ρ*spdiagm(ones(size(stima,1)))
 let
@@ -173,7 +178,7 @@ let
   t = 0.0
   for i=1:ntime    
     Fvec = vec(reduce(vcat, F.(QR,t) + F.(QR,t+Δt)))    
-    fargs = Δt, t, u₀, v₀, Fvec
+    fargs = Δt, u₀, v₀, Fvec
     u₁,v₁ = CN(stima, massma, fargs)
     t = t+Δt
     u₀ = u₁
