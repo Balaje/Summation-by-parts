@@ -94,10 +94,40 @@ function K(stencil)
   -(𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪)) # The "stiffness term"  
 end
 
-# Assume an initial condition and load vector.
-U₀(x) = (@SVector [sin(π*x[1])*sin(π*x[2]), 0.0])';
-Uₜ₀(x) = (@SVector [0.0, 0.0])';
-F(x,t) = (@SVector [0.0, 1.0])';
+"""
+The boundary contribution terms. Applied into the load vector during time stepping
+"""
+function BC(stencil, bcfuns)
+  METHOD, pterms, QR = stencil
+  𝐠₁,𝐠₂,𝐠₃,𝐠₄ = bcfuns
+  Hinv = METHOD[1][2]
+  Hqinv = Hinv; Hrinv = Hinv
+  τ₀, τ₁, τ₂, τ₃ = pterms
+  E₀, Eₙ, e₀, eₙ, Id = Ids
+
+  𝐇𝐪₀⁻¹ = (I(2) ⊗ (Hqinv*E₀) ⊗ I(M)); # q (x) = 0
+  𝐇𝐫₀⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*E₀)); # r (y) = 0
+  𝐇𝐪ₙ⁻¹ = (I(2) ⊗ (Hqinv*Eₙ) ⊗ I(M)); # q (x) = 1 
+  𝐇𝐫ₙ⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*Eₙ)); # r (y) = 1 
+
+
+
+end
+# Assume an exact solution and compute the intitial condition and load vector
+U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*sin(π*t), sin(2π*x[1])*sin(2π*x[2])*sin(π*t)]);
+# Compute the right hand side using the exact solution
+Uₜ(x,t) = ForwardDiff.derivative(τ->U(x,τ), t)
+Uₜₜ(x,t) = ForwardDiff.derivative(τ->Uₜ(x,τ), t)
+F(x,t) = 
+# Compute the initial data from the exact solution
+U₀(x) = U(x,0);
+Uₜ₀(x) = Uₜ(x,0);
+function σ(u,x,t)
+  ∇u = vec(ForwardDiff.jacobian(y->u(y,t), x)) # [∂u/∂x ∂v/∂x ∂u/∂y ∂v/∂y]
+  reshape(𝒫*∇u, (2,2))
+end
+function divσ(u,x,t)  
+end
 
 # Begin solving the problem
 # Temporal Discretization parameters
