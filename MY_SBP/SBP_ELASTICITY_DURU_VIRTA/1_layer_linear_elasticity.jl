@@ -1,5 +1,5 @@
 include("geometry.jl");
-include("material_props.jl");
+# include("material_props.jl");
 include("SBP.jl");
 include("../time-stepping.jl");
 
@@ -31,7 +31,7 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 21; # No of points along the axes
+M = 11; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -91,47 +91,68 @@ function K(stencil)
   𝐓𝐪 = (A ⊗ 𝐒𝐪 + C ⊗ 𝐃𝐫); # The horizontal traction operator
   𝐓𝐫 = (Cᵀ ⊗ 𝐃𝐪 + B ⊗ 𝐒𝐫); # The vertical traction operator
 
-  -(𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪)) # The "stiffness term"  
+  -𝐏 + (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪) # The "stiffness term"  
 end
 
 """
 The boundary contribution terms. Applied into the load vector during time stepping
 """
-function BC(stencil, bcfuns)
+function BC(t::Float64, stencil)
   METHOD, pterms, QR = stencil
-  𝐠₁,𝐠₂,𝐠₃,𝐠₄ = bcfuns
   Hinv = METHOD[1][2]
+  Ids = METHOD[5];
   Hqinv = Hinv; Hrinv = Hinv
   τ₀, τ₁, τ₂, τ₃ = pterms
-  E₀, Eₙ, e₀, eₙ, Id = Ids
+  E₀, Eₙ, _, _, _ = Ids
 
   𝐇𝐪₀⁻¹ = (I(2) ⊗ (Hqinv*E₀) ⊗ I(M)); # q (x) = 0
   𝐇𝐫₀⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*E₀)); # r (y) = 0
   𝐇𝐪ₙ⁻¹ = (I(2) ⊗ (Hqinv*Eₙ) ⊗ I(M)); # q (x) = 1 
-  𝐇𝐫ₙ⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*Eₙ)); # r (y) = 1 
+  𝐇𝐫ₙ⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*Eₙ)); # r (y) = 1  
 
+  bq₀ = (I(2) ⊗ E₀ ⊗ I(M))*vec(reduce(vcat, g₃.(QR,t))') # q (x) = 0
+  br₀ = (I(2) ⊗ I(M) ⊗ E₀)*vec(reduce(vcat, g₀.(QR,t))') # r (y) = 0
+  bqₙ = (I(2) ⊗ Eₙ ⊗ I(M))*vec(reduce(vcat, g₁.(QR,t))') # q (x) = 1
+  brₙ = (I(2) ⊗ I(M) ⊗ Eₙ)*vec(reduce(vcat, g₂.(QR,t))') # r (y) = 1
 
-
+  -(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
+
+
+
 # Assume an exact solution and compute the intitial condition and load vector
 U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*sin(π*t), sin(2π*x[1])*sin(2π*x[2])*sin(π*t)]);
 # Compute the right hand side using the exact solution
 Uₜ(x,t) = ForwardDiff.derivative(τ->U(x,τ), t)
 Uₜₜ(x,t) = ForwardDiff.derivative(τ->Uₜ(x,τ), t)
-F(x,t) = 
 # Compute the initial data from the exact solution
 U₀(x) = U(x,0);
 Uₜ₀(x) = Uₜ(x,0);
-function σ(u,x,t)
-  ∇u = vec(ForwardDiff.jacobian(y->u(y,t), x)) # [∂u/∂x ∂v/∂x ∂u/∂y ∂v/∂y]
-  reshape(𝒫*∇u, (2,2))
+"""
+The right-hand side function
+"""
+function F(x,t) 
+  V(x) = U(x,t)
+  Uₜₜ(x,t) - divσ(V, x);
 end
-function divσ(u,x,t)  
+"""
+The Neumann boundary conditions (σ⋅n)
+"""
+function 𝐠(x,t)
+  V(x) = U(x,t)
+  𝛔(y) = σ(∇(V, y)...);
+  n = @SMatrix [0 1 0 -1; -1 0 1 0]
+  𝛔(x)*n   
 end
+g₀(x,t) = 𝐠(x,t)[:,1]
+g₁(x,t) = 𝐠(x,t)[:,2]
+g₂(x,t) = 𝐠(x,t)[:,3]
+g₃(x,t) = 𝐠(x,t)[:,4]
+
 
 # Begin solving the problem
 # Temporal Discretization parameters
-tf = 1.0
+tf = 0.25
 Δt = 1e-3
 ntime = ceil(Int64,tf/Δt)
 # Plots
@@ -153,18 +174,25 @@ Hqinv = Hinv; Hrinv = Hinv;
 stima = K(args)
 massma = ρ*spdiagm(ones(size(stima,1)))
 let
-  u₀ = vec(reduce(vcat, U₀.(QR)));
+  u₀ = vec(reduce(vcat, U₀.(QR))');
   v₀ = vec(reduce(vcat, Uₜ₀.(QR)));  
   global u₁ = zero(u₀)  
   global v₁ = zero(v₀)  
   t = 0.0
   for i=1:ntime    
-    Fvec = vec(reduce(vcat, F.(QR,t) + F.(QR,t+Δt)))    
-    fargs = Δt, u₀, v₀, Fvec
+    rhs = vec(reduce(vcat,F.(QR,t))') + vec(reduce(vcat,F.(QR,t+Δt))) + BC(t, (METHOD,pterms,QR)) + BC(t+Δt, (METHOD,pterms,QR))    
+    fargs = Δt, u₀, v₀, -rhs
     u₁,v₁ = CN(stima, massma, fargs)
     t = t+Δt
     u₀ = u₁
     v₀ = v₁
-    (i % 10 == 0) && println("Done t="*string(t)*"\t sum(u₀) = "*string(sum(u₀)))
+    (i % 10 == 0) && println("Done t="*string(t)*"\t sum(u₀) = "*string(maximum(abs.(u₀))))
   end  
+end
+
+function UV(sol)
+  _2M² = length(sol)
+  M² = Int(_2M²/2)
+  M = Int(sqrt((length(sol))/2))
+  (reshape(reshape(sol,(2,M²))[1,:],(M,M)), reshape(reshape(sol,(2,M²))[2,:],(M,M)))
 end

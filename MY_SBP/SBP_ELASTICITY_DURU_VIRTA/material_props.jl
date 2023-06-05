@@ -39,10 +39,10 @@ Cᵀ(x) = @SMatrix [C₁₁(x) C₂₁(x); C₁₂(x) C₂₂(x)]; =#
 The material properties are ideally functions of the grid points.
 But as a first try let us use the constant case to see if the code is working.
 """
-A = [c₁₁ 0; 0 c₃₃];
-B = [c₃₃ 0; 0 c₂₂];
-C = [0 c₁₂; c₃₃ 0];
-Cᵀ = [0 c₃₃; c₁₂ 0];
+const A = [c₁₁ 0; 0 c₃₃];
+const B = [c₃₃ 0; 0 c₂₂];
+const C = [0 c₁₂; c₃₃ 0];
+const Cᵀ = [0 c₃₃; c₁₂ 0];
 
 """
 The material property tensor in the physical coordinates
@@ -50,7 +50,49 @@ The material property tensor in the physical coordinates
           C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain (Defined in material_props.jl)
 """
-𝒫 = [c₁₁   0  0    c₁₂; 
-      0   c₃₃  c₃₃  0; 
-      0   c₃₃  c₃₃  0;
-     c₁₂   0  0    c₂₂];
+const 𝒫 = [c₁₁   0  0    c₁₂; 
+            0   c₃₃  c₃₃  0; 
+            0   c₃₃  c₃₃  0;
+           c₁₂   0  0    c₂₂];
+
+
+"""
+Gradient (Jacobian) of the displacement field
+"""
+function ∇(u,x)
+  ForwardDiff.jacobian(u, x), x
+end
+
+"""
+Cauchy Stress tensor using the displacement field.
+NOTE: x is unused here since we code it for the general case
+"""
+function σ(∇u,x)  
+  hcat(A*∇u[:,1] + C*∇u[:,2], Cᵀ*∇u[:,1] + B*∇u[:,2])
+end
+
+"""
+Divergence of a tensor field
+(Needs to be simplified)
+"""
+function divσ(v,x)
+  𝛔(x) = σ(∇(v, x)...);
+  j_σ_v = ∇(𝛔,x)[1]
+  @SVector [j_σ_v[1,1] + j_σ_v[2,2], j_σ_v[3,1] + j_σ_v[4,2]];
+end
+
+@testset "Some tests to verify the Gradient, Stress and Divergence." begin 
+  v(x) = [sin(π*x[1])*sin(π*x[2]), sin(2π*x[1])*sin(2π*x[2])];
+  ∇v(x) = [π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
+         2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])];
+  σv(x) = hcat(A*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + C*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]),
+         Cᵀ*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + B*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]));
+  div_σ_v(x) = A*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]) + C*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + 
+             Cᵀ*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + B*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]);
+
+  pt = @SVector rand(2)
+  @test ∇v(pt) ≈ ∇(v, pt)[1];
+  @test pt ≈ ∇(v, pt)[2];
+  @test σv(pt) ≈ σ(∇(v, pt)...);
+  @test div_σ_v(pt) ≈ divσ(v, pt);
+end;
