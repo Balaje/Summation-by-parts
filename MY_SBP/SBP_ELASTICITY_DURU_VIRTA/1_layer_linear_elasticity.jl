@@ -31,7 +31,7 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 11; # No of points along the axes
+M = 81; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -110,10 +110,10 @@ function BC(t::Float64, stencil)
   𝐇𝐪ₙ⁻¹ = (I(2) ⊗ (Hqinv*Eₙ) ⊗ I(M)); # q (x) = 1 
   𝐇𝐫ₙ⁻¹ = (I(2) ⊗ I(M) ⊗ (Hrinv*Eₙ)); # r (y) = 1  
 
-  bq₀ = (I(2) ⊗ E₀ ⊗ I(M))*vec(reduce(vcat, g₃.(QR,t))') # q (x) = 0
-  br₀ = (I(2) ⊗ I(M) ⊗ E₀)*vec(reduce(vcat, g₀.(QR,t))') # r (y) = 0
-  bqₙ = (I(2) ⊗ Eₙ ⊗ I(M))*vec(reduce(vcat, g₁.(QR,t))') # q (x) = 1
-  brₙ = (I(2) ⊗ I(M) ⊗ Eₙ)*vec(reduce(vcat, g₂.(QR,t))') # r (y) = 1
+  bq₀ = vec(reduce(hcat,(E₀ ⊗ I(M))*g₃.(QR,t))') # q (x) = 0
+  br₀ = vec(reduce(hcat,(I(M) ⊗ E₀)*g₀.(QR,t))') # r (y) = 0
+  bqₙ = vec(reduce(hcat,(Eₙ ⊗ I(M))*g₁.(QR,t))') # q (x) = 1
+  brₙ = vec(reduce(hcat,(I(M) ⊗ Eₙ)*g₂.(QR,t))') # r (y) = 1
 
   -(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
@@ -121,7 +121,7 @@ end
 
 
 # Assume an exact solution and compute the intitial condition and load vector
-U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*sin(π*t), sin(2π*x[1])*sin(2π*x[2])*sin(π*t)]);
+U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*t^3, sin(2π*x[1])*sin(2π*x[2])*t^3]);
 # Compute the right hand side using the exact solution
 Uₜ(x,t) = ForwardDiff.derivative(τ->U(x,τ), t)
 Uₜₜ(x,t) = ForwardDiff.derivative(τ->Uₜ(x,τ), t)
@@ -142,7 +142,7 @@ function 𝐠(x,t)
   V(x) = U(x,t)
   𝛔(y) = σ(∇(V, y)...);
   n = @SMatrix [0 1 0 -1; -1 0 1 0]
-  𝛔(x)*n   
+  SMatrix{2,4,Float64}(𝛔(x)*n)
 end
 g₀(x,t) = 𝐠(x,t)[:,1]
 g₁(x,t) = 𝐠(x,t)[:,2]
@@ -174,14 +174,19 @@ Hqinv = Hinv; Hrinv = Hinv;
 stima = K(args)
 massma = ρ*spdiagm(ones(size(stima,1)))
 let
-  u₀ = vec(reduce(vcat, U₀.(QR))');
-  v₀ = vec(reduce(vcat, Uₜ₀.(QR)));  
+  u₀ = collect(vec(reduce(hcat, U₀.(QR))'));
+  v₀ = collect(vec(reduce(hcat, Uₜ₀.(QR))'));  
   global u₁ = zero(u₀)  
   global v₁ = zero(v₀)  
   t = 0.0
-  for i=1:ntime    
-    rhs = vec(reduce(vcat,F.(QR,t))') + vec(reduce(vcat,F.(QR,t+Δt))) + BC(t, (METHOD,pterms,QR)) + BC(t+Δt, (METHOD,pterms,QR))    
-    fargs = Δt, u₀, v₀, -rhs
+  for i=1:ntime   
+    Fₙ = collect(vec(reduce(hcat, F.(QR,t))'))
+    Fₙ₊₁ = collect(vec(reduce(hcat, F.(QR,t+Δt))'))
+    gₙ = BC(t, (METHOD, pterms, QR))
+    gₙ₊₁ = BC(t+Δt, (METHOD,pterms,QR))
+
+    rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
+    fargs = Δt, u₀, v₀, rhs
     u₁,v₁ = CN(stima, massma, fargs)
     t = t+Δt
     u₀ = u₁
@@ -193,6 +198,16 @@ end
 function UV(sol)
   _2M² = length(sol)
   M² = Int(_2M²/2)
-  M = Int(sqrt((length(sol))/2))
-  (reshape(reshape(sol,(2,M²))[1,:],(M,M)), reshape(reshape(sol,(2,M²))[2,:],(M,M)))
+  M = Int(sqrt(M²))
+  (reshape(sol[1:M²],(M,M)), reshape(sol[M²+1:end], (M,M)))
 end
+
+## Visualize the solution
+Uap, Vap = UV(u₁)
+Ue, Ve = UV(reduce(hcat,U.(QR,tf))')
+plt1 = contourf(LinRange(0,1,M), LinRange(0,1,M), Uap, title="u₁ Approximate")
+plt2 = contourf(LinRange(0,1,M), LinRange(0,1,M), Ue, title="u₁ Exact")
+plt3 = contourf(LinRange(0,1,M), LinRange(0,1,M), Vap, title="v₁ Approximate")
+plt4 = contourf(LinRange(0,1,M), LinRange(0,1,M), Ve, title="v₁ Exact")
+plt12 = plot(plt1, plt2, xlabel="x", ylabel="y");
+plt34 = plot(plt3, plt4, xlabel="x", ylabel="y");
