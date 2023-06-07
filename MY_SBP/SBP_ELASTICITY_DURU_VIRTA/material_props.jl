@@ -6,6 +6,7 @@
 
 using FillArrays
 using LazyArrays
+using Test
 
 ## Material parameters
 
