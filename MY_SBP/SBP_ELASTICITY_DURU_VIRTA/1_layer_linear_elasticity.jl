@@ -1,5 +1,5 @@
 include("geometry.jl");
-include("material_props.jl");
+# include("material_props.jl");
 include("SBP.jl");
 include("../time-stepping.jl");
 
@@ -31,7 +31,7 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 21; # No of points along the axes
+M = 11; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -140,8 +140,8 @@ The Neumann boundary conditions (σ⋅n)
 """
 function 𝐠(x,t)
   V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y)...);
-  n = @SMatrix [0 1 0 -1; -1 0 1 0]
+  𝛔(y) = σ(∇(V, y));
+  n = @SMatrix [0 -1 0 -1; -1 0 -1 0]
   SMatrix{2,4,Float64}(𝛔(x)*n)
 end
 g₀(x,t) = 𝐠(x,t)[:,1]

@@ -60,14 +60,14 @@ const 𝒫 = [c₁₁   0  0    c₁₂;
 Gradient (Jacobian) of the displacement field
 """
 function ∇(u,x)
-  ForwardDiff.jacobian(u, x), x
+  ForwardDiff.jacobian(u, x)
 end
 
 """
 Cauchy Stress tensor using the displacement field.
 NOTE: x is unused here since we code it for the general case
 """
-function σ(∇u,x)  
+function σ(∇u)  
   hcat(A*∇u[:,1] + C*∇u[:,2], Cᵀ*∇u[:,1] + B*∇u[:,2])
 end
 
@@ -76,12 +76,12 @@ Divergence of a tensor field
 (Needs to be simplified)
 """
 function divσ(v,x)
-  𝛔(x) = σ(∇(v, x)...);
-  j_σ_v = ∇(𝛔,x)[1]
+  𝛔(x) = σ(∇(v, x));
+  j_σ_v = ∇(𝛔,x)
   @SVector [j_σ_v[1,1] + j_σ_v[2,2], j_σ_v[3,1] + j_σ_v[4,2]];
 end
 
-#= @testset "Some tests to verify the Gradient, Stress and Divergence." begin 
+@testset "Some tests to verify the Gradient, Stress and Divergence." begin 
   v(x) = [sin(π*x[1])*sin(π*x[2]), sin(2π*x[1])*sin(2π*x[2])];
   ∇v(x) = [π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
          2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])];
@@ -91,8 +91,7 @@ end
              Cᵀ*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + B*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]);
 
   pt = @SVector rand(2)
-  @test ∇v(pt) ≈ ∇(v, pt)[1];
-  @test pt ≈ ∇(v, pt)[2];
-  @test σv(pt) ≈ σ(∇(v, pt)...);
+  @test ∇v(pt) ≈ ∇(v, pt);  
+  @test σv(pt) ≈ σ(∇(v, pt));
   @test div_σ_v(pt) ≈ divσ(v, pt);
-end; =#
+end;
