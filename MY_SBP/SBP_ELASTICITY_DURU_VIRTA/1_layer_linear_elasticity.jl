@@ -1,5 +1,5 @@
 include("geometry.jl");
-# include("material_props.jl");
+include("material_props.jl");
 include("SBP.jl");
 include("../time-stepping.jl");
 
@@ -31,7 +31,7 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 #################################
 
 domain = (0.0,1.0,0.0,1.0);
-M = 11; # No of points along the axes
+M = 21; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
 QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
@@ -75,10 +75,10 @@ function SBP_2d(SBP_1d)
   𝐇𝐫ₙ⁻¹ = (I(2) ⊗ Id ⊗ (Hrinv*Eₙ)); # r (y) = 1 
 
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = A ⊗ (Dqq ⊗ Id)
-  𝐃𝐫𝐫ᴮ = B ⊗ (Id ⊗ Drr)
-  𝐃𝐪C𝐃𝐫 = C ⊗ (𝐃𝐪 * 𝐃𝐫)
-  𝐃𝐫Cᵗ𝐃𝐪 = Cᵀ ⊗ (𝐃𝐫 * 𝐃𝐪)
+  𝐃𝐪𝐪ᴬ = A ⊗ (Dqq ⊗ Id);
+  𝐃𝐫𝐫ᴮ = B ⊗ (Id ⊗ Drr);
+  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪) * (C ⊗ 𝐃𝐫);
+  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫) * (Cᵀ ⊗ 𝐃𝐪);
 
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪); # The Elastic wave-equation operator
   𝐓𝐪 = (A ⊗ 𝐒𝐪 + C ⊗ 𝐃𝐫); # The horizontal traction operator
@@ -112,7 +112,7 @@ function BC(t::Float64, sbp_2d, pterms)
 
   bq₀ = flatten_grid_function(g₃, QR, t; P=𝐈q₀) # q (x) = 0  
   br₀ = flatten_grid_function(g₀, QR, t; P=𝐈r₀) # r (y) = 0
-  bqₙ = flatten_grid_function(g₁, QR ,t; P=𝐈qₙ) # q (x) = 1
+  bqₙ = flatten_grid_function(g₁, QR, t; P=𝐈qₙ) # q (x) = 1
   brₙ = flatten_grid_function(g₂, QR, t; P=𝐈rₙ) # r (y) = 1
 
   -(-τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ - τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
@@ -121,7 +121,7 @@ end
 
 
 # Assume an exact solution and compute the intitial condition and load vector
-U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*t, sin(2π*x[1])*sin(2π*x[2])*t]);
+U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*t^3, sin(2π*x[1])*sin(2π*x[2])*t^3]);
 # Compute the right hand side using the exact solution
 Uₜ(x,t) = ForwardDiff.derivative(τ->U(x,τ), t)
 Uₜₜ(x,t) = ForwardDiff.derivative(τ->Uₜ(x,τ), t)
@@ -159,8 +159,8 @@ ntime = ceil(Int64,tf/Δt)
 plt = plot()
 plt1 = plot()
 
-sbp_1d = SBP(M)
-sbp_2d = SBP_2d(sbp_1d)
+sbp_1d = SBP(M);
+sbp_2d = SBP_2d(sbp_1d);
 
 stima = K(sbp_2d, pterms)
 massma = ρ*spdiagm(ones(size(stima,1)))

@@ -81,7 +81,7 @@ function divσ(v,x)
   @SVector [j_σ_v[1,1] + j_σ_v[2,2], j_σ_v[3,1] + j_σ_v[4,2]];
 end
 
-@testset "Some tests to verify the Gradient, Stress and Divergence." begin 
+#= @testset "Some tests to verify the Gradient, Stress and Divergence." begin 
   v(x) = [sin(π*x[1])*sin(π*x[2]), sin(2π*x[1])*sin(2π*x[2])];
   ∇v(x) = [π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
          2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])];
@@ -95,4 +95,4 @@ end
   @test pt ≈ ∇(v, pt)[2];
   @test σv(pt) ≈ σ(∇(v, pt)...);
   @test div_σ_v(pt) ≈ divσ(v, pt);
-end;
+end; =#
