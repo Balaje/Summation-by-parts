@@ -1,5 +1,5 @@
 include("geometry.jl");
-# include("material_props.jl");
+include("material_props.jl");
 include("SBP.jl");
 include("SBP_2d.jl")
 include("../time-stepping.jl");
@@ -30,10 +30,8 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 """
 Flatten the 2d function as a single vector for the time iterations
 """
-function flatten_grid_function(f, QR, t; P=I(M^2))
-  F = f.(QR,t)
-  collect(vec(reduce(hcat, P*F)'))
-end
+eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+
 
 """
 The stiffness term (K) in the elastic wave equation
@@ -54,7 +52,7 @@ function stima(sbp_2d, pterms)
   𝐓𝐪ₙ = (A ⊗ 𝐒𝐪 + C ⊗ 𝐃𝐫) # The horizontal traction operator
   𝐓𝐫ₙ = (Cᵀ ⊗ 𝐃𝐪 + B ⊗ 𝐒𝐫) # The vertical traction operator
   # The "stiffness term"  
-  -𝐏 - (-τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ - τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ - τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
+  𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
 end
 
 """
@@ -62,16 +60,16 @@ The boundary contribution terms g
   Ü = -K*U + (f + g)
 Applied into the load vector during time stepping
 """
-function nbc(t::Float64, sbp_2d, pterms)
+function nbc(t::Float64, XY, sbp_2d, pterms)
   _, _, (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀, 𝐈r₀, 𝐈qₙ, 𝐈rₙ) = sbp_2d
   τ₀, τ₁, τ₂, τ₃ = pterms
 
-  bq₀ = flatten_grid_function(g₀, QR, t; P=𝐈q₀) # q (x) = 0  
-  br₀ = flatten_grid_function(g₁, QR, t; P=𝐈r₀) # r (y) = 0
-  bqₙ = flatten_grid_function(g₂, QR, t; P=𝐈qₙ) # q (x) = 1
-  brₙ = flatten_grid_function(g₃, QR, t; P=𝐈rₙ) # r (y) = 1
+  bq₀ = eltocols(𝐈q₀*g₀.(XY, t)) # q (x) = 0  
+  br₀ = eltocols(𝐈r₀*g₁.(XY, t)) # r (y) = 0
+  bqₙ = eltocols(𝐈qₙ*g₂.(XY,t)) # q (x) = 1
+  brₙ = eltocols(𝐈rₙ*g₃.(XY,t)) # r (y) = 1
 
-  -(-τ₀*𝐇𝐫₀⁻¹*br₀ - τ₁*𝐇𝐫ₙ⁻¹*brₙ - τ₂*𝐇𝐪₀⁻¹*bq₀ - τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
+  (τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
 
 #################################
@@ -90,23 +88,37 @@ function F(x,t)
   V(x) = U(x,t)
   Uₜₜ(x,t) - divσ(V, x);
 end
-function 𝐠(x,t)
+function g₀(x,t)
   V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y));
-  n = @SMatrix [-1 0 1 0; 0 -1 0 1]
-  SMatrix{2,4,Float64}(𝛔(x)*n)
+  𝛔(y) = σ(∇(V, y),y);  
+  τ = 𝛔(x)  
+  @SVector [τ[1]*(-1) + τ[2]*(0); τ[3]*(-1) + τ[4]*(0)]
 end
-g₀(x,t) = 𝐠(x,t)[:,1]
-g₁(x,t) = 𝐠(x,t)[:,2]
-g₂(x,t) = 𝐠(x,t)[:,3]
-g₃(x,t) = 𝐠(x,t)[:,4]
+function g₁(x,t)
+  V(x) = U(x,t)
+  𝛔(y) = σ(∇(V, y),y);  
+  τ = 𝛔(x)  
+  @SVector [τ[1]*(0) + τ[2]*(-1); τ[3]*(0) + τ[4]*(-1)]
+end
+function g₂(x,t)
+  V(x) = U(x,t)
+  𝛔(y) = σ(∇(V, y),y);  
+  τ = 𝛔(x)  
+  @SVector [τ[1]*(1) + τ[2]*(0); τ[3]*(1) + τ[4]*(0)]
+end
+function g₃(x,t)
+  V(x) = U(x,t)
+  𝛔(y) = σ(∇(V, y),y);  
+  τ = 𝛔(x)  
+  @SVector [τ[1]*(0) + τ[2]*(1); τ[3]*(0) + τ[4]*(1)]
+end
 
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
 M = 11; # No of points along the axes
 q = LinRange(0,1,M);
 r = LinRange(0,1,M);
-QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
 # Get the SBP matrices
 sbp_1d = SBP(M);
 sbp_2d = SBP_2d(sbp_1d);
@@ -124,8 +136,8 @@ plt1 = plot()
 𝐊 = stima(sbp_2d, pterms)
 𝐌 = ρ*spdiagm(ones(2*M^2))
 let
-  u₀ = flatten_grid_function(U, QR, 0)
-  v₀ = flatten_grid_function(Uₜ, QR, 0)
+  u₀ = eltocols(U.(XY,0))
+  v₀ = eltocols(Uₜ.(XY,0))
   #=  
   # Leapfrog scheme
   t = 0.0
@@ -150,10 +162,10 @@ let
   global v₁ = zero(v₀)  
   t = 0.0
   for i=1:ntime   
-    Fₙ = flatten_grid_function(F, QR, t)
-    Fₙ₊₁ = flatten_grid_function(F, QR, t+Δt)
-    gₙ = nbc(t, sbp_2d, pterms)
-    gₙ₊₁ = nbc(t+Δt, sbp_2d, pterms)
+    Fₙ = eltocols(F.(XY, t))
+    Fₙ₊₁ = eltocols(F.(XY, t+Δt))
+    gₙ = nbc(t, XY, sbp_2d, pterms)
+    gₙ₊₁ = nbc(t+Δt, XY, sbp_2d, pterms)
 
     rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
     fargs = Δt, u₀, v₀, rhs

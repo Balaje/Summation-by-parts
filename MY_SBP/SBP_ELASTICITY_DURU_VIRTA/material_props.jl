@@ -7,6 +7,8 @@
 using FillArrays
 using LazyArrays
 using Test
+using StaticArrays
+using ForwardDiff
 
 ## Material parameters
 
@@ -18,32 +20,18 @@ const λ = E*ν/((1+ν)*(1-2ν));
 
 const ρ = 1.0
 
-const c₁₁ = c₂₂ = 2μ+λ
+const c₁₁ = const c₂₂ = 2μ+λ
 const c₃₃ = μ
 const c₁₂ = λ
-
-#= # These are the material property functions. 
-# In this case we assume orthotropic, anisotropic media
-A₁₁(x) = c₁₁; A₁₂(x) = 0.0; A₂₁(x) = 0.0; A₂₂(x) = c₃₃;
-B₁₁(x) = c₃₃; B₁₂(x) = 0.0; B₂₁(x) = 0.0; B₂₂(x) = c₂₂;
-C₁₁(x) = 0.0; C₁₂(x) = c₁₂; C₂₁(x) = c₃₃; C₂₂(x) = 0.0;
-
-"""
-Material property tensors
-"""
-A(x) = @SMatrix [A₁₁(x) A₁₂(x); A₂₁(x) A₂₂(x)];
-B(x) = @SMatrix [B₁₁(x) B₁₂(x); B₂₁(x) B₂₂(x)];
-C(x) = @SMatrix [C₁₁(x) C₁₂(x); C₂₁(x) C₂₂(x)];
-Cᵀ(x) = @SMatrix [C₁₁(x) C₂₁(x); C₁₂(x) C₂₂(x)]; =#
 
 """
 The material properties are ideally functions of the grid points.
 But as a first try let us use the constant case to see if the code is working.
 """
-const A = [c₁₁ 0; 0 c₃₃];
-const B = [c₃₃ 0; 0 c₂₂];
-const C = [0 c₁₂; c₃₃ 0];
-const Cᵀ = [0 c₃₃; c₁₂ 0];
+A(x) = @SMatrix [c₁₁ 0; 0 c₃₃];
+B(x) = @SMatrix [c₃₃ 0; 0 c₂₂];
+C(x) = @SMatrix [0 c₁₂; c₃₃ 0];
+Cᵀ(x) = @SMatrix [0 c₃₃; c₁₂ 0];
 
 """
 The material property tensor in the physical coordinates
@@ -51,48 +39,52 @@ The material property tensor in the physical coordinates
           C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain (Defined in material_props.jl)
 """
-const 𝒫 = [c₁₁   0  0    c₁₂; 
-            0   c₃₃  c₃₃  0; 
-            0   c₃₃  c₃₃  0;
-           c₁₂   0  0    c₂₂];
+𝒫(x) = @SMatrix [c₁₁ 0 0 c₁₂; 0 c₃₃ c₃₃ 0; 0 c₃₃ c₃₃ 0; c₁₂ 0 0 c₂₂];
 
 
 """
 Gradient (Jacobian) of the displacement field
 """
-function ∇(u,x)
-  ForwardDiff.jacobian(u, x)
+@inline function ∇(u,x)
+ vec(ForwardDiff.jacobian(u, x))
 end
 
 """
 Cauchy Stress tensor using the displacement field.
-NOTE: x is unused here since we code it for the general case
+
 """
-function σ(∇u)  
-  hcat(A*∇u[:,1] + C*∇u[:,2], Cᵀ*∇u[:,1] + B*∇u[:,2])
+@inline function σ(∇u,x)  
+  𝒫(x)*∇u
 end
 
 """
 Divergence of a tensor field
-(Needs to be simplified)
+  v is a 2×2 matrix here, where each entries are scalar functions
 """
-function divσ(v,x)
-  𝛔(x) = σ(∇(v, x));
-  j_σ_v = ∇(𝛔,x)
-  @SVector [j_σ_v[1,1] + j_σ_v[2,2], j_σ_v[3,1] + j_σ_v[4,2]];
+function div(v,x)
+  v₁₁(x) = v(x)[1]; 
+  v₁₂(x) = v(x)[2]; 
+  v₂₁(x) = v(x)[3];
+  v₂₂(x) = v(x)[4];   
+  ∂xv₁₁ = ForwardDiff.gradient(v₁₁,x)[1];
+  ∂xv₁₂ = ForwardDiff.gradient(v₁₂,x)[1];
+  ∂yv₂₁ = ForwardDiff.gradient(v₂₁,x)[2];
+  ∂yv₂₂ = ForwardDiff.gradient(v₂₂,x)[2];
+  @SVector [∂xv₁₁ + ∂yv₂₁; ∂xv₁₂ + ∂yv₂₂]
 end
 
 @testset "Some tests to verify the Gradient, Stress and Divergence." begin 
   v(x) = [sin(π*x[1])*sin(π*x[2]), sin(2π*x[1])*sin(2π*x[2])];
-  ∇v(x) = [π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
-         2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])];
-  σv(x) = hcat(A*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + C*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]),
-         Cᵀ*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + B*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]));
-  div_σ_v(x) = A*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]) + C*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + 
-             Cᵀ*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + B*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]);
+  ∇v(x) = vec([π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
+         2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])]);
+  σv(x) = vec(hcat(A(x)*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + C(x)*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]),
+         Cᵀ(x)*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + B(x)*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])])));
+  div_σ_v(x) = A(x)*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]) + C(x)*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + 
+             Cᵀ(x)*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + B(x)*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]);
 
   pt = @SVector rand(2)
   @test ∇v(pt) ≈ ∇(v, pt);  
-  @test σv(pt) ≈ σ(∇(v, pt));
-  @test div_σ_v(pt) ≈ divσ(v, pt);
+  @test σv(pt) ≈ σ(∇(v, pt), pt);
+  σ∇(x) = σ(∇(v,x),x)
+  @test div_σ_v(pt) ≈ div(σ∇, pt);
 end;
