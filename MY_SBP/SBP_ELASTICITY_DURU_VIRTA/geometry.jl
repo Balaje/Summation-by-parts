@@ -1,8 +1,4 @@
 # Module to define the computational domain
-using NLsolve
-using ForwardDiff
-using LinearAlgebra
-using StaticArrays
 
 """
 Function to compute the intersection point of the two curves c₁,c₂
@@ -58,12 +54,27 @@ Fancy defintion of the Kronecker product
 ⊗(A,B) = kron(A,B)
 
 """
-Evaluate the material tensor on the grid and sort accordingly
+Function to return the material tensor in the reference coordinates (0,1)×(0,1). Returns 
+  𝒫' = S*𝒫*S'
+where S is the transformation matrix
 """
-struct OnGrid
-  X::Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
+function t(S, r)  
+  invJ = J⁻¹(S, r)      
+  S = invJ ⊗ I(2)
+  S*𝒫*S'
 end
-function OnGrid(A::Function, R::AbstractVecOrMat{SVector{2,T}}) where T<:Number
-  AX = A.(R)
-  OnGrid((getindex.(AX, 1, 1), getindex.(AX, 1, 2), getindex.(AX, 2, 1), getindex.(AX, 2, 2)))
-end
+
+"""
+The material coefficient matrices in the reference coordinates (0,1)×(0,1).
+  A(x) -> Aₜ(r)
+  B(x) -> Bₜ(r)
+  C(x) -> Cₜ(r) 
+"""
+Aₜ(r) = t(𝒮,r)[1:2, 1:2];
+Bₜ(r) = t(𝒮,r)[3:4, 3:4];
+Cₜ(r) = t(𝒮,r)[1:2, 3:4];
+
+"""
+Flatten the 2d function as a single vector for the time iterations
+"""
+eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');

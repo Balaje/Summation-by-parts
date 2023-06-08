@@ -1,37 +1,4 @@
-# include("geometry.jl");
-# include("material_props.jl");
-# include("SBP.jl");
-# include("SBP_2d.jl")
-# include("../time-stepping.jl");
-
-using Plots
-
-"""
-Function to return the material tensor in the reference coordinates (0,1)×(0,1). Returns 
-  𝒫' = S*𝒫*S'
-where S is the transformation matrix
-"""
-function t(S, r)  
-  invJ = J⁻¹(S, r)      
-  S = invJ ⊗ I(2)
-  S*𝒫*S'
-end
-
-"""
-The material coefficient matrices in the reference coordinates (0,1)×(0,1).
-  A(x) -> Aₜ(r)
-  B(x) -> Bₜ(r)
-  C(x) -> Cₜ(r) 
-"""
-Aₜ(r) = t(𝒮,r)[1:2, 1:2];
-Bₜ(r) = t(𝒮,r)[3:4, 3:4];
-Cₜ(r) = t(𝒮,r)[1:2, 3:4];
-
-"""
-Flatten the 2d function as a single vector for the time iterations
-"""
-eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
-
+include("2d_elasticity_problem.jl");
 
 """
 The stiffness term (K) in the elastic wave equation
@@ -79,45 +46,6 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-
-# Assume an exact solution and compute the intitial condition and load vector
-U(x,t) = (@SVector [sin(π*x[1])*sin(π*x[2])*sin(π*t), sin(2π*x[1])*sin(2π*x[2])*sin(π*t)]);
-# Compute the right hand side using the exact solution
-Uₜ(x,t) = ForwardDiff.derivative(τ->U(x,τ), t)
-Uₜₜ(x,t) = ForwardDiff.derivative(τ->Uₜ(x,τ), t)
-# Compute the initial data from the exact solution
-U₀(x) = U(x,0);
-Uₜ₀(x) = Uₜ(x,0);
-function F(x,t) 
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  Uₜₜ(x,t) - div(𝛔, x);
-end
-function g₀(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(-1) + τ[2]*(0); τ[3]*(-1) + τ[4]*(0)]
-end
-function g₁(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(0) + τ[2]*(-1); τ[3]*(0) + τ[4]*(-1)]
-end
-function g₂(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(1) + τ[2]*(0); τ[3]*(1) + τ[4]*(0)]
-end
-function g₃(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(0) + τ[2]*(1); τ[3]*(0) + τ[4]*(1)]
-end
-
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
 M = 101; # No of points along the axes

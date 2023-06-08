@@ -4,12 +4,6 @@
 # Contains the functions that describes the material parameters
 #################################################################
 
-using FillArrays
-using LazyArrays
-using Test
-using StaticArrays
-using ForwardDiff
-
 ## Material parameters
 
 const E = 1.0;

@@ -1,7 +1,8 @@
+include("SBP.jl")
+
 """
 Function to get the 2d stencil from the 1d version
 """
-
 function SBP_2d(SBP_1d)
   # Collect all the necessary finite difference matrices from the method
   # NOTE: Here D2s, H are not needed. 
@@ -37,4 +38,11 @@ function SBP_2d(SBP_1d)
   𝐈rₙ = Id ⊗ Eₙ
 
   (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀, 𝐈r₀, 𝐈qₙ, 𝐈rₙ)
+end
+
+"""
+Function to get the 2d stencil (variable) from the 1d version
+"""
+function SBP_2d_variable(SBP_1d)
+
 end
