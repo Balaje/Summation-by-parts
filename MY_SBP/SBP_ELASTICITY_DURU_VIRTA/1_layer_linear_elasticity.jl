@@ -1,8 +1,8 @@
-include("geometry.jl");
-include("material_props.jl");
-include("SBP.jl");
-include("SBP_2d.jl")
-include("../time-stepping.jl");
+# include("geometry.jl");
+# include("material_props.jl");
+# include("SBP.jl");
+# include("SBP_2d.jl")
+# include("../time-stepping.jl");
 
 using Plots
 
@@ -41,16 +41,20 @@ function stima(sbp_2d, pterms)
   (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), _ = sbp_2d
   τ₀, τ₁, τ₂, τ₃ = pterms  
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = A ⊗ 𝐃𝐪𝐪
-  𝐃𝐫𝐫ᴮ = B ⊗ 𝐃𝐫𝐫
-  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪) * (C ⊗ 𝐃𝐫)
-  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫) * (Cᵀ ⊗ 𝐃𝐪)  
+  Ac = collect(A(@SVector[0.0,0.0]))
+  Bc = collect(B(@SVector[0.0,0.0]))
+  Cc = collect(C(@SVector[0.0,0.0]))
+  Cᵀc = collect(Cᵀ(@SVector[0.0,0.0]))
+  𝐃𝐪𝐪ᴬ = Ac ⊗ 𝐃𝐪𝐪
+  𝐃𝐫𝐫ᴮ = Bc ⊗ 𝐃𝐫𝐫
+  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪) * (Cc ⊗ 𝐃𝐫)
+  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫) * (Cᵀc ⊗ 𝐃𝐪)  
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term
-  𝐓𝐪₀ = -(A ⊗ 𝐒𝐪 + C ⊗ 𝐃𝐫) # The horizontal traction operator
-  𝐓𝐫₀ = -(Cᵀ ⊗ 𝐃𝐪 + B ⊗ 𝐒𝐫) # The vertical traction operator
-  𝐓𝐪ₙ = (A ⊗ 𝐒𝐪 + C ⊗ 𝐃𝐫) # The horizontal traction operator
-  𝐓𝐫ₙ = (Cᵀ ⊗ 𝐃𝐪 + B ⊗ 𝐒𝐫) # The vertical traction operator
+  𝐓𝐪₀ = -(Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫) # The horizontal traction operator
+  𝐓𝐫₀ = -(Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫) # The vertical traction operator
+  𝐓𝐪ₙ = (Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫) # The horizontal traction operator
+  𝐓𝐫ₙ = (Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫) # The vertical traction operator
   # The "stiffness term"  
   𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
 end
@@ -86,7 +90,8 @@ U₀(x) = U(x,0);
 Uₜ₀(x) = Uₜ(x,0);
 function F(x,t) 
   V(x) = U(x,t)
-  Uₜₜ(x,t) - divσ(V, x);
+  𝛔(y) = σ(∇(V, y),y);  
+  Uₜₜ(x,t) - div(𝛔, x);
 end
 function g₀(x,t)
   V(x) = U(x,t)
@@ -115,9 +120,9 @@ end
 
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-M = 11; # No of points along the axes
+M = 101; # No of points along the axes
 q = LinRange(0,1,M);
-r = LinRange(0,1,M);
+r = LinRange(0,1,M);  
 XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
 # Get the SBP matrices
 sbp_1d = SBP(M);
@@ -135,6 +140,7 @@ plt = plot()
 plt1 = plot()
 𝐊 = stima(sbp_2d, pterms)
 𝐌 = ρ*spdiagm(ones(2*M^2))
+lu𝐊 = factorize(𝐌 - (Δt/2)^2*𝐊)
 let
   u₀ = eltocols(U.(XY,0))
   v₀ = eltocols(Uₜ.(XY,0))
@@ -169,7 +175,7 @@ let
 
     rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
     fargs = Δt, u₀, v₀, rhs
-    u₁,v₁ = CN(𝐊, 𝐌, fargs)
+    u₁,v₁ = CN(lu𝐊, 𝐊, 𝐌, fargs)    
     t = t+Δt
     u₀ = u₁
     v₀ = v₁
@@ -181,7 +187,7 @@ end
 # Compute the L²Error
 H = sbp_1d[1][1]
 𝐇 = I(2) ⊗ H ⊗ H
-e = sol - flatten_grid_function(U, QR, tf)
+e = sol - eltocols(U.(XY,tf))
 @show sqrt(e'*𝐇*e)
 
 function UV(sol)
@@ -193,10 +199,10 @@ end
 
 ## Visualize the solution
 Uap, Vap = UV(sol)
-Ue, Ve = UV(reduce(hcat,U.(QR,tf))')
-plt1 = contourf(LinRange(0,1,M), LinRange(0,1,M), Uap, title="u₁ Approximate")
-plt2 = contourf(LinRange(0,1,M), LinRange(0,1,M), Ue, title="u₁ Exact")
-plt3 = contourf(LinRange(0,1,M), LinRange(0,1,M), Vap, title="v₁ Approximate")
-plt4 = contourf(LinRange(0,1,M), LinRange(0,1,M), Ve, title="v₁ Exact")
+Ue, Ve = UV(reduce(hcat,U.(XY,tf))')
+plt1 = contourf(q, r, Uap, title="u₁ Approximate")
+plt2 = contourf(q, r, Ue, title="u₁ Exact")
+plt3 = contourf(q, r, Vap, title="v₁ Approximate")
+plt4 = contourf(q, r, Ve, title="v₁ Exact")
 plt12 = plot(plt1, plt2, xlabel="x", ylabel="y", layout=(2,1), size=(400,800));
 plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(400,800));

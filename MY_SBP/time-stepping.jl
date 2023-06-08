@@ -12,11 +12,12 @@ end
 
 """
 The Crank-Nicolson scheme (vₜₜ = f(t,v))
+  M⁺ is the appropriate factorization obtained by 
+    factorize(M - Δt^2/4*K)
 """
-function CN(K::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float64, Int64}, 
+function CN(M⁺, K::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float64, Int64}, 
   args::Tuple{T, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}}) where T<:Number  
   Δt, u, v, F = args  
-  M⁺ = (M - (Δt/2)^2*K)
   M⁻ = (M + (Δt/2)^2*K)  
   u₁ = M⁺\(M⁻*u + Δt*M*v + (Δt)^2/4*F)
   v₁ = -v + (2/Δt)*(u₁ - u)
