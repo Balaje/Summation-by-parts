@@ -3,7 +3,7 @@ include("SBP.jl")
 """
 Function to get the 2d stencil from the 1d version
 """
-function SBP_2d(SBP_1d)
+function SBP_2d(XY, SBP_1d)
   # Collect all the necessary finite difference matrices from the method
   # NOTE: Here D2s, H are not needed. 
   #       The D2s matrix is not needed since we use the variable SBP operator
@@ -37,7 +37,17 @@ function SBP_2d(SBP_1d)
   𝐈r₀ = Id ⊗ E₀
   𝐈rₙ = Id ⊗ Eₙ
 
-  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀, 𝐈r₀, 𝐈qₙ, 𝐈rₙ)
+  𝐈q₀a = findnz(𝐈q₀)[1]; 
+  𝐈qₙa = findnz(𝐈qₙ)[1];   
+  𝐈r₀a = findnz(𝐈r₀)[1];   
+  𝐈rₙa = findnz(𝐈rₙ)[1];   
+
+  XYq₀ = XY[𝐈q₀a]
+  XYqₙ = XY[𝐈qₙa]
+  XYr₀ = XY[𝐈r₀a]
+  XYrₙ = XY[𝐈rₙa]
+
+  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀a, 𝐈r₀a, 𝐈qₙa, 𝐈rₙa), (XYq₀, XYr₀, XYqₙ, XYrₙ)
 end
 
 """
