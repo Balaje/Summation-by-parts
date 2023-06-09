@@ -35,12 +35,12 @@ function nbc(t::Float64, XY, sbp_2d, pterms)
   _, _, (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀, 𝐈r₀, 𝐈qₙ, 𝐈rₙ) = sbp_2d
   τ₀, τ₁, τ₂, τ₃ = pterms
 
-  bq₀ = eltocols(𝐈q₀*g₀.(XY, t)) # q (x) = 0  
-  br₀ = eltocols(𝐈r₀*g₁.(XY, t)) # r (y) = 0
-  bqₙ = eltocols(𝐈qₙ*g₂.(XY,t)) # q (x) = 1
-  brₙ = eltocols(𝐈rₙ*g₃.(XY,t)) # r (y) = 1
+  bq₀ = sparsevec(eltocols(𝐈q₀*g₀.(XY, t))) # q (x) = 0  
+  br₀ = sparsevec(eltocols(𝐈r₀*g₁.(XY, t))) # r (y) = 0
+  bqₙ = sparsevec(eltocols(𝐈qₙ*g₂.(XY,t))) # q (x) = 1
+  brₙ = sparsevec(eltocols(𝐈rₙ*g₃.(XY,t))) # r (y) = 1
 
-  (τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
+  collect(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
 
 #################################
