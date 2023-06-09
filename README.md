@@ -68,6 +68,83 @@ from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/sci
 --- | --- |
 
 
+## Arbitrary domain
+
+Arbitrary domains can be handled using [Transfinite Interpolation](https://en.wikipedia.org/wiki/Transfinite_interpolation). Any point in the physical domain can be mapped to the reference domain using the transfinite interpolation. We can then solve the PDE in the reference domain.
+
+![](./MY_SBP/Images/interpolation.png)
+
+## Single-Layer Linear Elasticity
+
+We consider the following PDE
+
+$$
+\begin{align*}
+  \mathbf{u}_{tt} = \nabla \cdot  \sigma + \mathbf{f}, &\quad \mathbf{x} \in \Omega = [0,1]^2, \quad t>0\\
+  \mathbf{u}(x,0) = \mathbf{{u}_0(x)}, &\quad \mathbf{x} \in \Omega\\
+  \sigma \cdot \mathbf{n} = \bf{g}(t), &\quad \mathbf{x} \in \partial\Omega, \quad t>0
+\end{align*}
+$$
+
+where
+
+$$
+\mathbf{u}(\mathbf{x},t) = 
+    \begin{bmatrix}
+      u(\mathbf{x},t)\\
+      v(\mathbf{x},t)
+    \end{bmatrix}, \qquad 
+\sigma(\mathbf{u}) = 
+    \begin{bmatrix}
+      A(\mathbf{x})\frac{\partial \mathbf{u}}{\partial x} + C(\mathbf{x})\frac{\partial \mathbf{u}}{\partial y}&
+      C^T(\mathbf{x})\frac{\partial \mathbf{u}}{\partial x} + B(\mathbf{x})\frac{\partial \mathbf{u}}{\partial y}\\
+    \end{bmatrix}, \qquad \mathbf{f} = \mathbf{f}(\mathbf{x},t),
+$$
+
+are the displacement field and the Cauchy Stress tensor, respectively. The quantity $\mathbf{n}$ denotes the outward unit normal on the boundary. The material properties 
+
+$$
+  A(\mathbf{x}), B(\mathbf{x}) \; \text{and} \; C(\mathbf{x})
+$$
+
+are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `MY_SBP/SBP_ELASTICITY_DURU_VIRTA/1_layer_linear_elasticity.jl` contains the code to solve the case when the material properties are constant in space. We assume an exact solution
+
+$$
+\mathbf{u}(\mathbf{x},t) = 
+\begin{bmatrix}
+  \sin(\pi x)\sin(\pi y)sin(\pi t)\\
+  \sin(2\pi x)\sin(2\pi y)sin(\pi t)  
+\end{bmatrix}\\\\
+$$
+
+and compute the right-hand side $\mathbf{f}$ and the boundary data $\mathbf{g}$. We consider a uniform two-dimensional discretization with $N = [11,21,31,41,51]$ points. To discretize the temporal direction, we use the Crank Nicolson scheme with $\Delta t = 10^{-3}$ and solve till final time $T = 1.25$ s. Following are the approximate and exact solutions with $N = 51$ points. 
+
+![](./MY_SBP/Images/le-x-disp.png) | ![](./MY_SBP/Images/le-y-disp.png) 
+-- | -- |
+
+The $$L^2$-error and the convergence rates are as follows
+
+``` julia 
+julia> L²Error
+5-element Vector{Float64}:
+ 0.01675066748858688
+ 0.0010581963168786465
+ 0.00018482019369399396
+ 5.387918811243126e-5
+ 2.111002788292322e-5
+
+julia> rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+4-element Vector{Float64}:
+ 3.9845393793309083
+ 4.303545948944458
+ 4.2847270008177825
+ 4.199073174065968
+```
+
+Convergence Rates |
+--- |
+![](./MY_SBP/Images/le-rate.png) |
+
 ## References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
