@@ -50,9 +50,19 @@ function SBP_2d(XY, SBP_1d)
   (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀a, 𝐈r₀a, 𝐈qₙa, 𝐈rₙa), (XYq₀, XYr₀, XYqₙ, XYrₙ)
 end
 
+###
+# Functions to get the 2d stencil (variable) from the 1d version
+###
 """
-Function to get the 2d stencil (variable) from the 1d version
+Get the SBP Dqq operator in 2d for variable coefficients
 """
-function SBP_2d_variable(SBP_1d)
+function SBP_Dqq_2d_variable(A, XY)
+ 
+end
+
+"""
+Get the SBP Drr operator in 2d for variable coefficients
+"""
+function SBP_Drr_2d_variable(A, XY)
 
 end

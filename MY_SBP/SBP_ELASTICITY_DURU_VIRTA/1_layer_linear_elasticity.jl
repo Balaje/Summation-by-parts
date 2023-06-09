@@ -55,7 +55,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [11,21,31,41,51]
+𝒩 = [21]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -65,8 +65,8 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     global r = LinRange(0,1,M);  
     global XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
     # Get the SBP matrices
-    sbp_1d = SBP(M);
-    sbp_2d = SBP_2d(XY, sbp_1d);
+    global sbp_1d = SBP(M);
+    global sbp_2d = SBP_2d(XY, sbp_1d);
     # Penalty terms for applying the boundary conditions using the SAT method
     τ₀ = τ₁ = τ₂ = τ₃ = 1;
     pterms = (τ₀, τ₁, τ₂, τ₃)
