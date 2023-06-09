@@ -104,7 +104,7 @@ $$
 are the displacement field and the Cauchy Stress tensor, respectively. The quantity $\mathbf{n}$ denotes the outward unit normal on the boundary. The material properties 
 
 $$
-  A(\mathbf{x}), B(\mathbf{x}) \; \text{and} \; C(\mathbf{x})
+  A(\mathbf{x}), B(\mathbf{x}) \quad \text{and} \quad C(\mathbf{x})
 $$
 
 are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `MY_SBP/SBP_ELASTICITY_DURU_VIRTA/1_layer_linear_elasticity.jl` contains the code to solve the case when the material properties are constant in space. We assume an exact solution
@@ -122,7 +122,7 @@ and compute the right-hand side $\mathbf{f}$ and the boundary data $\mathbf{g}$.
 ![](./MY_SBP/Images/le-x-disp.png) | ![](./MY_SBP/Images/le-y-disp.png) 
 -- | -- |
 
-The $$L^2$-error and the convergence rates are as follows
+The $L^2$-error and the convergence rates are as follows
 
 ``` julia 
 julia> L²Error
