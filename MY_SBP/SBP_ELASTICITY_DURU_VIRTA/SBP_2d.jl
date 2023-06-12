@@ -56,13 +56,62 @@ end
 """
 Get the SBP Dqq operator in 2d for variable coefficients
 """
-function SBP_Dqq_2d_variable(A, XY)
- 
+function SBP_Drr_2d_variable(A, XY)
+  # Extract the entries in the 2×2 tensor
+  a₁₁(x) = A(x)[1,1]
+  a₁₂(x) = A(x)[1,2]
+  a₂₁(x) = A(x)[2,1]
+  a₂₂(x) = A(x)[2,2]
+  # Compute the matrix
+  N = Int(√(length(XY)))
+  DqqA = spzeros(Float64, 2N^2, 2N^2)
+  xy = reshape(XY, (N,N))
+  @inline function E(i) 
+    res = spzeros(N,N)
+    res[i,i] = 1.0
+    res
+  end
+  for i=1:N    
+    DqqA  += [E(i) ⊗ SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2]; 
+              E(i) ⊗ SBP_VARIABLE_4(N, a₂₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₂₂.(xy[:,i]))[2]]    
+  end
+  DqqA
 end
 
 """
 Get the SBP Drr operator in 2d for variable coefficients
 """
-function SBP_Drr_2d_variable(A, XY)
-
+function SBP_Dqq_2d_variable(A, XY)
+  # Extract the entries in the 2×2 tensor
+  a₁₁(x) = A(x)[1,1]
+  a₁₂(x) = A(x)[1,2]
+  a₂₁(x) = A(x)[2,1]
+  a₂₂(x) = A(x)[2,2]
+  # Compute the matrix
+  N = Int(√(length(XY)))
+  DqqA = spzeros(Float64, 2N^2, 2N^2)
+  xy = reshape(XY, (N,N))
+  @inline function E(i) 
+    res = spzeros(N,N)
+    res[i,i] = 1.0
+    res
+  end
+  for i=1:N    
+    DqqA  += [SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2] ⊗ E(i); 
+              SBP_VARIABLE_4(N, a₂₁.(xy[:,i]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₂₂.(xy[:,i]))[2] ⊗ E(i)]    
+  end
+  DqqA
 end
+
+
+@testset "Checking the SBP approximation of the variable stress tensor against the constant case" begin
+  M = 40
+  q = LinRange(0,1,M); r = LinRange(0,1,M);  
+  XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+  Ac = [3.0 0.0; 0.7 1.0]  
+  Dqq = Drr = SBP(M)[3][1];
+  𝐃𝐪𝐪 = (Dqq ⊗ I(M))
+  𝐃𝐫𝐫 = (I(M) ⊗ Drr)  
+  @test (Ac ⊗ 𝐃𝐫𝐫) ≈  SBP_Drr_2d_variable(x->Ac, XY)
+  @test (Ac ⊗ 𝐃𝐪𝐪) ≈  SBP_Dqq_2d_variable(x->Ac, XY)
+end;
