@@ -4,18 +4,17 @@ include("2d_elasticity_problem.jl");
 The stiffness term (K) in the elastic wave equation
 Ü = -K*U + (f + g)
 """
-function stima(sbp_2d, pterms)
-  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), _, _ = sbp_2d
+function stima(XY, sbp_2d, pterms)
+  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), _, (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), _, _ = sbp_2d
   τ₀, τ₁, τ₂, τ₃ = pterms  
+  Ac = [c₁₁ 0; 0 c₃₃]
+  Bc = [c₃₃ 0; 0 c₂₂]
+  Cc = [0 c₁₂; c₃₃ 0]
+  Cᵀc = [0 c₃₃; c₁₂ 0] 
   # The second derivative SBP operator
-  Ac = collect(A(@SVector[0.0,0.0]))
-  Bc = collect(B(@SVector[0.0,0.0]))
-  Cc = collect(C(@SVector[0.0,0.0]))
-  Cᵀc = collect(Cᵀ(@SVector[0.0,0.0]))
-  𝐃𝐪𝐪ᴬ = Ac ⊗ 𝐃𝐪𝐪
-  𝐃𝐫𝐫ᴮ = Bc ⊗ 𝐃𝐫𝐫
-  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪) * (Cc ⊗ 𝐃𝐫)
-  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫) * (Cᵀc ⊗ 𝐃𝐪)  
+  𝐃𝐪𝐪ᴬ = SBP_Dqq_2d_variable(A, XY)
+  𝐃𝐫𝐫ᴮ = SBP_Drr_2d_variable(B, XY)
+  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = SBP_Dqr_2d_variable(C, XY, sbp_2d)  
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term
   𝐓𝐪₀ = -(Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫) # The horizontal traction operator
@@ -80,7 +79,7 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     plt1 = plot()
 
     # Compute the stiffness, mass matrices
-    𝐊 = stima(sbp_2d, pterms)
+    𝐊 = stima(XY, sbp_2d, pterms)
     𝐌 = ρ*spdiagm(ones(2*M^2))
     𝐌⁻ = (𝐌 + (Δt/2)^2*𝐊);
     lu𝐊 = factorize(𝐌 - (Δt/2)^2*𝐊);

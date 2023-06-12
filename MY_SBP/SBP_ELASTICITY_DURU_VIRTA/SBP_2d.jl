@@ -64,18 +64,20 @@ function SBP_Drr_2d_variable(A, XY)
   a₂₂(x) = A(x)[2,2]
   # Compute the matrix
   N = Int(√(length(XY)))
-  DqqA = spzeros(Float64, 2N^2, 2N^2)
+  DrrA = spzeros(Float64, 2N^2, 2N^2)
   xy = reshape(XY, (N,N))
+  # E[i,i] = 1 
   @inline function E(i) 
     res = spzeros(N,N)
     res[i,i] = 1.0
     res
   end
+  # Compute the full variable tensor SBP operator
   for i=1:N    
-    DqqA  += [E(i) ⊗ SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2]; 
+    DrrA  += [E(i) ⊗ SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2]; 
               E(i) ⊗ SBP_VARIABLE_4(N, a₂₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₂₂.(xy[:,i]))[2]]    
   end
-  DqqA
+  DrrA
 end
 
 """
@@ -91,27 +93,98 @@ function SBP_Dqq_2d_variable(A, XY)
   N = Int(√(length(XY)))
   DqqA = spzeros(Float64, 2N^2, 2N^2)
   xy = reshape(XY, (N,N))
+  # E[i,i] = 1 
   @inline function E(i) 
     res = spzeros(N,N)
     res[i,i] = 1.0
     res
   end
+  # Compute the full variable tensor SBP operator
   for i=1:N    
-    DqqA  += [SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2] ⊗ E(i); 
-              SBP_VARIABLE_4(N, a₂₁.(xy[:,i]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₂₂.(xy[:,i]))[2] ⊗ E(i)]    
+    DqqA  += [SBP_VARIABLE_4(N, a₁₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₁₂.(xy[i,:]))[2] ⊗ E(i); 
+              SBP_VARIABLE_4(N, a₂₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₂₂.(xy[i,:]))[2] ⊗ E(i)]    
   end
   DqqA
 end
 
+"""
+Get the SBP Dqr, Drq operator in 2d for variable coefficients
+"""
+function SBP_Dqr_2d_variable(A, xy, sbp_2d)  
+  a₁₁(x) = A(x)[1,1]
+  a₁₂(x) = A(x)[1,2]
+  a₂₁(x) = A(x)[2,1]
+  a₂₂(x) = A(x)[2,2]  
+  𝐃𝐪 = I(2) ⊗ sbp_2d[1][1]
+  𝐃𝐫 = I(2) ⊗ sbp_2d[1][2]  
+  𝐂 = [spdiagm(a₁₁.(xy)) spdiagm(a₁₂.(xy)); spdiagm(a₂₁.(xy)) spdiagm(a₂₂.(xy))] 
+  𝐃𝐪*𝐂*𝐃𝐫, 𝐃𝐫*𝐂'*𝐃𝐪
+end
+
+"""
+Get the SBP variable Tq operator
+"""
+function SBP_Tqr_2d_variable(A, B, C, xy, sbp_2d)
+  # E[i,i] = 1 
+  N = Int(√(length(xy)))
+  @inline function E(i) 
+    res = spzeros(N,N)
+    res[i,i] = 1.0
+    res
+  end
+  Dq, Dr, Sq, Sr = sbp_2d[1]
+  𝐃𝐪 = I(2) ⊗ Dq
+  𝐃𝐫 = I(2) ⊗ Dr
+  𝐒𝐪 = I(2) ⊗ Sq
+  𝐒𝐫 = I(2) ⊗ Sr
+
+  # Tensor components as a function 
+  a₁₁(x) = A(x)[1,1];  a₁₂(x) = A(x)[1,2];  a₂₁(x) = A(x)[2,1];  a₂₂(x) = A(x)[2,2]  
+  b₁₁(x) = B(x)[1,1];  b₁₂(x) = B(x)[1,2];  b₂₁(x) = B(x)[2,1];  b₂₂(x) = B(x)[2,2]  
+  c₁₁(x) = C(x)[1,1];  c₁₂(x) = C(x)[1,2];  c₂₁(x) = C(x)[2,1];  c₂₂(x) = C(x)[2,2]  
+
+  # Get the coefficient matrices
+  𝐀 = [spdiagm(a₁₁.(xy)) spdiagm(a₁₂.(xy)); spdiagm(a₂₁.(xy)) spdiagm(a₂₂.(xy))] 
+  𝐁 = [spdiagm(b₁₁.(xy)) spdiagm(b₁₂.(xy)); spdiagm(b₂₁.(xy)) spdiagm(b₂₂.(xy))] 
+  𝐂 = [spdiagm(c₁₁.(xy)) spdiagm(c₁₂.(xy)); spdiagm(c₂₁.(xy)) spdiagm(c₂₂.(xy))] 
+
+  # Compute the stress tensor
+  𝐀*𝐒𝐪 + 𝐂*𝐃𝐫, 𝐂'*𝐃𝐪 + 𝐁*𝐒𝐫
+end
 
 @testset "Checking the SBP approximation of the variable stress tensor against the constant case" begin
+  # Get a sample discretization
   M = 40
   q = LinRange(0,1,M); r = LinRange(0,1,M);  
   XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
-  Ac = [3.0 0.0; 0.7 1.0]  
-  Dqq = Drr = SBP(M)[3][1];
-  𝐃𝐪𝐪 = (Dqq ⊗ I(M))
-  𝐃𝐫𝐫 = (I(M) ⊗ Drr)  
-  @test (Ac ⊗ 𝐃𝐫𝐫) ≈  SBP_Drr_2d_variable(x->Ac, XY)
-  @test (Ac ⊗ 𝐃𝐪𝐪) ≈  SBP_Dqq_2d_variable(x->Ac, XY)
+
+  # Define constant material properties
+  Ac = [c₁₁ 0; 0 c₃₃]
+  Bc = [c₃₃ 0; 0 c₂₂]
+  Cc = [0 c₁₂; c₃₃ 0]
+  Cᵀc = [0 c₃₃; c₁₂ 0] 
+
+  # Get the SBP stencil
+  sbp_1d = SBP(M)
+  sbp_2d = SBP_2d(XY, sbp_1d)
+
+  # Get the constant coefficient SBP operators
+  𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫 = sbp_2d[1]  
+  𝐃𝐪𝐪, 𝐃𝐫𝐫 = sbp_2d[2]
+
+  # Get the constant coefficient version of the elliptic operator
+  𝐃𝐪𝐪ᴬ = Ac ⊗ 𝐃𝐪𝐪
+  𝐃𝐫𝐫ᴮ = Bc ⊗ 𝐃𝐫𝐫
+  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪)*(Cc ⊗ 𝐃𝐫)
+  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫)*(Cᵀc ⊗ 𝐃𝐪)
+  𝐓𝐪 = (Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫)
+  𝐓𝐫 = (Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫)
+
+  # Now 4 tests to check if the variable coefficient code reduces to the constant coefficient version
+  @test 𝐃𝐪𝐪ᴬ ≈ SBP_Dqq_2d_variable(x->Ac, XY)
+  @test 𝐃𝐫𝐫ᴮ ≈ SBP_Drr_2d_variable(x->Bc, XY)
+  @test 𝐃𝐪C𝐃𝐫 ≈ SBP_Dqr_2d_variable(x->Cc, XY, sbp_2d)[1]
+  @test 𝐃𝐫Cᵗ𝐃𝐪 ≈ SBP_Dqr_2d_variable(x->Cc, XY, sbp_2d)[2]
+  @test 𝐓𝐪 ≈ SBP_Tqr_2d_variable(x->Ac, x->Bc, x->Cc, XY, sbp_2d)[1]
+  @test 𝐓𝐫 ≈ SBP_Tqr_2d_variable(x->Ac, x->Bc, x->Cc, XY, sbp_2d)[2]
 end;
