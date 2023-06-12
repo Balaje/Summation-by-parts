@@ -5,22 +5,19 @@ The stiffness term (K) in the elastic wave equation
 Ü = -K*U + (f + g)
 """
 function stima(XY, sbp_2d, pterms)
-  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), _, (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), _, _ = sbp_2d
-  τ₀, τ₁, τ₂, τ₃ = pterms  
-  Ac = [c₁₁ 0; 0 c₃₃]
-  Bc = [c₃₃ 0; 0 c₂₂]
-  Cc = [0 c₁₂; c₃₃ 0]
-  Cᵀc = [0 c₃₃; c₁₂ 0] 
+  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]
+  τ₀, τ₁, τ₂, τ₃ = pterms   
   # The second derivative SBP operator
   𝐃𝐪𝐪ᴬ = SBP_Dqq_2d_variable(A, XY)
   𝐃𝐫𝐫ᴮ = SBP_Drr_2d_variable(B, XY)
   𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = SBP_Dqr_2d_variable(C, XY, sbp_2d)  
+  𝐓𝐪, 𝐓𝐫 = SBP_Tqr_2d_variable(A, B, C, XY, sbp_2d) # The unsigned traction operator
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term
-  𝐓𝐪₀ = -(Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫) # The horizontal traction operator
-  𝐓𝐫₀ = -(Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫) # The vertical traction operator
-  𝐓𝐪ₙ = (Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫) # The horizontal traction operator
-  𝐓𝐫ₙ = (Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫) # The vertical traction operator
+  𝐓𝐪₀ = -𝐓𝐪 # The horizontal traction operator
+  𝐓𝐫₀ = -𝐓𝐫 # The vertical traction operator
+  𝐓𝐪ₙ = 𝐓𝐪 # The horizontal traction operator
+  𝐓𝐫ₙ = 𝐓𝐫 # The vertical traction operator
   # The "stiffness term"  
   𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
 end
