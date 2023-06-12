@@ -1,4 +1,3 @@
-using Test
 using StaticArrays
 using ForwardDiff
 using NLsolve

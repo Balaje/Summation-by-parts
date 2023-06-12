@@ -1,3 +1,4 @@
+# include("tests.jl");
 include("2d_elasticity_problem.jl");
 
 """
@@ -8,10 +9,10 @@ function stima(XY, sbp_2d, pterms)
   𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]
   τ₀, τ₁, τ₂, τ₃ = pterms   
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = SBP_Dqq_2d_variable(A, XY)
-  𝐃𝐫𝐫ᴮ = SBP_Drr_2d_variable(B, XY)
-  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = SBP_Dqr_2d_variable(C, XY, sbp_2d)  
-  𝐓𝐪, 𝐓𝐫 = SBP_Tqr_2d_variable(A, B, C, XY, sbp_2d) # The unsigned traction operator
+  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(A, XY)
+  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(B, XY)
+  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(C, XY, sbp_2d)  
+  𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(A, B, C, XY, sbp_2d) # The unsigned traction operator
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term
   𝐓𝐪₀ = -𝐓𝐪 # The horizontal traction operator
@@ -51,7 +52,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21]
+𝒩 = [21,31,41,51,61]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 

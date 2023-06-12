@@ -54,9 +54,9 @@ end
 # Functions to get the 2d stencil (variable) from the 1d version
 ###
 """
-Get the SBP Dqq operator in 2d for variable coefficients
+Get the SBP Drr operator in 2d for variable coefficients
 """
-function SBP_Drr_2d_variable(A, XY)
+function 𝐃𝐫𝐫2d(A, XY)
   # Extract the entries in the 2×2 tensor
   a₁₁(x) = A(x)[1,1]
   a₁₂(x) = A(x)[1,2]
@@ -81,9 +81,9 @@ function SBP_Drr_2d_variable(A, XY)
 end
 
 """
-Get the SBP Drr operator in 2d for variable coefficients
+Get the SBP Dqq operator in 2d for variable coefficients
 """
-function SBP_Dqq_2d_variable(A, XY)
+function 𝐃𝐪𝐪2d(A, XY)
   # Extract the entries in the 2×2 tensor
   a₁₁(x) = A(x)[1,1]
   a₁₂(x) = A(x)[1,2]
@@ -110,7 +110,7 @@ end
 """
 Get the SBP Dqr, Drq operator in 2d for variable coefficients
 """
-function SBP_Dqr_2d_variable(A, xy, sbp_2d)  
+function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, xy, sbp_2d)  
   a₁₁(x) = A(x)[1,1]
   a₁₂(x) = A(x)[1,2]
   a₂₁(x) = A(x)[2,1]
@@ -122,9 +122,9 @@ function SBP_Dqr_2d_variable(A, xy, sbp_2d)
 end
 
 """
-Get the SBP variable Tq operator
+Get the SBP variable Tq, Tr operator
 """
-function SBP_Tqr_2d_variable(A, B, C, xy, sbp_2d)
+function 𝐓𝐪𝐓𝐫2d(A, B, C, xy, sbp_2d)
   # E[i,i] = 1 
   N = Int(√(length(xy)))
   @inline function E(i) 
@@ -151,40 +151,3 @@ function SBP_Tqr_2d_variable(A, B, C, xy, sbp_2d)
   # Compute the stress tensor
   𝐀*𝐒𝐪 + 𝐂*𝐃𝐫, 𝐂'*𝐃𝐪 + 𝐁*𝐒𝐫
 end
-
-@testset "Checking the SBP approximation of the variable stress tensor against the constant case" begin
-  # Get a sample discretization
-  M = 40
-  q = LinRange(0,1,M); r = LinRange(0,1,M);  
-  XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
-
-  # Define constant material properties
-  Ac = [c₁₁ 0; 0 c₃₃]
-  Bc = [c₃₃ 0; 0 c₂₂]
-  Cc = [0 c₁₂; c₃₃ 0]
-  Cᵀc = [0 c₃₃; c₁₂ 0] 
-
-  # Get the SBP stencil
-  sbp_1d = SBP(M)
-  sbp_2d = SBP_2d(XY, sbp_1d)
-
-  # Get the constant coefficient SBP operators
-  𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫 = sbp_2d[1]  
-  𝐃𝐪𝐪, 𝐃𝐫𝐫 = sbp_2d[2]
-
-  # Get the constant coefficient version of the elliptic operator
-  𝐃𝐪𝐪ᴬ = Ac ⊗ 𝐃𝐪𝐪
-  𝐃𝐫𝐫ᴮ = Bc ⊗ 𝐃𝐫𝐫
-  𝐃𝐪C𝐃𝐫 = (I(2) ⊗ 𝐃𝐪)*(Cc ⊗ 𝐃𝐫)
-  𝐃𝐫Cᵗ𝐃𝐪 = (I(2) ⊗ 𝐃𝐫)*(Cᵀc ⊗ 𝐃𝐪)
-  𝐓𝐪 = (Ac ⊗ 𝐒𝐪 + Cc ⊗ 𝐃𝐫)
-  𝐓𝐫 = (Cᵀc ⊗ 𝐃𝐪 + Bc ⊗ 𝐒𝐫)
-
-  # Now 4 tests to check if the variable coefficient code reduces to the constant coefficient version
-  @test 𝐃𝐪𝐪ᴬ ≈ SBP_Dqq_2d_variable(x->Ac, XY)
-  @test 𝐃𝐫𝐫ᴮ ≈ SBP_Drr_2d_variable(x->Bc, XY)
-  @test 𝐃𝐪C𝐃𝐫 ≈ SBP_Dqr_2d_variable(x->Cc, XY, sbp_2d)[1]
-  @test 𝐃𝐫Cᵗ𝐃𝐪 ≈ SBP_Dqr_2d_variable(x->Cc, XY, sbp_2d)[2]
-  @test 𝐓𝐪 ≈ SBP_Tqr_2d_variable(x->Ac, x->Bc, x->Cc, XY, sbp_2d)[1]
-  @test 𝐓𝐫 ≈ SBP_Tqr_2d_variable(x->Ac, x->Bc, x->Cc, XY, sbp_2d)[2]
-end;

@@ -66,19 +66,3 @@ function div(v,x)
   ∂yv₂₂ = ForwardDiff.gradient(v₂₂,x)[2];
   @SVector [∂xv₁₁ + ∂yv₂₁; ∂xv₁₂ + ∂yv₂₂]
 end
-
-@testset "Some tests to verify the Gradient, Stress and Divergence." begin 
-  v(x) = [sin(π*x[1])*sin(π*x[2]), sin(2π*x[1])*sin(2π*x[2])];
-  ∇v(x) = vec([π*cos(π*x[1])*sin(π*x[2]) π*sin(π*x[1])*cos(π*x[2]); 
-         2π*cos(2π*x[1])*sin(2π*x[2]) 2π*sin(2π*x[1])*cos(2π*x[2])]);
-  σv(x) = vec(hcat(A(x)*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + C(x)*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])]),
-         Cᵀ(x)*([π*cos(π*x[1])*sin(π*x[2]), 2π*cos(2π*x[1])*sin(2π*x[2])]) + B(x)*([π*sin(π*x[1])*cos(π*x[2]), 2π*sin(2π*x[1])*cos(2π*x[2])])));
-  div_σ_v(x) = A(x)*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]) + C(x)*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + 
-             Cᵀ(x)*([π^2*cos(π*x[1])*cos(π*x[2]), 4π^2*cos(2π*x[1])*cos(2π*x[2])]) + B(x)*([-π^2*sin(π*x[1])*sin(π*x[2]), -4π^2*sin(2π*x[1])*sin(2π*x[2])]);
-
-  pt = @SVector rand(2)
-  @test ∇v(pt) ≈ ∇(v, pt);  
-  @test σv(pt) ≈ σ(∇(v, pt), pt);
-  σ∇(x) = σ(∇(v,x),x)
-  @test div_σ_v(pt) ≈ div(σ∇, pt);
-end;
