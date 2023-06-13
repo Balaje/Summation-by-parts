@@ -5,20 +5,43 @@ include("2d_elasticity_problem.jl");
 The stiffness term (K) in the elastic wave equation
 Ü = -K*U + (f + g)
 """
-function stima(XY, sbp_2d, pterms)
-  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]
+function stima(q, r, sbp_2d, pterms)
+  XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]  
   τ₀, τ₁, τ₂, τ₃ = pterms   
+  M = length(q)
+  @inline function E(i) 
+    res = spzeros(M,M)
+    res[i,i] = 1.0
+    res
+  end
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(A, XY)
-  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(B, XY)
-  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(C, XY, sbp_2d)  
-  𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(A, B, C, XY, sbp_2d) # The unsigned traction operator
+  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, XY)
+  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, XY)
+  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ, XY, sbp_2d)  
+  𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(Aₜ, Bₜ, Cₜ, XY, sbp_2d) # The unsigned traction operator
   # The Elastic wave-equation operators
-  𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term
-  𝐓𝐪₀ = -𝐓𝐪 # The horizontal traction operator
-  𝐓𝐫₀ = -𝐓𝐫 # The vertical traction operator
-  𝐓𝐪ₙ = 𝐓𝐪 # The horizontal traction operator
-  𝐓𝐫ₙ = 𝐓𝐫 # The vertical traction operator
+  𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term  
+  
+  𝐓𝐪₀ = 𝐓𝐫₀ = 𝐓𝐪ₙ = 𝐓𝐫ₙ = zero(𝐓𝐪)
+  for i=1:M
+    X = spdiagm(reduce(hcat, 𝐧.(c₀, r; o=1))[1,:])
+    Y = spdiagm(reduce(hcat, 𝐧.(c₀, r; o=1))[2,:])
+    𝐓𝐪₀ += (𝐓𝐪*(I(2) ⊗ X ⊗ E(i)) + 𝐓𝐫*(I(2) ⊗ Y ⊗ E(i)))
+
+    X = spdiagm(reduce(hcat, 𝐧.(c₁, q; o=-1))[1,:])
+    Y = spdiagm(reduce(hcat, 𝐧.(c₁, q; o=-1))[2,:])
+    𝐓𝐫₀ += (𝐓𝐪*(I(2) ⊗ E(i) ⊗ X) + 𝐓𝐫*(I(2) ⊗ E(i) ⊗ Y))
+
+    X = spdiagm(reduce(hcat, 𝐧.(c₂, r; o=-1))[1,:])
+    Y = spdiagm(reduce(hcat, 𝐧.(c₂, r; o=-1))[2,:])
+    𝐓𝐪ₙ += (𝐓𝐪*(I(2) ⊗ X ⊗ E(i)) + 𝐓𝐫*(I(2) ⊗ Y ⊗ E(i)))
+            
+    X = spdiagm(reduce(hcat, 𝐧.(c₃, q; o=1))[1,:])
+    Y = spdiagm(reduce(hcat, 𝐧.(c₃, q; o=1))[2,:])
+    𝐓𝐫ₙ += (𝐓𝐪*(I(2) ⊗ E(i) ⊗ X) + 𝐓𝐫*(I(2) ⊗ E(i) ⊗ Y))
+  end
+
   # The "stiffness term"  
   𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
 end
@@ -54,7 +77,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21,31,41,51,61]
+𝒩 = [21]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -62,10 +85,11 @@ for (M,i) in zip(𝒩,1:length(𝒩))
   let
     global q = LinRange(0,1,M);
     global r = LinRange(0,1,M);  
-    global XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+    global 𝐐𝐑 = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+    global XY = 𝒮.(𝐐𝐑)
     # Get the SBP matrices
     global sbp_1d = SBP(M);
-    global sbp_2d = SBP_2d(XY, sbp_1d);
+    global sbp_2d = SBP_2d(𝐐𝐑, sbp_1d);
     # Penalty terms for applying the boundary conditions using the SAT method
     τ₀ = τ₁ = τ₂ = τ₃ = 1;
     pterms = (τ₀, τ₁, τ₂, τ₃)
@@ -79,8 +103,9 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     plt1 = plot()
 
     # Compute the stiffness, mass matrices
-    𝐊 = stima(XY, sbp_2d, pterms)
-    𝐌 = ρ*spdiagm(ones(2*M^2))
+    𝐊 = stima(q, r, sbp_2d, pterms)
+    Jᵢρᵢ = [det(J(𝒮,qr))*ρ for qr in 𝐐𝐑]
+    𝐌 = I(2) ⊗ spdiagm(Jᵢρᵢ)
     𝐌⁻ = (𝐌 + (Δt/2)^2*𝐊);
     lu𝐊 = factorize(𝐌 - (Δt/2)^2*𝐊);
 
