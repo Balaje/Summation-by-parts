@@ -15,24 +15,24 @@ end
 
 """
 Parametric Representation of the boundary
-Define c₁, c₂, c₃, c₄
+Define c₀, c₁, c₂, c₃
 """
-c₁(u) = @SVector [0.0, u]
-c₃(u) = @SVector [1.0, u]
-c₂(v) = @SVector [v, 0.0]
-c₄(v) = @SVector [v, 1.0]
+c₀(u) = @SVector [0.0, u] # Left boundary 
+c₁(v) = @SVector [v, 0.0] # Bottom boundary
+c₂(u) = @SVector [1.0, u] # Right boundary
+c₃(v) = @SVector [v, 1.0] # Top boundary
 
 # Get the intersection points
+P₀₁ = SVector{2}(P(c₀,c₁));
 P₁₂ = SVector{2}(P(c₁,c₂));
-P₃₄ = SVector{2}(P(c₃,c₄));
-P₄₁ = SVector{2}(P(c₄,c₁));
 P₂₃ = SVector{2}(P(c₂,c₃));
+P₃₀ = SVector{2}(P(c₃,c₀));
 
 """
 The transfinite interpolation formula
 """
-𝒮(x) = (1-x[1])*c₁(x[2]) + x[1]*c₃(x[2]) + (1-x[2])*c₂(x[1]) + x[2]*c₄(x[1]) - 
-((1-x[2])*(1-x[1])*P₁₂ + x[2]*x[1]*P₃₄ + x[2]*(1-x[1])*P₄₁ + (1-x[2])*x[1]*P₂₃);
+𝒮(x) = (1-x[1])*c₀(x[2]) + x[1]*c₂(x[2]) + (1-x[2])*c₁(x[1]) + x[2]*c₃(x[1]) - 
+((1-x[2])*(1-x[1])*P₀₁ + x[2]*x[1]*P₂₃ + x[2]*(1-x[1])*P₃₀ + (1-x[2])*x[1]*P₁₂);
 
 """
 Function to return the Jacobian of the transformation
@@ -61,7 +61,7 @@ where S is the transformation matrix
 function t(S, r)  
   invJ = J⁻¹(S, r)      
   S = invJ ⊗ I(2)
-  S*𝒫*S'
+  S*𝒫(x)*S'
 end
 
 """
@@ -78,3 +78,12 @@ Cₜ(r) = t(𝒮,r)[1:2, 3:4];
 Flatten the 2d function as a single vector for the time iterations
 """
 eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+
+"""
+Unit normals on the boundary
+"""
+function 𝐧(c,u; o=1.0) 
+  res = ForwardDiff.derivative(t->c(t), u)
+  r = @SMatrix [0 -1; 1 0]
+  o*r*res/norm(res)  
+end

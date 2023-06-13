@@ -47,45 +47,18 @@ function F(x,t)
 end
 
 """
-Non-zero traction at the left boundary (x=0)
-  σ ⋅ ([-1, 0])
+Non-zero traction at the boundary
+  c: The curve function
+  u: Parameter in the curve function
+    [x,y] = c(u)
+  o: Orientation of the normal
+  = σ(c₀(u),t) ⋅ n(c₀)
 """
-function g₀(x,t)
+function g(t,c,u,o)
   V(x) = U(x,t)
   𝛔(y) = σ(∇(V, y),y);  
+  x = c(u)
   τ = 𝛔(x)  
-  @SVector [τ[1]*(-1) + τ[2]*(0); τ[3]*(-1) + τ[4]*(0)]
-end
-
-"""
-Non-zero traction at the bottom boundary (y=0)
-  σ ⋅ ([0,-1])
-"""
-function g₁(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(0) + τ[2]*(-1); τ[3]*(0) + τ[4]*(-1)]
-end
-
-"""
-Non-zero traction at the rigth boundary (x=1)
-  σ ⋅ ([1,0])
-"""
-function g₂(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(1) + τ[2]*(0); τ[3]*(1) + τ[4]*(0)]
-end
-
-"""
-Non-zero traction at the top boundary (y=1)
-  σ ⋅ ([0,1])
-"""
-function g₃(x,t)
-  V(x) = U(x,t)
-  𝛔(y) = σ(∇(V, y),y);  
-  τ = 𝛔(x)  
-  @SVector [τ[1]*(0) + τ[2]*(1); τ[3]*(0) + τ[4]*(1)]
+  _n = 𝐧(c,u; o=o)
+  @SVector [τ[1]*_n[1] + τ[2]*_n[2]; τ[3]*_n[1] + τ[4]*_n[2]]
 end
