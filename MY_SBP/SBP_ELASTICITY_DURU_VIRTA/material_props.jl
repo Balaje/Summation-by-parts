@@ -19,15 +19,6 @@ const c₃₃ = μ
 const c₁₂ = λ
 
 """
-The material properties are ideally functions of the grid points.
-But as a first try let us use the constant case to see if the code is working.
-"""
-A(x) = @SMatrix [c₁₁ 0; 0 c₃₃];
-B(x) = @SMatrix [c₃₃ 0; 0 c₂₂];
-C(x) = @SMatrix [0 c₁₂; c₃₃ 0];
-Cᵀ(x) = @SMatrix [0 c₃₃; c₁₂ 0];
-
-"""
 The material property tensor in the physical coordinates
   𝒫(x) = [A(x) C(x); 
           C(x)' B(x)]
@@ -35,6 +26,13 @@ where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal 
 """
 𝒫(x) = @SMatrix [c₁₁ 0 0 c₁₂; 0 c₃₃ c₃₃ 0; 0 c₃₃ c₃₃ 0; c₁₂ 0 0 c₂₂];
 
+"""
+The material properties are extracted from the bigger matrix.
+"""
+A(x) = @view 𝒫(x)[1:2,1:2]
+B(x) = @view 𝒫(x)[3:4,3:4]
+C(x) = @view 𝒫(x)[1:2,3:4]
+Cᵀ(x) = @view 𝒫(x)[3:4,1:2]
 
 """
 Gradient (Jacobian) of the displacement field

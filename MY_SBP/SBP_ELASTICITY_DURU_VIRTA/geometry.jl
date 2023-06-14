@@ -17,7 +17,7 @@ end
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(u) = @SVector [0.1*sin(π*u), u] # Left boundary 
+c₀(u) = @SVector [0.0, u] # Left boundary 
 c₁(v) = @SVector [v, 0.0] # Bottom boundary
 c₂(u) = @SVector [1.0, u] # Right boundary
 c₃(v) = @SVector [v, 1.0] # Top boundary

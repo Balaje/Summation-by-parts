@@ -22,28 +22,9 @@ function stima(q, r, sbp_2d, pterms)
   𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(Aₜ, Bₜ, Cₜ, XY, sbp_2d) # The unsigned traction operator
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term  
-  
-  𝐓𝐪₀ = 𝐓𝐫₀ = 𝐓𝐪ₙ = 𝐓𝐫ₙ = zero(𝐓𝐪)
-  for i=1:M
-    X = spdiagm(reduce(hcat, 𝐧.(c₀, r; o=1))[1,:])
-    Y = spdiagm(reduce(hcat, 𝐧.(c₀, r; o=1))[2,:])
-    𝐓𝐪₀ += (𝐓𝐪*(I(2) ⊗ X ⊗ E(i)) + 𝐓𝐫*(I(2) ⊗ Y ⊗ E(i)))
-
-    X = spdiagm(reduce(hcat, 𝐧.(c₁, q; o=-1))[1,:])
-    Y = spdiagm(reduce(hcat, 𝐧.(c₁, q; o=-1))[2,:])
-    𝐓𝐫₀ += (𝐓𝐪*(I(2) ⊗ E(i) ⊗ X) + 𝐓𝐫*(I(2) ⊗ E(i) ⊗ Y))
-
-    X = spdiagm(reduce(hcat, 𝐧.(c₂, r; o=-1))[1,:])
-    Y = spdiagm(reduce(hcat, 𝐧.(c₂, r; o=-1))[2,:])
-    𝐓𝐪ₙ += (𝐓𝐪*(I(2) ⊗ X ⊗ E(i)) + 𝐓𝐫*(I(2) ⊗ Y ⊗ E(i)))
-            
-    X = spdiagm(reduce(hcat, 𝐧.(c₃, q; o=1))[1,:])
-    Y = spdiagm(reduce(hcat, 𝐧.(c₃, q; o=1))[2,:])
-    𝐓𝐫ₙ += (𝐓𝐪*(I(2) ⊗ E(i) ⊗ X) + 𝐓𝐫*(I(2) ⊗ E(i) ⊗ Y))
-  end
 
   # The "stiffness term"  
-  𝐏 - (τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₀ + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫ₙ + τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₀ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪ₙ) 
+  𝐏 - (-τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪) 
 end
 
 """
@@ -77,7 +58,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21]
+𝒩 = [21,31,41,51]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
