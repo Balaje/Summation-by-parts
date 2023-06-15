@@ -17,7 +17,7 @@ end
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(u) = @SVector [0.0, u] # Left boundary 
+c₀(u) = @SVector [0.1*sin(π*u), u] # Left boundary 
 c₁(v) = @SVector [v, 0.0] # Bottom boundary
 c₂(u) = @SVector [1.0, u] # Right boundary
 c₃(v) = @SVector [v, 1.0] # Top boundary
@@ -37,16 +37,24 @@ The transfinite interpolation formula
 """
 Function to return the Jacobian of the transformation
 """
-function J(S,r)
-  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S,r))
+function J(S,qr)
+  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S,qr))
 end
 
 """
 Function to return the inverse of the Jacobian
 """
-function J⁻¹(S, r)
+function J⁻¹(S, q)
   inv(J(S,r))
 end
+
+"""
+Function to compute the surface jacobian
+"""
+function J⁻¹s(S,r,n)  
+  norm(J⁻¹(S,r)*n)
+end
+
 
 """
 Fancy defintion of the Kronecker product
@@ -58,10 +66,11 @@ Function to return the material tensor in the reference coordinates (0,1)×(0,1)
   𝒫' = S*𝒫*S'
 where S is the transformation matrix
 """
-function t(S, r)  
-  invJ = J⁻¹(S, r)      
+function t(𝒮, r)  
+  invJ = J⁻¹(𝒮, r)      
   S = invJ ⊗ I(2)
-  S*𝒫(r)*S'
+  x = 𝒮(r)
+  det(J(𝒮,r))*S*𝒫(x)*S'
 end
 
 """

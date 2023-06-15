@@ -40,10 +40,10 @@ function nbc(t::Float64, q, r, pterms, sbp_2d)
 
   M = length(q)
 
-  bvals_q₀ = reduce(hcat, [g(t, c₀, rᵢ, 1) for rᵢ in r]) # q (x) = 0  
-  bvals_r₀ = reduce(hcat, [g(t, c₁, qᵢ, -1) for qᵢ in q]) # r (y) = 0
-  bvals_qₙ = reduce(hcat, [g(t, c₂, rᵢ, -1) for rᵢ in r]) # q (x) = 1
-  bvals_rₙ = reduce(hcat, [g(t, c₃, qᵢ, 1) for qᵢ in q])  # r (y) = 1  
+  bvals_q₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[0.0, rᵢ], @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r]) # q (x) = 0  
+  bvals_r₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 0.0], @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q]) # r (y) = 0
+  bvals_qₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[1.0, rᵢ], @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r]) # q (x) = 1
+  bvals_rₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 1.0], @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])  # r (y) = 1  
   
   bq₀ = vec(hcat(sparsevec(𝐈q₀a, bvals_q₀[1,:], M^2), sparsevec(𝐈q₀a, bvals_q₀[2,:], M^2)))
   br₀ = vec(hcat(sparsevec(𝐈r₀a, bvals_r₀[1,:], M^2), sparsevec(𝐈r₀a, bvals_r₀[2,:], M^2)))
@@ -58,7 +58,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21,31,41,51]
+𝒩 = [21]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -68,6 +68,7 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     global r = LinRange(0,1,M);  
     global 𝐐𝐑 = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
     global XY = 𝒮.(𝐐𝐑)
+    detJ = (det∘J).(𝒮, 𝐐𝐑)
     # Get the SBP matrices
     global sbp_1d = SBP(M);
     global sbp_2d = SBP_2d(𝐐𝐑, sbp_1d);
@@ -85,7 +86,7 @@ for (M,i) in zip(𝒩,1:length(𝒩))
 
     # Compute the stiffness, mass matrices
     𝐊 = stima(q, r, sbp_2d, pterms)
-    Jᵢρᵢ = [det(J(𝒮,qr))*ρ for qr in 𝐐𝐑]
+    Jᵢρᵢ = detJ*ρ
     𝐌 = I(2) ⊗ spdiagm(Jᵢρᵢ)
     𝐌⁻ = (𝐌 + (Δt/2)^2*𝐊);
     lu𝐊 = factorize(𝐌 - (Δt/2)^2*𝐊);
@@ -117,8 +118,8 @@ for (M,i) in zip(𝒩,1:length(𝒩))
       global v₁ = zero(v₀) 
       t = 0.0
       for i=1:ntime   
-        Fₙ = eltocols(F.(XY, t))
-        Fₙ₊₁ = eltocols(F.(XY, t+Δt))
+        Fₙ = eltocols(detJ .* F.(XY, t))
+        Fₙ₊₁ = eltocols(detJ .* F.(XY, t+Δt))
         gₙ = nbc(t, q, r, pterms, sbp_2d)
         gₙ₊₁ = nbc(t+Δt, q, r, pterms, sbp_2d)
 
