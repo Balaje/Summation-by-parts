@@ -17,10 +17,10 @@ end
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(u) = @SVector [0.1*sin(π*u), u] # Left boundary 
-c₁(v) = @SVector [v, 0.0] # Bottom boundary
-c₂(u) = @SVector [1.0, u] # Right boundary
-c₃(v) = @SVector [v, 1.0] # Top boundary
+c₀(r) = @SVector [0.2*r*(1-r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0*q*(1-q)] # Bottom boundary
+c₂(r) = @SVector [1.0 - 0.0*r*(1-r), r] # Right boundary
+c₃(q) = @SVector [q, 1.0 - 0.0*q*(1-q)] # Top boundary
 
 # Get the intersection points
 P₀₁ = SVector{2}(P(c₀,c₁));
@@ -31,28 +31,28 @@ P₃₀ = SVector{2}(P(c₃,c₀));
 """
 The transfinite interpolation formula
 """
-𝒮(x) = (1-x[1])*c₀(x[2]) + x[1]*c₂(x[2]) + (1-x[2])*c₁(x[1]) + x[2]*c₃(x[1]) - 
-((1-x[2])*(1-x[1])*P₀₁ + x[2]*x[1]*P₂₃ + x[2]*(1-x[1])*P₃₀ + (1-x[2])*x[1]*P₁₂);
+𝒮(qr) = (1-qr[1])*c₀(qr[2]) + qr[1]*c₂(qr[2]) + (1-qr[2])*c₁(qr[1]) + qr[2]*c₃(qr[1]) - 
+((1-qr[2])*(1-qr[1])*P₀₁ + qr[2]*qr[1]*P₂₃ + qr[2]*(1-qr[1])*P₃₀ + (1-qr[2])*qr[1]*P₁₂);
 
 """
 Function to return the Jacobian of the transformation
 """
-function J(S,qr)
-  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S,qr))
+function J(S, qr)
+  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, qr))'
 end
 
 """
 Function to return the inverse of the Jacobian
 """
-function J⁻¹(S, q)
-  inv(J(S,r))
+function J⁻¹(S, qr)
+  inv(J(S, qr))
 end
 
 """
 Function to compute the surface jacobian
 """
-function J⁻¹s(S,r,n)  
-  norm(J⁻¹(S,r)*n)
+function J⁻¹s(S, qr, n)  
+  norm(J⁻¹(S, qr)*n)
 end
 
 
@@ -66,11 +66,11 @@ Function to return the material tensor in the reference coordinates (0,1)×(0,1)
   𝒫' = S*𝒫*S'
 where S is the transformation matrix
 """
-function t(𝒮, r)  
-  invJ = J⁻¹(𝒮, r)      
-  S = invJ ⊗ I(2)
-  x = 𝒮(r)
-  det(J(𝒮,r))*S*𝒫(x)*S'
+function t(𝒮, qr)
+  x = 𝒮(qr)  
+  invJ = J⁻¹(𝒮, qr)      
+  S = invJ ⊗ I(2)  
+  S'*𝒫(x)*S
 end
 
 """
@@ -79,9 +79,9 @@ The material coefficient matrices in the reference coordinates (0,1)×(0,1).
   B(x) -> Bₜ(r)
   C(x) -> Cₜ(r) 
 """
-Aₜ(r) = t(𝒮,r)[1:2, 1:2];
-Bₜ(r) = t(𝒮,r)[3:4, 3:4];
-Cₜ(r) = t(𝒮,r)[1:2, 3:4];
+Aₜ(qr) = t(𝒮,qr)[1:2, 1:2];
+Bₜ(qr) = t(𝒮,qr)[3:4, 3:4];
+Cₜ(qr) = t(𝒮,qr)[1:2, 3:4];
 
 """
 Flatten the 2d function as a single vector for the time iterations
@@ -92,7 +92,7 @@ eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Fl
 Unit normals on the boundary
 """
 function 𝐧(c,u; o=1.0) 
-  res = ForwardDiff.derivative(t->c(t), u)
-  r = @SMatrix [0 -1; 1 0]
-  o*r*res/norm(res)  
+  res = ForwardDiff.derivative(t->c(t), u) # Tangent vector in the physical domain
+  r = @SMatrix [0 -1; 1 0] # Rotation matrix
+  o*r*res/norm(res) # Normal vector
 end

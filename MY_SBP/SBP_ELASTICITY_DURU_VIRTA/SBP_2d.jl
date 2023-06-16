@@ -72,10 +72,11 @@ function 𝐃𝐫𝐫2d(A, XY)
     res[i,i] = 1.0
     res
   end
-  # Compute the full variable tensor SBP operator
+  # Compute the full variable tensor SBP operator  
   for i=1:N    
-    DrrA  += [E(i) ⊗ SBP_VARIABLE_4(N, a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₁₂.(xy[:,i]))[2]; 
-              E(i) ⊗ SBP_VARIABLE_4(N, a₂₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₂₂.(xy[:,i]))[2]]    
+    detJ = (det∘J).(𝒮,xy[:,i])
+    DrrA  += [E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₁₂.(xy[:,i]))[2]; 
+              E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₂₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₂₂.(xy[:,i]))[2]]    
   end
   DrrA
 end
@@ -99,10 +100,11 @@ function 𝐃𝐪𝐪2d(A, XY)
     res[i,i] = 1.0
     res
   end
-  # Compute the full variable tensor SBP operator
+  # Compute the full variable tensor SBP operator  
   for i=1:N    
-    DqqA  += [SBP_VARIABLE_4(N, a₁₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₁₂.(xy[i,:]))[2] ⊗ E(i); 
-              SBP_VARIABLE_4(N, a₂₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₂₂.(xy[i,:]))[2] ⊗ E(i)]    
+    detJ = (det∘J).(𝒮,xy[i,:])
+    DqqA  += [SBP_VARIABLE_4(N, detJ.*a₁₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, detJ.*a₁₂.(xy[i,:]))[2] ⊗ E(i); 
+              SBP_VARIABLE_4(N, detJ.*a₂₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, detJ.*a₂₂.(xy[i,:]))[2] ⊗ E(i)]    
   end
   DqqA
 end
@@ -116,8 +118,9 @@ function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, xy, sbp_2d)
   a₂₁(x) = A(x)[2,1]
   a₂₂(x) = A(x)[2,2]  
   𝐃𝐪 = I(2) ⊗ sbp_2d[1][1]
-  𝐃𝐫 = I(2) ⊗ sbp_2d[1][2]  
-  𝐂 = [spdiagm(a₁₁.(xy)) spdiagm(a₁₂.(xy)); spdiagm(a₂₁.(xy)) spdiagm(a₂₂.(xy))] 
+  𝐃𝐫 = I(2) ⊗ sbp_2d[1][2] 
+  detJ = (det∘J).(𝒮,xy)
+  𝐂 = [spdiagm(detJ.*a₁₁.(xy)) detJ.*spdiagm(a₁₂.(xy)); detJ.*spdiagm(a₂₁.(xy)) detJ.*spdiagm(a₂₂.(xy))] 
   𝐃𝐪*𝐂*𝐃𝐫, 𝐃𝐫*𝐂'*𝐃𝐪
 end
 

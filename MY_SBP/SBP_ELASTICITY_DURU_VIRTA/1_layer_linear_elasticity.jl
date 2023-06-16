@@ -9,12 +9,7 @@ function stima(q, r, sbp_2d, pterms)
   XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
   𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]  
   τ₀, τ₁, τ₂, τ₃ = pterms   
-  M = length(q)
-  @inline function E(i) 
-    res = spzeros(M,M)
-    res[i,i] = 1.0
-    res
-  end
+  
   # The second derivative SBP operator
   𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, XY)
   𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, XY)
@@ -32,7 +27,7 @@ The boundary contribution terms g
   Ü = -K*U + (f + g)
 Applied into the load vector during time stepping
 """
-function nbc(t::Float64, q, r, pterms, sbp_2d)  
+function nbc(t::Float64, q, r, pterms, sbp_2d, XY)  
   τ₀, τ₁, τ₂, τ₃ = pterms
 
   𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]
@@ -40,10 +35,10 @@ function nbc(t::Float64, q, r, pterms, sbp_2d)
 
   M = length(q)
 
-  bvals_q₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[0.0, rᵢ], @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r]) # q (x) = 0  
-  bvals_r₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 0.0], @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q]) # r (y) = 0
-  bvals_qₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[1.0, rᵢ], @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r]) # q (x) = 1
-  bvals_rₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 1.0], @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])  # r (y) = 1  
+  bvals_q₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[0.0, rᵢ], @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r]) # q = 0  
+  bvals_r₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 0.0], @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q]) # r = 0
+  bvals_qₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[1.0, rᵢ], @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r]) # q = 1
+  bvals_rₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 1.0], @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])  # r = 1  
   
   bq₀ = vec(hcat(sparsevec(𝐈q₀a, bvals_q₀[1,:], M^2), sparsevec(𝐈q₀a, bvals_q₀[2,:], M^2)))
   br₀ = vec(hcat(sparsevec(𝐈r₀a, bvals_r₀[1,:], M^2), sparsevec(𝐈r₀a, bvals_r₀[2,:], M^2)))
@@ -58,7 +53,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21]
+𝒩 = [21,31,41,51,61,71,81]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -68,17 +63,17 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     global r = LinRange(0,1,M);  
     global 𝐐𝐑 = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
     global XY = 𝒮.(𝐐𝐑)
-    detJ = (det∘J).(𝒮, 𝐐𝐑)
+    detJ = (det∘J).(𝒮, 𝐐𝐑)    
     # Get the SBP matrices
     global sbp_1d = SBP(M);
     global sbp_2d = SBP_2d(𝐐𝐑, sbp_1d);
     # Penalty terms for applying the boundary conditions using the SAT method
-    τ₀ = τ₁ = τ₂ = τ₃ = 1;
+    τ₀ = τ₁ = τ₂ = τ₃ = 1.0;
     pterms = (τ₀, τ₁, τ₂, τ₃)
     # Begin solving the problem
     # Temporal Discretization parameters
     global tf = 1.25
-    Δt = 1e-3
+    Δt = 5e-4
     ntime = ceil(Int64,tf/Δt)
     # Empty Plots
     plt = plot()
@@ -129,17 +124,17 @@ for (M,i) in zip(𝒩,1:length(𝒩))
         t = t+Δt
         u₀ = u₁
         v₀ = v₁
-        (i % 100 == 0) && println("Done t="*string(t))
+        #(i % 100 == 0) && println("Done t="*string(t))
       end   
       global sol = u₁  
     end;
 
     # Compute the L²Error
     H = sbp_1d[1][1]
-    𝐇 = I(2) ⊗ H ⊗ H
+    𝐇 = (I(2) ⊗ H ⊗ H)*(I(2) ⊗ spdiagm(detJ))
     e = sol - eltocols(U.(XY,tf))
     L²Error[i] = sqrt(e'*𝐇*e)
-    println("Done N = "*string(M))
+    println("Done N = "*string(M)*", L²Error = "*string(L²Error[i]))
   end
 end
 function UV(sol)
