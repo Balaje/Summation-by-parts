@@ -94,24 +94,6 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     let
       u₀ = eltocols(U.(XY,0))
       v₀ = eltocols(Uₜ.(XY,0))
-      #=  
-      # Leapfrog scheme
-      t = 0.0
-      fₙ = flatten_grid_function(F, QR, t) + BC(t, sbp_2d, pterms)
-      u₁ = LF1(𝐊, 𝐌⁻¹, (Δt, u₀, fₙ, v₀))
-      u₀ = u₁
-      t += Δt
-      global u₂ = zero(u₀)
-      for i=2:ntime
-        fₙ = flatten_grid_function(F, QR, t) + BC(t, sbp_2d, pterms)
-        u₂ = LF(𝐊, 𝐌⁻¹, (Δt, u₁, u₀, fₙ))
-        u₀ = u₁
-        u₁ = u₂
-        t += Δt    
-        (i % 10 == 0) && println("Done t="*string(t)*"\t sum(u₀) = "*string(maximum(abs.(u₀))))
-      end
-      global sol = u₂ 
-      =#
       
       # Crank Nicolson Method
       global u₁ = zero(u₀)  
