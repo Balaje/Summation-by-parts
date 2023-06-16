@@ -27,23 +27,28 @@ The boundary contribution terms g
   Ü = -K*U + (f + g)
 Applied into the load vector during time stepping
 """
-function nbc(t::Float64, q, r, pterms, sbp_2d, XY)  
+function nbc(t::Float64, q, r, pterms, sbp_2d)  
   τ₀, τ₁, τ₂, τ₃ = pterms
 
   𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]
-  𝐈q₀a, 𝐈r₀a, 𝐈qₙa, 𝐈rₙa = sbp_2d[4]  
 
   M = length(q)
+
+  @inline function E1(i,M)
+    res = spzeros(M)
+    res[i] = 1.0
+    res
+  end
 
   bvals_q₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[0.0, rᵢ], @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r]) # q = 0  
   bvals_r₀ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 0.0], @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q]) # r = 0
   bvals_qₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[1.0, rᵢ], @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r]) # q = 1
   bvals_rₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 1.0], @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])  # r = 1  
   
-  bq₀ = vec(hcat(sparsevec(𝐈q₀a, bvals_q₀[1,:], M^2), sparsevec(𝐈q₀a, bvals_q₀[2,:], M^2)))
-  br₀ = vec(hcat(sparsevec(𝐈r₀a, bvals_r₀[1,:], M^2), sparsevec(𝐈r₀a, bvals_r₀[2,:], M^2)))
-  bqₙ = vec(hcat(sparsevec(𝐈qₙa, bvals_qₙ[1,:], M^2), sparsevec(𝐈qₙa, bvals_qₙ[2,:], M^2)))
-  brₙ = vec(hcat(sparsevec(𝐈rₙa, bvals_rₙ[1,:], M^2), sparsevec(𝐈rₙa, bvals_rₙ[2,:], M^2)))
+  bq₀ = (E1(1,2) ⊗ E1(1,M) ⊗ (I(M)*bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,M) ⊗ (I(M)*bvals_q₀[2,:]))
+  br₀ = (E1(1,2) ⊗ (I(M)*bvals_r₀[1,:]) ⊗ E1(1,M)) + (E1(2,2) ⊗ (I(M)*bvals_r₀[2,:]) ⊗ E1(1,M))
+  bqₙ = (E1(1,2) ⊗ E1(M,M) ⊗ (I(M)*bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(M,M) ⊗ (I(M)*bvals_qₙ[2,:]))
+  brₙ = (E1(1,2) ⊗ (I(M)*bvals_rₙ[1,:]) ⊗ E1(M,M)) + (E1(2,2) ⊗ (I(M)*bvals_rₙ[2,:]) ⊗ E1(M,M))
 
   collect(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end

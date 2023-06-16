@@ -9,14 +9,15 @@
 const E = 1.0;
 const ν = 0.33;
 
-const μ = E/(2*(1+ν));
-const λ = E*ν/((1+ν)*(1-2ν));
+μ(x) = E/(2*(1+ν)) + 0.5*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.5*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
 
 const ρ = 1.0
 
-const c₁₁ = const c₂₂ = 2μ+λ
-const c₃₃ = μ
-const c₁₂ = λ
+c₁₁(x) = 2*μ(x)+λ(x)
+c₂₂(x) = 2*μ(x)+λ(x)
+c₃₃(x) = μ(x)
+c₁₂(x) = λ(x)
 
 """
 The material property tensor in the physical coordinates
@@ -24,7 +25,7 @@ The material property tensor in the physical coordinates
           C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain (Defined in material_props.jl)
 """
-𝒫(x) = @SMatrix [c₁₁ 0 0 c₁₂; 0 c₃₃ c₃₃ 0; 0 c₃₃ c₃₃ 0; c₁₂ 0 0 c₂₂];
+𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
 
 """
 The material properties are extracted from the bigger matrix.

@@ -17,7 +17,7 @@ end
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(r) = @SVector [0.2*r*(1-r), r] # Left boundary 
+c₀(r) = @SVector [0.1*r*(1-r), r] # Left boundary 
 c₁(q) = @SVector [q, 0.0*q*(1-q)] # Bottom boundary
 c₂(r) = @SVector [1.0 - 0.0*r*(1-r), r] # Right boundary
 c₃(q) = @SVector [q, 1.0 - 0.0*q*(1-q)] # Top boundary

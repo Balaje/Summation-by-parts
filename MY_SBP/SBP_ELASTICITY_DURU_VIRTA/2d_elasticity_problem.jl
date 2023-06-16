@@ -43,7 +43,7 @@ Right hand side function
 function F(x,t) 
   V(x) = U(x,t)
   𝛔(y) = σ(∇(V, y),y);  
-  Uₜₜ(x,t) - div(𝛔, x);
+  ρ*Uₜₜ(x,t) - div(𝛔, x);
 end
 
 """
