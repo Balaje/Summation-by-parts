@@ -10,17 +10,18 @@ function P(c₁, c₂; guess=[0.0,0.0])
     F[2] = c₁(x[1])[2] - c₂(x[2])[2]
   end  
   x0 = guess
-  nlsolve(f!, x0, autodiff=:forward).zero
+  x1 = nlsolve(f!, x0, autodiff=:forward).zero
+  c₁(x1[1])
 end
 
 """
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(r) = @SVector [0.2*r*(1-r), r] # Left boundary 
-c₁(q) = @SVector [q, 0.2*q*(1-q)] # Bottom boundary
-c₂(r) = @SVector [1.0 - 0.2*r*(1-r), r] # Right boundary
-c₃(q) = @SVector [q, 1.0 - 0.2*q*(1-q)] # Top boundary
+c₀(r) = @SVector [0.0, r] # Left boundary 
+c₁(q) = @SVector [2*q, 0.0] # Bottom boundary
+c₂(r) = @SVector [1.0, r] # Right boundary
+c₃(q) = @SVector [2*q, 2.0] # Top boundary
 
 # Get the intersection points
 P₀₁ = SVector{2}(P(c₀,c₁));
@@ -38,7 +39,7 @@ The transfinite interpolation formula
 Function to return the Jacobian of the transformation
 """
 function J(S, qr)
-  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, qr))'
+  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, qr))
 end
 
 """
@@ -63,7 +64,7 @@ Fancy defintion of the Kronecker product
 
 """
 Function to return the material tensor in the reference coordinates (0,1)×(0,1). Returns 
-  𝒫' = S*𝒫*S'
+  𝒫ₜ = S'*𝒫*S
 where S is the transformation matrix
 """
 function t(𝒮, qr)

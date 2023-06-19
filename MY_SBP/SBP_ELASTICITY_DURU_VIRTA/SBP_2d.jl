@@ -3,7 +3,7 @@ include("SBP.jl")
 """
 Function to get the 2d stencil from the 1d version
 """
-function SBP_2d(XY, SBP_1d)
+function SBP_2d(SBP_1d)
   # Collect all the necessary finite difference matrices from the method
   # NOTE: Here D2s, H are not needed. 
   #       The D2s matrix is not needed since we use the variable SBP operator
@@ -32,22 +32,7 @@ function SBP_2d(XY, SBP_1d)
   𝐃𝐪𝐪 = (Dqq ⊗ Id)
   𝐃𝐫𝐫 = (Id ⊗ Drr) 
 
-  𝐈q₀ = E₀ ⊗ Id
-  𝐈qₙ = Eₙ ⊗ Id
-  𝐈r₀ = Id ⊗ E₀
-  𝐈rₙ = Id ⊗ Eₙ
-
-  𝐈q₀a = findnz(𝐈q₀)[1]; 
-  𝐈qₙa = findnz(𝐈qₙ)[1];   
-  𝐈r₀a = findnz(𝐈r₀)[1];   
-  𝐈rₙa = findnz(𝐈rₙ)[1];   
-
-  XYq₀ = XY[𝐈q₀a]
-  XYqₙ = XY[𝐈qₙa]
-  XYr₀ = XY[𝐈r₀a]
-  XYrₙ = XY[𝐈rₙa]
-
-  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹), (𝐈q₀a, 𝐈r₀a, 𝐈qₙa, 𝐈rₙa), (XYq₀, XYr₀, XYqₙ, XYrₙ)
+  (𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹)
 end
 
 ###
@@ -56,16 +41,16 @@ end
 """
 Get the SBP Drr operator in 2d for variable coefficients
 """
-function 𝐃𝐫𝐫2d(A, XY)
+function 𝐃𝐫𝐫2d(A, QR)
   # Extract the entries in the 2×2 tensor
-  a₁₁(x) = A(x)[1,1]
-  a₁₂(x) = A(x)[1,2]
-  a₂₁(x) = A(x)[2,1]
-  a₂₂(x) = A(x)[2,2]
+  a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
+  a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
+  a₂₁(qr) = (det∘J)(𝒮,qr)*A(qr)[2,1]
+  a₂₂(qr) = (det∘J)(𝒮,qr)*A(qr)[2,2]
   # Compute the matrix
-  N = Int(√(length(XY)))
+  N = Int(√(length(QR)))
   DrrA = spzeros(Float64, 2N^2, 2N^2)
-  xy = reshape(XY, (N,N))
+  qr = reshape(QR, (N,N))
   # E[i,i] = 1 
   @inline function E(i) 
     res = spzeros(N,N)
@@ -74,9 +59,8 @@ function 𝐃𝐫𝐫2d(A, XY)
   end
   # Compute the full variable tensor SBP operator  
   for i=1:N    
-    detJ = (det∘J).(𝒮,xy[:,i])
-    DrrA  += [E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₁₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₁₂.(xy[:,i]))[2]; 
-              E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₂₁.(xy[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, detJ.*a₂₂.(xy[:,i]))[2]]    
+    DrrA  += [E(i) ⊗ SBP_VARIABLE_4(N, a₁₁.(qr[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₁₂.(qr[:,i]))[2]; 
+              E(i) ⊗ SBP_VARIABLE_4(N, a₂₁.(qr[:,i]))[2]  E(i) ⊗ SBP_VARIABLE_4(N, a₂₂.(qr[:,i]))[2]]    
   end
   DrrA
 end
@@ -84,16 +68,16 @@ end
 """
 Get the SBP Dqq operator in 2d for variable coefficients
 """
-function 𝐃𝐪𝐪2d(A, XY)
+function 𝐃𝐪𝐪2d(A, QR)
   # Extract the entries in the 2×2 tensor
-  a₁₁(x) = A(x)[1,1]
-  a₁₂(x) = A(x)[1,2]
-  a₂₁(x) = A(x)[2,1]
-  a₂₂(x) = A(x)[2,2]
+  a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
+  a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
+  a₂₁(qr) = (det∘J)(𝒮,qr)*A(qr)[2,1]
+  a₂₂(qr) = (det∘J)(𝒮,qr)*A(qr)[2,2]
   # Compute the matrix
-  N = Int(√(length(XY)))
+  N = Int(√(length(QR)))
   DqqA = spzeros(Float64, 2N^2, 2N^2)
-  xy = reshape(XY, (N,N))
+  qr = reshape(QR, (N,N))
   # E[i,i] = 1 
   @inline function E(i) 
     res = spzeros(N,N)
@@ -102,9 +86,8 @@ function 𝐃𝐪𝐪2d(A, XY)
   end
   # Compute the full variable tensor SBP operator  
   for i=1:N    
-    detJ = (det∘J).(𝒮,xy[i,:])
-    DqqA  += [SBP_VARIABLE_4(N, detJ.*a₁₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, detJ.*a₁₂.(xy[i,:]))[2] ⊗ E(i); 
-              SBP_VARIABLE_4(N, detJ.*a₂₁.(xy[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, detJ.*a₂₂.(xy[i,:]))[2] ⊗ E(i)]    
+    DqqA  += [SBP_VARIABLE_4(N, a₁₁.(qr[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₁₂.(qr[i,:]))[2] ⊗ E(i); 
+              SBP_VARIABLE_4(N, a₂₁.(qr[i,:]))[2] ⊗ E(i)  SBP_VARIABLE_4(N, a₂₂.(qr[i,:]))[2] ⊗ E(i)]    
   end
   DqqA
 end
@@ -112,24 +95,23 @@ end
 """
 Get the SBP Dqr, Drq operator in 2d for variable coefficients
 """
-function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, xy, sbp_2d)  
-  a₁₁(x) = A(x)[1,1]
-  a₁₂(x) = A(x)[1,2]
-  a₂₁(x) = A(x)[2,1]
-  a₂₂(x) = A(x)[2,2]  
+function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, qr, sbp_2d)  
+  a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
+  a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
+  a₂₁(qr) = (det∘J)(𝒮,qr)*A(qr)[2,1]
+  a₂₂(qr) = (det∘J)(𝒮,qr)*A(qr)[2,2]  
   𝐃𝐪 = I(2) ⊗ sbp_2d[1][1]
   𝐃𝐫 = I(2) ⊗ sbp_2d[1][2] 
-  detJ = (det∘J).(𝒮,xy)
-  𝐂 = [spdiagm(detJ.*a₁₁.(xy)) detJ.*spdiagm(a₁₂.(xy)); detJ.*spdiagm(a₂₁.(xy)) detJ.*spdiagm(a₂₂.(xy))] 
+  𝐂 = [spdiagm(a₁₁.(qr)) spdiagm(a₁₂.(qr)); spdiagm(a₂₁.(qr)) spdiagm(a₂₂.(qr))] 
   𝐃𝐪*𝐂*𝐃𝐫, 𝐃𝐫*𝐂'*𝐃𝐪
 end
 
 """
 Get the SBP variable Tq, Tr operator
 """
-function 𝐓𝐪𝐓𝐫2d(A, B, C, xy, sbp_2d)
+function 𝐓𝐪𝐓𝐫2d(A, B, C, qr, sbp_2d)
   # E[i,i] = 1 
-  N = Int(√(length(xy)))
+  N = Int(√(length(qr)))
   @inline function E(i) 
     res = spzeros(N,N)
     res[i,i] = 1.0
@@ -147,9 +129,9 @@ function 𝐓𝐪𝐓𝐫2d(A, B, C, xy, sbp_2d)
   c₁₁(x) = C(x)[1,1];  c₁₂(x) = C(x)[1,2];  c₂₁(x) = C(x)[2,1];  c₂₂(x) = C(x)[2,2]  
 
   # Get the coefficient matrices
-  𝐀 = [spdiagm(a₁₁.(xy)) spdiagm(a₁₂.(xy)); spdiagm(a₂₁.(xy)) spdiagm(a₂₂.(xy))] 
-  𝐁 = [spdiagm(b₁₁.(xy)) spdiagm(b₁₂.(xy)); spdiagm(b₂₁.(xy)) spdiagm(b₂₂.(xy))] 
-  𝐂 = [spdiagm(c₁₁.(xy)) spdiagm(c₁₂.(xy)); spdiagm(c₂₁.(xy)) spdiagm(c₂₂.(xy))] 
+  𝐀 = [spdiagm(a₁₁.(qr)) spdiagm(a₁₂.(qr)); spdiagm(a₂₁.(qr)) spdiagm(a₂₂.(qr))] 
+  𝐁 = [spdiagm(b₁₁.(qr)) spdiagm(b₁₂.(qr)); spdiagm(b₂₁.(qr)) spdiagm(b₂₂.(qr))] 
+  𝐂 = [spdiagm(c₁₁.(qr)) spdiagm(c₁₂.(qr)); spdiagm(c₂₁.(qr)) spdiagm(c₂₂.(qr))] 
 
   # Compute the stress tensor
   𝐀*𝐒𝐪 + 𝐂*𝐃𝐫, 𝐂'*𝐃𝐪 + 𝐁*𝐒𝐫

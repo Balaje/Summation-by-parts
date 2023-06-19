@@ -6,15 +6,15 @@ The stiffness term (K) in the elastic wave equation
 Ü = -K*U + (f + g)
 """
 function stima(q, r, sbp_2d, pterms)
-  XY = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+  QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
   𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]  
   τ₀, τ₁, τ₂, τ₃ = pterms   
   
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, XY)
-  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, XY)
-  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ, XY, sbp_2d)  
-  𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(Aₜ, Bₜ, Cₜ, XY, sbp_2d) # The unsigned traction operator
+  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, QR)
+  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, QR)
+  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ, QR, sbp_2d)  
+  𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(Aₜ, Bₜ, Cₜ, QR, sbp_2d) # The unsigned traction operator
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term  
 
@@ -45,10 +45,10 @@ function nbc(t::Float64, q, r, pterms, sbp_2d)
   bvals_qₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[1.0, rᵢ], @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r]) # q = 1
   bvals_rₙ = reduce(hcat, [J⁻¹s(𝒮, @SVector[qᵢ, 1.0], @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])  # r = 1  
   
-  bq₀ = (E1(1,2) ⊗ E1(1,M) ⊗ (I(M)*bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,M) ⊗ (I(M)*bvals_q₀[2,:]))
-  br₀ = (E1(1,2) ⊗ (I(M)*bvals_r₀[1,:]) ⊗ E1(1,M)) + (E1(2,2) ⊗ (I(M)*bvals_r₀[2,:]) ⊗ E1(1,M))
-  bqₙ = (E1(1,2) ⊗ E1(M,M) ⊗ (I(M)*bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(M,M) ⊗ (I(M)*bvals_qₙ[2,:]))
-  brₙ = (E1(1,2) ⊗ (I(M)*bvals_rₙ[1,:]) ⊗ E1(M,M)) + (E1(2,2) ⊗ (I(M)*bvals_rₙ[2,:]) ⊗ E1(M,M))
+  bq₀ = (E1(1,2) ⊗ E1(1,M) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,M) ⊗ (bvals_q₀[2,:]))
+  br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,M)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,M))
+  bqₙ = (E1(1,2) ⊗ E1(M,M) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(M,M) ⊗ (bvals_qₙ[2,:]))
+  brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(M,M)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(M,M))
 
   collect(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
@@ -58,7 +58,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21,31,41,51,61,71,81]
+𝒩 = [21,31]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -68,17 +68,17 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     global r = LinRange(0,1,M);  
     global 𝐐𝐑 = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
     global XY = 𝒮.(𝐐𝐑)
-    detJ = (det∘J).(𝒮, 𝐐𝐑)    
+    detJ = (det∘J).(𝒮, 𝐐𝐑)  
     # Get the SBP matrices
     global sbp_1d = SBP(M);
-    global sbp_2d = SBP_2d(𝐐𝐑, sbp_1d);
+    global sbp_2d = SBP_2d(sbp_1d);
     # Penalty terms for applying the boundary conditions using the SAT method
     τ₀ = τ₁ = τ₂ = τ₃ = 1.0;
     pterms = (τ₀, τ₁, τ₂, τ₃)
     # Begin solving the problem
     # Temporal Discretization parameters
     global tf = 1.25
-    Δt = 5e-4
+    Δt = 1e-3
     ntime = ceil(Int64,tf/Δt)
     # Empty Plots
     plt = plot()

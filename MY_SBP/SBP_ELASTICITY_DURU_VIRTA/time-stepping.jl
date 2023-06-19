@@ -24,15 +24,5 @@ function CN(M⁺, M⁻::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float
 end
 
 """
-The explicit leap-frog scheme
+The explicit Runge Kutta method
 """
-function LF(K::SparseMatrixCSC{Float64, Int64}, ρ⁻¹::AbstractVector{Float64}, 
-  args::Tuple{T, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}}) where T<:Number
-  Δt, Uₙ, Uₙ₋₁, f = args
-  ρ⁻¹ .* (Δt^2*K*Uₙ + Δt^2*f) + 2Uₙ - Uₙ₋₁
-end
-function LF1(K::SparseMatrixCSC{Float64,Int64}, ρ⁻¹::AbstractVector{Float64}, 
-  args::Tuple{T, AbstractVector{T}, AbstractVector{T}, AbstractVector{T}}) where T<:Number
-  Δt, U₀, f, g = args
-  0.5*ρ⁻¹ .* (Δt^2*K*U₀ + Δt^2*f) + U₀ + Δt*g
-end
