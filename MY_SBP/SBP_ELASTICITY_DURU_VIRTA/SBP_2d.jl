@@ -117,7 +117,16 @@ function 𝐃𝐪𝐪2d(A, QR)
 end
 
 """
-Get the SBP Dqr, Drq operator in 2d for variable coefficients
+𝐃𝐪𝐫𝐃𝐫𝐪2d(A, QR)
+  Here:
+    (Input) (q,r)->A(q,r) is the 2x2 material property matrix
+    (Input) qr is the coordinates in the reference grid (M^2 × 1)
+    (Input) sbp_2d is the two-dimensional stencil
+
+    (Output)
+      𝐃𝐪 = I(2) ⊗ sbp_2d[1][1];     𝐃𝐫 = I(2) ⊗ sbp_2d[1][2] 
+      𝐂 = [spdiagm(a₁₁.(qr)) spdiagm(a₁₂.(qr)); spdiagm(a₂₁.(qr)) spdiagm(a₂₂.(qr))]     
+      𝐃𝐪*𝐂*𝐃𝐫, 𝐃𝐫*𝐂'*𝐃𝐪    
 """
 function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, qr, sbp_2d)  
   a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
@@ -132,6 +141,14 @@ end
 
 """
 Get the SBP variable Tq, Tr operator
+  𝐓𝐪𝐓𝐫2d(A, B, C, qr, sbp_2d)  
+  Here:
+    (Input) (q,r)->A(q,r), (q,r)->B(q,r), (q,r)->C(q,r) is the 2x2 material property matrix
+    (Input) qr is the coordinates in the reference grid (M^2 × 1)
+    (Input) sbp_2d is the two-dimensional stencil
+
+    (Output)
+      𝐀*𝐒𝐪 + 𝐂*𝐃𝐫, 𝐂'*𝐃𝐪 + 𝐁*𝐒𝐫
 """
 function 𝐓𝐪𝐓𝐫2d(A, B, C, qr, sbp_2d)
   # E[i,i] = 1 

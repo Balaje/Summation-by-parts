@@ -70,13 +70,13 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21,31,41,51]
+𝒩 = [21,31,41,51,61,71,81]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
 
 # Temporal Discretization parameters
-tf = 0.25
+tf = 0.5
 Δt = 1e-3
 ntime = ceil(Int64,tf/Δt)
 
@@ -172,3 +172,7 @@ plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
 
 plt5 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
 plot!(plt5, h, h.^4, label="O(h⁴)", lw=1);
+plt6_1 = scatter(Tuple.(XY), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
+plt6_2 = scatter(Tuple.(vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)])), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5)
+plt6 = plot(plt6_1, plt6_2, layout=(1,2))
+plt56 = plot(plt6, plt5, layout=(2,1), size=(700,800))

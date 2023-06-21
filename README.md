@@ -145,6 +145,32 @@ Convergence Rates |
 --- |
 ![](./MY_SBP/Images/le-rate.png) |
 
+The code now works for problems in arbitrary domain:
+
+![](./MY_SBP/Images/solu-arbitrary.png) | ![](./MY_SBP/Images/solv-arbitrary.png) | ![](./MY_SBP/Images/domain-rate.png) | 
+--- | --- | --- |
+
+``` julia
+julia> rate
+6-element Vector{Float64}:
+ 3.2746487909958084
+ 3.7040378918078023
+ 3.9304181708948893
+ 4.0365715322662075
+ 4.0870114543739
+ 4.111380600861835
+
+julia> L²Error
+7-element Vector{Float64}:
+ 0.006591573645793299
+ 0.0017472380550776494
+ 0.0006019691925094348
+ 0.00025042483107953257
+ 0.00011996557109679588
+ 6.389168322477752e-5
+ 3.689923513170043e-5
+```
+
 ## References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
