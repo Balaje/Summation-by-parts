@@ -12,7 +12,7 @@ end
 
 """
 The Crank-Nicolson scheme (vₜₜ = f(t,v))
-  M⁺ is the appropriate factorization obtained by 
+  M⁺ is the lu-factorization obtained by 
     factorize(M - Δt^2/4*K)
 """
 function CN(M⁺, M⁻::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float64, Int64}, 
@@ -24,5 +24,5 @@ function CN(M⁺, M⁻::SparseMatrixCSC{Float64,Int64}, M::SparseMatrixCSC{Float
 end
 
 """
-The explicit Runge Kutta method
+The explicit Runge Kutta method. TBD
 """

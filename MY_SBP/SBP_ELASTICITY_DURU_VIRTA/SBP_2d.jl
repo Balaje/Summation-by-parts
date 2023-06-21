@@ -40,6 +40,18 @@ end
 ###
 """
 Get the SBP Drr operator in 2d for variable coefficients
+  𝐃𝐫𝐫2d(A, QR)
+  Here:
+    (Input) (q,r)->A(q,r) is the 2x2 material property matrix
+    (Input) QR is the coordinates in the reference grid (M^2 × 1)
+
+    (Output)
+     qr = reshape(QR,(M,M))     
+     E(i) := 
+         E[i,i]=1.0
+     i = 1,...,M
+     RESULT = Σᵢ [E(i) ⊗ SBP_VARIABLE_1d(a₁₁(qr[:,i])),  E(i) ⊗ SBP_VARIABLE_1d(a₁₂(qr[:,i])); 
+                  E(i) ⊗SBP_VARIABLE_1d(a₂₁(qr[:,i])),   E(i) ⊗ SBP_VARIABLE_1d(a₂₂(qr[:,i]))]     
 """
 function 𝐃𝐫𝐫2d(A, QR)
   # Extract the entries in the 2×2 tensor
@@ -67,6 +79,18 @@ end
 
 """
 Get the SBP Dqq operator in 2d for variable coefficients
+  𝐃𝐪𝐪2d(A, QR)
+  Here:
+    (Input) (q,r)->A(q,r) is the 2x2 material property matrix
+    (Input) QR is the coordinates in the reference grid (M^2 × 1)
+
+    (Output)
+     qr = reshape(QR,(M,M)) 
+     E(i) := 
+          E[i,i]=1.0
+     i = 1,...,M
+     RESULT = Σᵢ [SBP_VARIABLE_1d(a₁₁(qr[i,:])) ⊗ E(i),  SBP_VARIABLE_1d(a₁₂(qr[i,:])) ⊗ E(i); 
+                  SBP_VARIABLE_1d(a₂₁(qr[i,:])) ⊗ E(i),  SBP_VARIABLE_1d(a₂₂(qr[i,:])) ⊗ E(i)]    
 """
 function 𝐃𝐪𝐪2d(A, QR)
   # Extract the entries in the 2×2 tensor

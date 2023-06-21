@@ -9,11 +9,20 @@
 const E = 1.0;
 const ν = 0.33;
 
+"""
+The Lamé parameters μ, λ
+"""
 μ(x) = E/(2*(1+ν)) + 1.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
 λ(x) = E*ν/((1+ν)*(1-2ν)) + 1.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
 
-const ρ = 1.0
+"""
+The density of the material
+"""
+ρ(x) = 1.0
 
+"""
+Material properties coefficients of an anisotropic material
+"""
 c₁₁(x) = 2*μ(x)+λ(x)
 c₂₂(x) = 2*μ(x)+λ(x)
 c₃₃(x) = μ(x)
@@ -23,7 +32,7 @@ c₁₂(x) = λ(x)
 The material property tensor in the physical coordinates
   𝒫(x) = [A(x) C(x); 
           C(x)' B(x)]
-where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain (Defined in material_props.jl)
+where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
 """
 𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
 
@@ -56,8 +65,8 @@ Divergence of a tensor field
 """
 function div(v,x)
   v₁₁(x) = v(x)[1]; 
-  v₁₂(x) = v(x)[2]; 
-  v₂₁(x) = v(x)[3];
+  v₁₂(x) = v(x)[3]; 
+  v₂₁(x) = v(x)[2];
   v₂₂(x) = v(x)[4];   
   ∂xv₁₁ = ForwardDiff.gradient(v₁₁,x)[1];
   ∂xv₁₂ = ForwardDiff.gradient(v₁₂,x)[1];
