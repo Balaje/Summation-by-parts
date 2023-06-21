@@ -18,10 +18,10 @@ end
 Parametric Representation of the boundary
 Define c₀, c₁, c₂, c₃
 """
-c₀(r) = @SVector [0.0, r] # Left boundary 
-c₁(q) = @SVector [2*q, 0.0] # Bottom boundary
-c₂(r) = @SVector [1.0, r] # Right boundary
-c₃(q) = @SVector [2*q, 2.0] # Top boundary
+c₀(r) = @SVector [0.0 + 0.1*sin(π*r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
+c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
+c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)] # Top boundary
 
 # Get the intersection points
 P₀₁ = SVector{2}(P(c₀,c₁));
@@ -39,7 +39,7 @@ The transfinite interpolation formula
 Function to return the Jacobian of the transformation
 """
 function J(S, qr)
-  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, qr))
+  SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, qr))'
 end
 
 """

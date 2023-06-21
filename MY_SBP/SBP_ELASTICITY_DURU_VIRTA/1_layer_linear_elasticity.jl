@@ -19,7 +19,8 @@ function stima(q, r, sbp_2d, pterms)
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term  
 
   # The "stiffness term"  
-  𝐏 - (-τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪) 
+  detJ = [1,1] ⊗ (det∘J).(𝒮,QR)
+  𝐏 - spdiagm(detJ)*(-τ₀*𝐇𝐫₀⁻¹*𝐓𝐫 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫 - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪) 
 end
 
 """
@@ -50,7 +51,9 @@ function nbc(t::Float64, q, r, pterms, sbp_2d)
   bqₙ = (E1(1,2) ⊗ E1(M,M) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(M,M) ⊗ (bvals_qₙ[2,:]))
   brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(M,M)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(M,M))
 
-  collect(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
+  QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
+  detJ = [1,1] ⊗ (det∘J).(𝒮,QR)  
+  detJ.*collect(τ₀*𝐇𝐫₀⁻¹*br₀ + τ₁*𝐇𝐫ₙ⁻¹*brₙ + τ₂*𝐇𝐪₀⁻¹*bq₀ + τ₃*𝐇𝐪ₙ⁻¹*bqₙ)
 end
 
 #################################
@@ -58,7 +61,7 @@ end
 #################################
 # Discretize the domain
 domain = (0.0,1.0,0.0,1.0);
-𝒩 = [21,31]
+𝒩 = [21,31,41,51,61,71,81,91,101,111,121]
 h = 1 ./(𝒩 .- 1)
 L²Error = zeros(Float64,length(𝒩))
 
@@ -77,7 +80,7 @@ for (M,i) in zip(𝒩,1:length(𝒩))
     pterms = (τ₀, τ₁, τ₂, τ₃)
     # Begin solving the problem
     # Temporal Discretization parameters
-    global tf = 1.25
+    global tf = 0.25
     Δt = 1e-3
     ntime = ceil(Int64,tf/Δt)
     # Empty Plots
@@ -118,8 +121,8 @@ for (M,i) in zip(𝒩,1:length(𝒩))
 
     # Compute the L²Error
     H = sbp_1d[1][1]
-    𝐇 = (I(2) ⊗ H ⊗ H)*(I(2) ⊗ spdiagm(detJ))
-    e = sol - eltocols(U.(XY,tf))
+    𝐇 = (I(2) ⊗ H ⊗ H)
+    e = (sol - eltocols(U.(XY,tf))).*([1,1] ⊗ sqrt.(detJ))
     L²Error[i] = sqrt(e'*𝐇*e)
     println("Done N = "*string(M)*", L²Error = "*string(L²Error[i]))
   end
