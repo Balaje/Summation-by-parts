@@ -53,7 +53,7 @@ Get the SBP Drr operator in 2d for variable coefficients
      RESULT = Σᵢ [E(i) ⊗ SBP_VARIABLE_1d(a₁₁(qr[:,i])),  E(i) ⊗ SBP_VARIABLE_1d(a₁₂(qr[:,i])); 
                   E(i) ⊗SBP_VARIABLE_1d(a₂₁(qr[:,i])),   E(i) ⊗ SBP_VARIABLE_1d(a₂₂(qr[:,i]))]     
 """
-function 𝐃𝐫𝐫2d(A, QR)
+function 𝐃𝐫𝐫2d(A, QR, 𝒮)
   # Extract the entries in the 2×2 tensor
   a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
   a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
@@ -92,7 +92,7 @@ Get the SBP Dqq operator in 2d for variable coefficients
      RESULT = Σᵢ [SBP_VARIABLE_1d(a₁₁(qr[i,:])) ⊗ E(i),  SBP_VARIABLE_1d(a₁₂(qr[i,:])) ⊗ E(i); 
                   SBP_VARIABLE_1d(a₂₁(qr[i,:])) ⊗ E(i),  SBP_VARIABLE_1d(a₂₂(qr[i,:])) ⊗ E(i)]    
 """
-function 𝐃𝐪𝐪2d(A, QR)
+function 𝐃𝐪𝐪2d(A, QR, 𝒮)
   # Extract the entries in the 2×2 tensor
   a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
   a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
@@ -128,7 +128,7 @@ end
       𝐂 = [spdiagm(a₁₁.(qr)) spdiagm(a₁₂.(qr)); spdiagm(a₂₁.(qr)) spdiagm(a₂₂.(qr))]     
       𝐃𝐪*𝐂*𝐃𝐫, 𝐃𝐫*𝐂'*𝐃𝐪    
 """
-function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, qr, sbp_2d)  
+function 𝐃𝐪𝐫𝐃𝐫𝐪2d(A, qr, sbp_2d, 𝒮)  
   a₁₁(qr) = (det∘J)(𝒮,qr)*A(qr)[1,1]
   a₁₂(qr) = (det∘J)(𝒮,qr)*A(qr)[1,2]
   a₂₁(qr) = (det∘J)(𝒮,qr)*A(qr)[2,1]

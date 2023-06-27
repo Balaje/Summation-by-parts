@@ -11,9 +11,9 @@ function 𝐊(q, r, sbp_2d, pterms)
   τ₀, τ₁, τ₂, τ₃ = pterms   
   
   # The second derivative SBP operator
-  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, QR)
-  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, QR)
-  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ, QR, sbp_2d)  
+  𝐃𝐪𝐪ᴬ = 𝐃𝐪𝐪2d(Aₜ, QR, 𝒮)
+  𝐃𝐫𝐫ᴮ = 𝐃𝐫𝐫2d(Bₜ, QR, 𝒮)
+  𝐃𝐪C𝐃𝐫, 𝐃𝐫Cᵗ𝐃𝐪 = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ, QR, sbp_2d, 𝒮)  
   𝐓𝐪, 𝐓𝐫 = 𝐓𝐪𝐓𝐫2d(Aₜ, Bₜ, Cₜ, QR, sbp_2d) # The "unsigned" traction operator
   # The Elastic wave-equation operators
   𝐏 = (𝐃𝐪𝐪ᴬ + 𝐃𝐫𝐫ᴮ + 𝐃𝐪C𝐃𝐫 + 𝐃𝐫Cᵗ𝐃𝐪) # The bulk term  
