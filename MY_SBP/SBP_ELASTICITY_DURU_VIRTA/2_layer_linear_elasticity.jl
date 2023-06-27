@@ -51,12 +51,13 @@ Function to compute the stiffness matrix using the SBP-SAT method.
 On the Neumann boundary, the penalty terms are equal to 1.
 On the Interface boundary, the penalty terms are taken from Duru, Virta 2014.
 """
-function 𝐊(q, r, sbp_2d, pterms, H)
+function 𝐊2(q, r, sbp_2d, pterms, H)
   QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
   # The determinants of the transformation
   detJ¹ = [1,1] ⊗ (det∘J).(𝒮¹,QR) 
   detJ² = [1,1] ⊗ (det∘J).(𝒮²,QR) 
-  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3]  
+  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3] 
+  Dq, _, _, Sr = sbp_2d[1] 
   τ₀, τ₁, τ₂, τ₃ = pterms   
 
   # Get the transformed material properties on the first domain
@@ -89,7 +90,7 @@ function 𝐊(q, r, sbp_2d, pterms, H)
 
   # The SAT terms for the Neumann boundary
   SATₙ₁ = -τ₀*𝐇𝐫₀⁻¹₁*𝐓𝐫₁ + τ₁*𝐇𝐫ₙ⁻¹₁*𝐓𝐫₁ + τ₃*𝐇𝐪ₙ⁻¹₁*𝐓𝐪₁ # r=0 (c₁) is the interface
-  SATₙ₂ = -τ₀*𝐇𝐫₀⁻¹₂*𝐓𝐫₂ - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹₂*𝐓𝐪₂ # r=0 (c₃) is the interface
+  SATₙ₂ = -τ₀*𝐇𝐫₀⁻¹₂*𝐓𝐫₂ - τ₂*𝐇𝐪₀⁻¹₂*𝐓𝐪 + τ₃*𝐇𝐪ₙ⁻¹₂*𝐓𝐪₂ # r=0 (c₃) is the interface
 
   # The SAT terms for the interface boundary
   M = size(q,1)
@@ -98,14 +99,33 @@ function 𝐊(q, r, sbp_2d, pterms, H)
   B̂ = spzeros(M^2, M^2); 
   B̂[M, M] = 1; B̂[M+1, M+1] = -1; B̃[M+1, M] = 1; B̃[M, M+1] = -1; 
   H⁻¹ = H\(I(M))
-  H̃⁻¹ = blockdiag((I(2) ⊗ H⁻¹ ⊗ H⁻¹), (I(2) ⊗ H⁻¹ ⊗ H⁻¹))
-  T̃ = 
+
+  # Block matrices
+  𝐇⁻¹ = I(2) ⊗ H⁻¹ ⊗ H⁻¹
+  𝐓𝐫 =  blockdiag(𝐓𝐫₁, 𝐓𝐫₂)
+  𝐁ₕ = I(2) ⊗ B̂
+  𝐁ₜ = I(2) ⊗ B̃
+  # Get the individual contribution from the traction
+  b₁₁¹(x) = Bₜ¹(x)[1,1];  b₁₂¹(x) = Bₜ¹(x)[1,2];  b₂₁¹(x) = Bₜ¹(x)[2,1];  b₂₂¹(x) = Bₜ¹(x)[2,2]  
+  b₁₁²(x) = Bₜ²(x)[1,1];  b₁₂²(x) = Bₜ²(x)[1,2];  b₂₁²(x) = Bₜ²(x)[2,1];  b₂₂²(x) = Bₜ²(x)[2,2]  
+  c₁₁¹(x) = Cₜ¹(x)[1,1];  c₁₂¹(x) = Cₜ¹(x)[1,2];  c₂₁¹(x) = Cₜ¹(x)[2,1];  c₂₂¹(x) = Cₜ¹(x)[2,2]  
+  c₁₁²(x) = Cₜ²(x)[1,1];  c₁₂²(x) = Cₜ²(x)[1,2];  c₂₁²(x) = Cₜ²(x)[2,1];  c₂₂²(x) = Cₜ²(x)[2,2]  
+  𝐁¹ = [spdiagm(b₁₁¹.(qr)) spdiagm(b₁₂¹.(qr)); spdiagm(b₂₁¹.(qr)) spdiagm(b₂₂¹.(qr))] 
+  𝐁² = [spdiagm(b₁₁².(qr)) spdiagm(b₁₂².(qr)); spdiagm(b₂₁².(qr)) spdiagm(b₂₂².(qr))] 
+  𝐂¹ = [spdiagm(c₁₁¹.(qr)) spdiagm(c₁₂¹.(qr)); spdiagm(c₂₁¹.(qr)) spdiagm(c₂₂¹.(qr))] 
+  𝐂² = [spdiagm(c₁₁².(qr)) spdiagm(c₁₂².(qr)); spdiagm(c₂₁².(qr)) spdiagm(c₂₂².(qr))]   
+  𝐃𝐪 = I(2) ⊗ Dq
+  𝐒𝐫 = I(2) ⊗ Sr
+  𝐃cq = blockdiag(𝐂¹'*𝐃𝐪, 𝐂²'*𝐃𝐪)
+  𝐒Br = blockdiag(𝐁¹*𝐒𝐫, 𝐁²*𝐒𝐫)
   # Penalty coefficients
   τₙ = 0.5
   γₙ = -0.5
   τ₀ = 1/(M-1);
 
-  SATᵢ = -τₙ*(H̃⁻¹*B̂*)
+  SATᵢ = -τₙ*(𝐇⁻¹*𝐁ₕ*𝐓𝐫) - γₙ*(𝐇⁻¹*𝐒Br'*𝐁ₕ) - γₙ*(𝐇⁻¹*𝐃cq'*𝐁ₕ) - τ₀*(𝐇⁻¹*𝐁ₜ)
 
-  blockdiag(𝐏₁, 𝐏₂)
+  𝒫 = blockdiag(𝐏₁, 𝐏₂)
+
+  𝒫 + SATᵢ - SATₙ₁ - SATₙ₂
 end
