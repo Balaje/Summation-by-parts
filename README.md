@@ -4,7 +4,7 @@ Contains code to implement the summation by parts finite difference methods for 
 
 ## Advection-diffusion equation
 
-The code can be found in the `MY_SBP/sbp_sat_advection_eq.jl` folder. Consider the one-dimensional model problem [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub)
+The code can be found in the `Advection Diffusion/sbp_sat_advection_eq.jl` folder. Consider the one-dimensional model problem [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub)
 
 $$
 \begin{align*}
@@ -34,9 +34,9 @@ Solving the problem using the SBP finite difference method and using Simultaneou
 
 Solution at `T=1.0` s | |
 --- | --- |
-![](./MY_SBP/Images/sol.png) | ![](./MY_SBP/Images/rate.png)
+![](./Images/sol.png) | ![](./Images/rate.png)
 **Solution at `T=4.0` s** | |
-![](./MY_SBP/Images/sol4.0.png) | ![](./MY_SBP/Images/rate4.0.png) |
+![](./Images/sol4.0.png) | ![](./Images/rate4.0.png) |
 
 The numerical values of the convergence rates at `T=1.0` s and `T=4.0` s are $[4.2067, 4.1841, 4.1289, 4.0833]$ and $[ 4.1777, 4.1718, 4.1282, 4.0863]$, respectively. The spatial axis is discretized using $N = 30,60,100,200,300$ points (similar to the paper) and using the SBP method whose order of accuracy is 4 in the interior. The temporal direction was discretized using the fourth order Runge-Kutta scheme with $\Delta t = 5\times 10^{-5}$. The observed rate of convergence in the spatial direction and is in agreement with the theory. On invalidating the penalty parameter choice by taking $\tau_0 = -\epsilon/2$ instead of $\tau_0 = -\epsilon$:
 
@@ -44,7 +44,7 @@ https://github.com/Balaje/SBP-PML/blob/76dda6ccdb01237c5dfcf93c1701a8ea70f2cc6e/
 
 we observe that the rate of convergence is close to $3$ instead of $4$. This can be seen in the figures below
 
-![](./MY_SBP/Images/sol_non_opt.png) | ![](./MY_SBP/Images/rate_non_opt.png) |
+![](./Images/sol_non_opt.png) | ![](./Images/rate_non_opt.png) |
 --- | --- |
 
 The numerical values of the convergence rates is $[3.0323, 3.0295, 3.0204, 3.0130]$.
@@ -62,9 +62,9 @@ $$
 \end{align*}
 $$
 
-from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub) using the fourth-order SBP method with the diagonal norm. We observe a suboptimal convergence rate ($\approx 3$) which was also observed in the paper. The code can be found in `MY_SBP/sbp_sat_incomplete_parabolic.jl`.
+from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub) using the fourth-order SBP method with the diagonal norm. We observe a suboptimal convergence rate ($\approx 3$) which was also observed in the paper. The code can be found in `Advection Diffusion/sbp_sat_incomplete_parabolic.jl`.
 
-![](./MY_SBP/Images/sol_incomplete_parabolic.png) | ![](./MY_SBP/Images/sol_incomplete_parabolic_rate.png) |
+![](./Images/sol_incomplete_parabolic.png) | ![](./Images/sol_incomplete_parabolic_rate.png) |
 --- | --- |
 
 
@@ -72,7 +72,7 @@ from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/sci
 
 Arbitrary domains can be handled using [Transfinite Interpolation](https://en.wikipedia.org/wiki/Transfinite_interpolation). Any point in the physical domain can be mapped to the reference domain using the transfinite interpolation. We can then solve the PDE in the reference domain.
 
-![](./MY_SBP/Images/interpolation.png)
+![](./Images/interpolation.png)
 
 ## Single-Layer Linear Elasticity
 
@@ -107,7 +107,7 @@ $$
   A(\mathbf{x}), B(\mathbf{x}) \quad \text{and} \quad C(\mathbf{x})
 $$
 
-are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `MY_SBP/SBP_ELASTICITY_DURU_VIRTA/1_layer_linear_elasticity.jl` contains the code to solve the case when the material properties are constant in space. We assume an exact solution
+are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `Linear Elasticity/1_layer_linear_elasticity.jl` contains the code to solve the case when the material properties are constant in space. We assume an exact solution
 
 $$
 \mathbf{u}(\mathbf{x},t) = 
@@ -119,7 +119,7 @@ $$
 
 and compute the right-hand side $\mathbf{f}$ and the boundary data $\mathbf{g}$. We consider a uniform two-dimensional discretization with $N = [11,21,31,41,51]$ points. To discretize the temporal direction, we use the Crank Nicolson scheme with $\Delta t = 10^{-3}$ and solve till final time $T = 1.25$ s. Following are the approximate and exact solutions with $N = 51$ points. 
 
-![](./MY_SBP/Images/le-x-disp.png) | ![](./MY_SBP/Images/le-y-disp.png) 
+![](./Images/le-x-disp.png) | ![](./Images/le-y-disp.png) 
 -- | -- |
 
 The $L^2$-error and the convergence rates are as follows
@@ -143,11 +143,11 @@ julia> rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1
 
 Convergence Rates |
 --- |
-![](./MY_SBP/Images/le-rate.png) |
+![](./Images/le-rate.png) |
 
 The code now works for problems in arbitrary domain:
 
-![](./MY_SBP/Images/solu-arbitrary.png) | ![](./MY_SBP/Images/solv-arbitrary.png) | ![](./MY_SBP/Images/domain-rate.png) | 
+![](./Images/solu-arbitrary.png) | ![](./Images/solv-arbitrary.png) | ![](./Images/domain-rate.png) | 
 --- | --- | --- |
 
 ``` julia
