@@ -94,42 +94,31 @@ function 𝐊2(q, r, sbp_2d, pterms, H)
 
   # The SAT terms for the interface boundary
   M = size(q,1)
+  Id = spdiagm(ones(M))
   function E1(i)
-    res = spzeros(Float64, M, M)
+    res = spzeros(M,M)
     res[i,i] = 1.0
     res
   end
-  B̃ = [(I(2) ⊗ I(M) ⊗ E1(1)) -(I(2) ⊗ I(M) ⊗ E1(M)); -(I(2) ⊗ I(M) ⊗ E1(M)) (I(2) ⊗ I(M) ⊗ E1(1))]
-  B̂ = [(I(2) ⊗ I(M) ⊗ E1(1)) -(I(2) ⊗ I(M) ⊗ E1(M)); (I(2) ⊗ I(M) ⊗ E1(1)) -(I(2) ⊗ I(M) ⊗ E1(M))]
-  H⁻¹ = H\(I(M)) |> sparse  
+  B̃ = [(I(2)⊗Id⊗E1(1)) -(I(2)⊗Id⊗E1(1)); -(I(2)⊗Id⊗E1(M)) (I(2)⊗Id⊗E1(M))]
+  B̂ = [(I(2)⊗Id⊗E1(1)) -(I(2)⊗Id⊗E1(1)); (I(2)⊗Id⊗E1(M)) -(I(2)⊗Id⊗E1(M))]
 
   # Block matrices
-  𝐇⁻¹ = blockdiag((I(2) ⊗ H⁻¹ ⊗ H⁻¹), (I(2) ⊗ H⁻¹ ⊗ H⁻¹))
-  𝐓𝐫 =  blockdiag(𝐓𝐫₁, 𝐓𝐫₂)
+  𝐇⁻¹ = blockdiag(-𝐇𝐫₀⁻¹₁, 𝐇𝐫ₙ⁻¹₂)
+  𝐓𝐫 = blockdiag(𝐓𝐫₁, 𝐓𝐫₂)
   𝐁ₕ = B̂
   𝐁ₜ = B̃
-  # Get the individual contribution from the traction
-  b₁₁¹(x) = Bₜ¹(x)[1,1];  b₁₂¹(x) = Bₜ¹(x)[1,2];  b₂₁¹(x) = Bₜ¹(x)[2,1];  b₂₂¹(x) = Bₜ¹(x)[2,2]  
-  b₁₁²(x) = Bₜ²(x)[1,1];  b₁₂²(x) = Bₜ²(x)[1,2];  b₂₁²(x) = Bₜ²(x)[2,1];  b₂₂²(x) = Bₜ²(x)[2,2]  
-  c₁₁¹(x) = Cₜ¹(x)[1,1];  c₁₂¹(x) = Cₜ¹(x)[1,2];  c₂₁¹(x) = Cₜ¹(x)[2,1];  c₂₂¹(x) = Cₜ¹(x)[2,2]  
-  c₁₁²(x) = Cₜ²(x)[1,1];  c₁₂²(x) = Cₜ²(x)[1,2];  c₂₁²(x) = Cₜ²(x)[2,1];  c₂₂²(x) = Cₜ²(x)[2,2]  
-  𝐁¹ = [spdiagm(b₁₁¹.(QR)) spdiagm(b₁₂¹.(QR)); spdiagm(b₂₁¹.(QR)) spdiagm(b₂₂¹.(QR))] 
-  𝐁² = [spdiagm(b₁₁².(QR)) spdiagm(b₁₂².(QR)); spdiagm(b₂₁².(QR)) spdiagm(b₂₂².(QR))] 
-  𝐂¹ = [spdiagm(c₁₁¹.(QR)) spdiagm(c₁₂¹.(QR)); spdiagm(c₂₁¹.(QR)) spdiagm(c₂₂¹.(QR))] 
-  𝐂² = [spdiagm(c₁₁².(QR)) spdiagm(c₁₂².(QR)); spdiagm(c₂₁².(QR)) spdiagm(c₂₂².(QR))]   
-  𝐃𝐪 = I(2) ⊗ Dq
-  𝐒𝐫 = I(2) ⊗ Sr
-  𝐃cq = blockdiag(𝐂¹'*𝐃𝐪, 𝐂²'*𝐃𝐪)
-  𝐒Br = blockdiag(𝐁¹*𝐒𝐫, 𝐁²*𝐒𝐫)
+  
   # Penalty coefficients
   τₙ = 0.5
   γₙ = -0.5
-  ζ₀ = 1
+  ζ₀ = 1.0
 
-  SATᵢ = -τₙ*(𝐇⁻¹*𝐁ₕ*𝐓𝐫) - γₙ*(𝐇⁻¹*𝐒Br'*𝐁ₕ) - γₙ*(𝐇⁻¹*𝐃cq'*𝐁ₕ) - ζ₀*(𝐇⁻¹*𝐁ₜ)
+  # SATᵢ = τₙ*𝐇⁻¹*𝐁ₕ'*𝐓𝐫 + γₙ*𝐓𝐫'*𝐁ₕ*𝐇⁻¹ + ζ₀*𝐁ₜ*𝐇⁻¹  
+  SATᵢ = 𝐇⁻¹*(-τₙ*𝐁ₕ*𝐓𝐫 - γₙ*𝐓𝐫'*𝐁ₕ' - ζ₀*𝐁ₜ)  
 
   𝒫 = blockdiag(𝐏₁, 𝐏₂)
-  SATₙ = blockdiag(SATₙ₁, SATₙ₂)
+  SATₙ = blockdiag(SATₙ₁, SATₙ₂)  
 
   𝒫 + SATᵢ - SATₙ
 end
