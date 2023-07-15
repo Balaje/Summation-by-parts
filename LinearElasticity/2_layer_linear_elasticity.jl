@@ -73,7 +73,7 @@ function 𝐊2(q, r, sbp_2d, pterms, H)
   𝐃𝐪𝐪ᴬ₁ = 𝐃𝐪𝐪2d(Aₜ¹, QR, 𝒮¹)
   𝐃𝐫𝐫ᴮ₁ = 𝐃𝐫𝐫2d(Bₜ¹, QR, 𝒮¹)
   𝐃𝐪C𝐃𝐫₁, 𝐃𝐫Cᵗ𝐃𝐪₁ = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ¹, QR, sbp_2d, 𝒮¹)  
-  global 𝐓𝐪₁, 𝐓𝐫₁ = 𝐓𝐪𝐓𝐫2d(Aₜ¹, Bₜ¹, Cₜ¹, QR, sbp_2d)
+  𝐓𝐪₁, 𝐓𝐫₁ = 𝐓𝐪𝐓𝐫2d(Aₜ¹, Bₜ¹, Cₜ¹, QR, sbp_2d)
   𝐏₁ = spdiagm(detJ¹.^-1)*(𝐃𝐪𝐪ᴬ₁ + 𝐃𝐫𝐫ᴮ₁ + 𝐃𝐪C𝐃𝐫₁ + 𝐃𝐫Cᵗ𝐃𝐪₁) # The bulk term    
 
   # The second derivative SBP operators on the second domain
@@ -84,28 +84,34 @@ function 𝐊2(q, r, sbp_2d, pterms, H)
   𝐏₂ = spdiagm(detJ².^-1)*(𝐃𝐪𝐪ᴬ₂ + 𝐃𝐫𝐫ᴮ₂ + 𝐃𝐪C𝐃𝐫₂ + 𝐃𝐫Cᵗ𝐃𝐪₂) # The bulk term   
 
   # The SAT terms for the Neumann boundary
-  SATₙ₁ = -(τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₁)*0 + τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫₁ - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₁ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪₁ # r=0 (c₁) is the interface
-  SATₙ₂ = -τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₂ + (τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫₂)*0 - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₂ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪₂ # r=0 (c₃) is the interface
+  SATₙ₁ = τ₁*𝐇𝐫ₙ⁻¹*𝐓𝐫₁ - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₁ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪₁ # r=0 (c₁) is the interface
+  SATₙ₂ = -τ₀*𝐇𝐫₀⁻¹*𝐓𝐫₂ - τ₂*𝐇𝐪₀⁻¹*𝐓𝐪₂ + τ₃*𝐇𝐪ₙ⁻¹*𝐓𝐪₂ # r=0 (c₃) is the interface
 
   # The SAT terms for the interface boundary
   M = size(q,1)
   B̃, B̂ = sparse([I(2M^2) -I(2M^2); -I(2M^2) I(2M^2)]), sparse([I(2M^2) I(2M^2); -I(2M^2) -I(2M^2)])
 
+  function E1(i,M)
+    res = spzeros(M,M)
+    res[i,i] = 1.0
+    res
+  end
+
   # Block matrices
-  # Hinv = H\I(M) |> sparse
-  # 𝐇inv = I(2)⊗I(M)⊗Hinv
-  # 𝐇⁻¹ = blockdiag(𝐇inv, 𝐇inv)
   𝐇⁻¹ = blockdiag(𝐇𝐫₀⁻¹, 𝐇𝐫ₙ⁻¹)
+  Js₁ = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮¹, @SVector[qᵢ, 0.0], @SVector[0.0, -1.0]) for qᵢ in q¹])*E1(1,M))
+  Js₂ = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮², @SVector[qᵢ, 1.0], @SVector[0.0, 1.0]) for qᵢ in q²])*E1(M,M))  
   𝐓𝐫 = blockdiag(𝐓𝐫₁, 𝐓𝐫₂)
+  𝐉𝐬 = blockdiag(Js₁, Js₂)
   𝐁ₕ = B̂
   𝐁ₜ = B̃
   
   # Penalty coefficients
   τₙ = 0.5
   γₙ = 0.5
-  ζ₀ = 20*(M-1)
+  ζ₀ = 100*(M-1)
   
-  SATᵢ = 𝐇⁻¹*(-τₙ*𝐁ₕ*𝐓𝐫 + γₙ*𝐓𝐫'*𝐁ₕ' + ζ₀*𝐁ₜ) 
+  SATᵢ = -τₙ*𝐇⁻¹*𝐁ₕ*𝐓𝐫 + γₙ*𝐇⁻¹*𝐓𝐫'*𝐁ₕ' + 𝐇⁻¹*𝐉𝐬*ζ₀*𝐁ₜ
 
   𝒫 = blockdiag(𝐏₁ - SATₙ₁, 𝐏₂ - SATₙ₂)  
 
