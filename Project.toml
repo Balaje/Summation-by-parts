@@ -2,3 +2,6 @@ name = "SBP"
 uuid = "e31dc7f5-ad17-48a1-849c-e6a3e8f1803d"
 authors = ["Balaje K <balaje6@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
