@@ -1,6 +1,6 @@
 module SBP_1d
 
-export SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1
+export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1
 
 using SparseArrays
 
