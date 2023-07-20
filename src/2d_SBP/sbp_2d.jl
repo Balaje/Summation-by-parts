@@ -9,9 +9,7 @@ struct SBP_1_2_CONSTANT_0_1_0_1 <: SBP_TYPE
     b_norm::Tuple{SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}}
 end
 
-function SBP_1_2_CONSTANT_0_1_0_1(m::Int64, n::Int64)
-    sbp_q = SBP_1_2_CONSTANT_0_1(m)
-    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CONSTANT_0_1)
     # Extract all the matrices from the 1d version
     Dq = sbp_q.D1
     Dr = sbp_r.D1
