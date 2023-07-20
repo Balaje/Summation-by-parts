@@ -191,4 +191,9 @@ function SBP_2_VARIABLE_0_1(N::Int64, A::Function)
     SBP_2_VARIABLE_0_1(A, H, D2, S, N)
 end
 
+using UnicodePlots
+
+Base.show(io::IO, a::SBP_1_2_CONSTANT_0_1) = Base.show(io, (UnicodePlots.spy(a.norm, title="Norm"), UnicodePlots.spy(a.D1, title="∂/∂x"), UnicodePlots.spy(a.D2[1], title="∂²/∂x²")))
+Base.show(io::IO, a::SBP_2_VARIABLE_0_1) = Base.show(io, (UnicodePlots.spy(a.norm, title="Norm"), UnicodePlots.spy(a.D2,title="∂/∂x(A*∂/∂x)")))
+
 end
