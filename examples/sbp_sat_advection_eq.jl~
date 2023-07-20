@@ -42,7 +42,6 @@ function f(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where
     # Unpack all the parameters
     M = sbp.M
     H = sbp.norm
-    D1 = sbp.D1
     D2 = sbp.D2[1]
     Id = I(M)
     Hinv = H\Id

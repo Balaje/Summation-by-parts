@@ -1,10 +1,27 @@
 # SBP.jl
 
-Contains code to implement the summation by parts finite difference methods for some problems.
+Contains code to implement the summation by parts finite difference methods for some problems. The plan of this package is to turn these tiny codes into a full flegded package with nice interfaces. To use this package, in the Julia prompt:
+
+```julia
+julia> ]
+pkg> activate .
+julia> import SBP
+```
+
+I have added only the fourth-order SBP operators in this code. To get the SBP operators corresponding to the constant coefficients
+
+```julia
+sbp = SBP_1_2_CONSTANT_0_1(n+1) # Get the SBP operators using the package
+```
+
+![](./Images/op.png)
+
+The figure shows the diagonal norm, the first derivative operator, the narrow stencil second derivative operators. I use the UnicodePlots.jl package to display the sparsity pattern.
+
 
 ## Advection-diffusion equation
 
-The code can be found in the `Advection Diffusion/sbp_sat_advection_eq.jl` folder. Consider the one-dimensional model problem [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub)
+The code can be found in the `examples/sbp_sat_advection_eq.jl` folder. Consider the one-dimensional model problem [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub)
 
 $$
 \begin{align*}
@@ -48,7 +65,7 @@ we observe that the rate of convergence is close to $3$ instead of $4$. This can
 --- | --- |
 
 The numerical values of the convergence rates is $[3.0323, 3.0295, 3.0204, 3.0130]$.
-
+	
 ## Incomplete parabolic problem
 
 Now I solve the incomplete parabolic problem
@@ -62,7 +79,7 @@ $$
 \end{align*}
 $$
 
-from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub) using the fourth-order SBP method with the diagonal norm. We observe a suboptimal convergence rate ($\approx 3$) which was also observed in the paper. The code can be found in `Advection Diffusion/sbp_sat_incomplete_parabolic.jl`.
+from [(Mattsson, K. and Nordström, J., 2004)](https://www.sciencedirect.com/science/article/pii/S0021999104000932?via%3Dihub) using the fourth-order SBP method with the diagonal norm. We observe a suboptimal convergence rate ($\approx 3$) which was also observed in the paper. The code can be found in `examples/sbp_sat_incomplete_parabolic.jl`.
 
 ![](./Images/sol_incomplete_parabolic.png) | ![](./Images/sol_incomplete_parabolic_rate.png) |
 --- | --- |

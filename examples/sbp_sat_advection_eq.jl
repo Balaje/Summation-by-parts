@@ -44,10 +44,11 @@ function f(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where
     H = sbp.norm
     D1 = sbp.D1
     D2 = sbp.D2[1]
+    S = sbp.S
     Id = I(M)
     Hinv = H\Id
     E₀ = spzeros(Float64, M, M); E₀[1,1] = 1.0
-    Eₙ = spzeros(Float64, M, M); E₀[M,M] = 1.0
+    Eₙ = spzeros(Float64, M, M); Eₙ[M,M] = 1.0
     e₀ = diag(E₀); eₙ = diag(Eₙ)
     g0 = g₀(t)
     g1 = g₁(t)
@@ -71,7 +72,7 @@ L²Error = zeros(Float64, size(N,1))
 for (n,i) ∈ zip(N,1:length(N))
     let
         x = LinRange(0,1,n+1)
-        sbp = SBP_1_2_CONSTANT_0_1(n) # Get the SBP operators using the package
+        sbp = SBP_1_2_CONSTANT_0_1(n+1) # Get the SBP operators using the package
         H = sbp.norm # Norm matrix to compute the error
         args = (a,ϵ,α,β), sbp, (τ₀, τ₁), (g₀, g₁)
         let
