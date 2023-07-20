@@ -3,6 +3,7 @@ module SBP_1d
 export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1
 
 using SparseArrays
+using LinearAlgebra
 
 """
 Abstract type defined for defining other SBP
@@ -23,6 +24,7 @@ struct SBP_1_2_CONSTANT_0_1 <: SBP_TYPE
     D1::SparseMatrixCSC{Float64,Int64}
     D2::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     S::SparseMatrixCSC{Float64,Int64}
+    E::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     M::Int64
 end
 
@@ -40,6 +42,7 @@ struct SBP_2_VARIABLE_0_1 <: SBP_TYPE
     norm::SparseMatrixCSC{Float64,Int64}
     D2::SparseMatrixCSC{Float64,Int64}
     S::SparseMatrixCSC{Float64,Int64}
+    E::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     M::Int64
 end
 
@@ -100,8 +103,12 @@ function SBP_1_2_CONSTANT_0_1(m::Int64)
     B[1,1] = -1
     B[m,m] = 1
     D2c = H\(-M+B*D1)
+
+    E0 = spzeros(m,m); E0[1,1] = 1.0
+    Em = spzeros(m,m); Em[m,m] = 1.0
+    E = I(m), E0, Em
   
-    SBP_1_2_CONSTANT_0_1(H, D1, (D2,D2c), S, m)
+    SBP_1_2_CONSTANT_0_1(H, D1, (D2,D2c), S, E, m)
 end
 
 """
@@ -188,7 +195,11 @@ function SBP_2_VARIABLE_0_1(N::Int64, A::Function)
     H[N,N] = 17/48; H[N-1,N-1] = 59/48; H[N-2,N-2] = 43/48; H[N-3,N-3] = 49/48;
     H = h*H;
 
-    SBP_2_VARIABLE_0_1(A, H, D2, S, N)
+    E0 = spzeros(m,m); E0[1,1] = 1.0
+    Em = spzeros(m,m); Em[m,m] = 1.0
+    E = I(m), E0, Em
+
+    SBP_2_VARIABLE_0_1(A, H, D2, S, E, N)
 end
 
 using UnicodePlots

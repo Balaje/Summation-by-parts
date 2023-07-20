@@ -83,10 +83,10 @@ function g(t::Float64, v::AbstractVector{T}, F::AbstractVector{T}, kwargs) where
     D1 = sbp.D1
     D2 = sbp.D2[1]
     S = sbp.S
-    Id = I(M)
+    Id = sbp.E[1]
     Hinv = H\Id
-    E₀ = spzeros(Float64, M, M); E₀[1,1] = 1.0
-    Eₙ = spzeros(Float64, M, M); Eₙ[M,M] = 1.0
+    E₀ = sbp.E[2]
+    Eₙ = sbp.E[3]
     e₀ = diag(E₀); eₙ = diag(Eₙ)
 
     I₀ = @SMatrix [1 0; 0 0];

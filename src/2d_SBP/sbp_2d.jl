@@ -19,12 +19,12 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     Sr = sbp_r.S
     mq = sbp_q.M
     mr = sbp_r.M
-    E₀q = spzeros(mq, mq); E₀q[1,1] = 1.0
-    Eₙq = spzeros(mq, mq); Eₙq[mq,mq] = 1.0
-    E₀r = spzeros(mr, mr); E₀r[1,1] = 1.0
-    Eₙr = spzeros(mr, mr); Eₙr[mr,mr] = 1.0
-    Iq = I(mq)
-    Ir = I(mr)
+    Iq = sbp_q.E[1]
+    E₀q = sbp_q.E[2]
+    Eₙq = sbp_q.E[3]
+    Ir = sbp_r.E[1]
+    E₀r = sbp_r.E[2]
+    Eₙr =  sbp_r.E[3]
     # Create lazy versions of the 2d operator from 1d operators
     𝐃𝐪 = ApplyArray(kron, Dq, Ir)
     𝐃𝐫 = ApplyArray(kron, Iq, Dr)
