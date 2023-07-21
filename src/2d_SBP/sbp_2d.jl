@@ -2,15 +2,26 @@
 SBP in two-dimensions obtained using Kronecker Product
 """
 struct SBP_1_2_CONSTANT_0_1_0_1 <: SBP_TYPE
-    D1::Tuple{SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}}
-    D2::Tuple{SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}}
-    
-    norm::SparseMatrixCSC{Float64, Int64}
-    b_norm::Tuple{SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}}
+    D1::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
+    D2::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
+    S::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
+    norm::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
+    E::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}}
 end
 
+"""
+Lazy Kronecker Product
+"""
+⊗(A,B) = ApplyArray(kron, A, B)
+
+
+"""
+Construct the 2d sbp operator using the 1d versions
+"""
 function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CONSTANT_0_1)
     # Extract all the matrices from the 1d version
+    Hq = sbp_q.norm
+    Hr = sbp_r.norm
     Dq = sbp_q.D1
     Dr = sbp_r.D1
     Dqq = sbp_q.D2[1]
@@ -26,12 +37,21 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     E₀r = sbp_r.E[2]
     Eₙr =  sbp_r.E[3]
     # Create lazy versions of the 2d operator from 1d operators
-    𝐃𝐪 = ApplyArray(kron, Dq, Ir)
-    𝐃𝐫 = ApplyArray(kron, Iq, Dr)
-    𝐒𝐪 = ApplyArray(kron, Sq, Ir)
-    𝐒𝐫 = ApplyArray(kron, Iq, Sr)
+    𝐃𝐪 = Dq ⊗ Ir
+    𝐃𝐫 = Iq ⊗ Dr
+    𝐒𝐪 = Sq ⊗ Ir
+    𝐒𝐫 = Iq ⊗ Sr
+    𝐃𝐪𝐪 = Dqq ⊗ Ir
+    𝐃𝐫𝐫 = Drr ⊗ Iq
+    𝐇𝐪 = Hq ⊗ Ir
+    𝐇𝐫 = Iq ⊗ Hr
+    𝐄₀q = E₀q ⊗ Ir
+    𝐄ₙq = Eₙq ⊗ Ir
+    𝐄₀r = Iq ⊗ E₀r 
+    𝐄ₙr = Iq ⊗ Eₙr 
+    𝐄 = Iq ⊗ Ir
 
-    𝐃𝐪, 𝐃𝐫, 𝐒𝐪, 𝐒𝐫
+    SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪, 𝐇𝐫), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
 end
 
 
