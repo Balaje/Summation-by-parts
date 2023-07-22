@@ -54,4 +54,45 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪, 𝐇𝐫), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
 end
 
+struct SBP_2_VARIABLE_0_1_0_1 <: SBP_TYPE
+    
+end
+"""
+Variable 2d SBP operator
+"""
 
+function E1(i,M)
+    res = spzeros(Float64, M, M)
+    res[i,i] = 1.0
+    res
+end
+
+function generate_2d_grid(mn::Tuple{Int64,Int64})
+    m,n = mn
+    q = LinRange(0,1,m); r = LinRange(0,1,n)
+    qr = [@SVector [q[i],r[j]] for i=1:n, j=1:m];
+    qr
+end
+
+function Dqq(a::Function, qr)    
+    a_qr = a.(qr)
+    m,n = size(qr)
+    Dqq = [SBP_2_VARIABLE_0_1(m, a_qr[i,:]).D2 for i=1:m]
+    Eq = [E1(i,m) for i=1:m]
+    Dqq, Eq
+end
+
+function Drr(a::Function, qr)    
+    a_qr = a.(qr)
+    m,n = size(qr)
+    Drr = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
+    Er = [E1(i,m) for i=1:m]
+    Drr, Er
+end
+
+function Dqr(a::Function, qr, sbp::SBP_1_2_CONSTANT_0_1_0_1)
+    a_qr = a.(qr)
+    A = spdiagm(vec(a_qr))
+    Dq, Dr = sbp.D1
+    Dq'*A*Dr, Dr'*A*Dq
+end
