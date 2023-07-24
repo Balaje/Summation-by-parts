@@ -90,7 +90,16 @@ function Dqr(a_qr::AbstractMatrix{Float64})
     sbp_r = SBP_1_2_CONSTANT_0_1(n)
     sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)    
     D1q, D1r = sbp_2d.D1
-    D1q'*A*D1r
+    D1q*A*D1r
+end
+function Drq(a_qr::AbstractMatrix{Float64})
+    m,n = size(a_qr)
+    A = spdiagm(vec(a_qr))
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)    
+    D1q, D1r = sbp_2d.D1
+    D1r*A*D1q
 end
 
 function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
