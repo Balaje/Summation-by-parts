@@ -42,7 +42,7 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     𝐒𝐪 = Sq ⊗ Ir
     𝐒𝐫 = Iq ⊗ Sr
     𝐃𝐪𝐪 = Dqq ⊗ Ir
-    𝐃𝐫𝐫 = Drr ⊗ Iq
+    𝐃𝐫𝐫 = Iq ⊗ Drr
     𝐄₀q = E₀q ⊗ Ir
     𝐄ₙq = Eₙq ⊗ Ir
     𝐄₀r = Iq ⊗ E₀r 
@@ -65,21 +65,21 @@ end
 function generate_2d_grid(mn::Tuple{Int64,Int64})
     m,n = mn
     q = LinRange(0,1,m); r = LinRange(0,1,n)
-    qr = [@SVector [q[i],r[j]] for i=1:m, j=1:n];
+    qr = [@SVector [q[j],r[i]] for i=1:n, j=1:m];
     qr
 end
 
 function Dqq(a_qr::AbstractMatrix{Float64})    
     m,n = size(a_qr)
-    D2q = [SBP_2_VARIABLE_0_1(n, a_qr[i,:]).D2 for i=1:m]
-    Er = [E1(i,n) for i=1:m]
+    D2q = [SBP_2_VARIABLE_0_1(m, a_qr[i,:]).D2 for i=1:n]
+    Er = [E1(i,m) for i=1:n]
     sum(D2q .⊗ Er)
 end
 
 function Drr(a_qr::AbstractMatrix{Float64})
     m,n = size(a_qr)
-    D2r = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
-    Eq = [E1(i,m) for i=1:n]
+    D2r = [SBP_2_VARIABLE_0_1(n, a_qr[:,i]).D2 for i=1:m]
+    Eq = [E1(i,n) for i=1:m]
     sum(Eq .⊗ D2r)
 end
 
@@ -103,7 +103,7 @@ function Drq(a_qr::AbstractMatrix{Float64})
 end
 
 function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
-    m, n = size(a_qr)
+    m,n = size(a_qr)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
     sbp_r = SBP_1_2_CONSTANT_0_1(n)
     sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
