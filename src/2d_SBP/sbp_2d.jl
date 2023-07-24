@@ -2,17 +2,17 @@
 SBP in two-dimensions obtained using Kronecker Product
 """
 struct SBP_1_2_CONSTANT_0_1_0_1 <: SBP_TYPE
-    D1::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
-    D2::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
-    S::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
-    norm::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}}
-    E::Tuple{AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}, AbstractMatrix{Float64}}
+    D1::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+    D2::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+    S::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+    norm::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+    E::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
 end
 
 """
 Lazy Kronecker Product
 """
-⊗(A,B) = ApplyArray(kron, A, B)
+⊗(A,B) = kron(A, B)
 
 
 """
@@ -54,13 +54,6 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪, 𝐇𝐫), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
 end
 
-struct SBP_2_VARIABLE_0_1_0_1 <: SBP_TYPE
-    
-end
-"""
-Variable 2d SBP operator
-"""
-
 function E1(i,M)
     res = spzeros(Float64, M, M)
     res[i,i] = 1.0
@@ -70,29 +63,54 @@ end
 function generate_2d_grid(mn::Tuple{Int64,Int64})
     m,n = mn
     q = LinRange(0,1,m); r = LinRange(0,1,n)
-    qr = [@SVector [q[i],r[j]] for i=1:n, j=1:m];
+    qr = [@SVector [q[i],r[j]] for i=1:m, j=1:n];
     qr
 end
 
-function Dqq(a::Function, qr)    
-    a_qr = a.(qr)
-    m,n = size(qr)
-    Dqq = [SBP_2_VARIABLE_0_1(m, a_qr[i,:]).D2 for i=1:m]
-    Eq = [E1(i,m) for i=1:m]
-    Dqq, Eq
+function Dqq(a_qr::AbstractMatrix{Float64})    
+    m,n = size(a_qr)
+    D2q = [SBP_2_VARIABLE_0_1(n, a_qr[i,:]).D2 for i=1:m]
+    Er = [E1(i,n) for i=1:m]
+    sum(D2q .⊗ Er)
 end
 
-function Drr(a::Function, qr)    
-    a_qr = a.(qr)
-    m,n = size(qr)
-    Drr = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
-    Er = [E1(i,m) for i=1:m]
-    Drr, Er
+function Drr(a_qr::AbstractMatrix{Float64})
+    m,n = size(a_qr)
+    D2r = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
+    Eq = [E1(i,m) for i=1:n]
+    sum(Eq .⊗ D2r)
 end
 
-function Dqr(a::Function, qr, sbp::SBP_1_2_CONSTANT_0_1_0_1)
-    a_qr = a.(qr)
+function Dqr(a_qr::AbstractMatrix{Float64})
+    m,n = size(a_qr)
     A = spdiagm(vec(a_qr))
-    Dq, Dr = sbp.D1
-    Dq'*A*Dr, Dr'*A*Dq
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)    
+    D1q, D1r = sbp_2d.D1
+    D1q'*A*D1r
+end
+
+function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
+    m, n = size(a_qr)
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_12_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    _, Dr = sbp_2d.D1
+    Sq, _ = sbp_2d.S
+    A = spdiagm(vec(a_qr))
+    C = spdiagm(vec(c_qr))
+    A*Sq + C*Dr
+end
+
+function Tr(c_qr::AbstractMatrix{Float64}, b_qr::AbstractMatrix{Float64})
+    m, n = size(a_qr)
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_12_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    Dq, _ = sbp_2d.D1
+    _, Sr = sbp_2d.S
+    C = spdiagm(vec(c_qr))
+    B = spdiagm(vec(b_qr))
+    C*Dq + B*Sr
 end

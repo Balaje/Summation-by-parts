@@ -2,7 +2,10 @@ module SBP_2d
 
 import SBP.SBP_1d: SBP_TYPE, SBP_1_2_CONSTANT_0_1, SBP_2_VARIABLE_0_1
 
-export SBP_1_2_CONSTANT_0_1_0_1, ⊗, sbp_1d_vector_from_grid, SBP_2_VARIABLE_0_1_0_1
+export SBP_1_2_CONSTANT_0_1_0_1, SBP_2_VARIABLE_0_1_0_1, SBP_2_VARIABLE_0_1_0_1_TRACTION
+export ⊗, Dqq, Drr, Dqr
+export DSq, DSr
+export generate_2d_grid
 
 using SparseArrays
 using LazyArrays
