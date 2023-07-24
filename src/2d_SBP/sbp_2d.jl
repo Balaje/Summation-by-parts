@@ -5,7 +5,7 @@ struct SBP_1_2_CONSTANT_0_1_0_1 <: SBP_TYPE
     D1::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     D2::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     S::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
-    norm::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+    norm::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
     E::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
 end
 
@@ -43,15 +43,17 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
     𝐒𝐫 = Iq ⊗ Sr
     𝐃𝐪𝐪 = Dqq ⊗ Ir
     𝐃𝐫𝐫 = Drr ⊗ Iq
-    𝐇𝐪 = Hq ⊗ Ir
-    𝐇𝐫 = Iq ⊗ Hr
     𝐄₀q = E₀q ⊗ Ir
     𝐄ₙq = Eₙq ⊗ Ir
     𝐄₀r = Iq ⊗ E₀r 
-    𝐄ₙr = Iq ⊗ Eₙr 
+    𝐄ₙr = Iq ⊗ Eₙr
+    𝐇𝐪₀ = ((Hq\Iq)*E₀q) ⊗ Ir
+    𝐇𝐫₀ = Iq ⊗ ((Hr\Ir)*E₀r)
+    𝐇𝐪ₙ = ((Hq\Iq)*Eₙq) ⊗ Ir
+    𝐇𝐫ₙ = Iq ⊗ ((Hr\Ir)*Eₙr)
     𝐄 = Iq ⊗ Ir
 
-    SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪, 𝐇𝐫), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
+    SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪₀,𝐇𝐪ₙ,𝐇𝐫₀,𝐇𝐫ₙ), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
 end
 
 function E1(i,M)
@@ -95,7 +97,7 @@ function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
     m, n = size(a_qr)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
     sbp_r = SBP_1_2_CONSTANT_0_1(n)
-    sbp_2d = SBP_12_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
     _, Dr = sbp_2d.D1
     Sq, _ = sbp_2d.S
     A = spdiagm(vec(a_qr))
@@ -104,10 +106,10 @@ function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
 end
 
 function Tr(c_qr::AbstractMatrix{Float64}, b_qr::AbstractMatrix{Float64})
-    m, n = size(a_qr)
+    m, n = size(c_qr)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
     sbp_r = SBP_1_2_CONSTANT_0_1(n)
-    sbp_2d = SBP_12_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)    
     Dq, _ = sbp_2d.D1
     _, Sr = sbp_2d.S
     C = spdiagm(vec(c_qr))
