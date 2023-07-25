@@ -57,7 +57,7 @@ Solution at `T=1.0` s | |
 
 The numerical values of the convergence rates at `T=1.0` s and `T=4.0` s are $[4.2067, 4.1841, 4.1289, 4.0833]$ and $[ 4.1777, 4.1718, 4.1282, 4.0863]$, respectively. The spatial axis is discretized using $N = 30,60,100,200,300$ points (similar to the paper) and using the SBP method whose order of accuracy is 4 in the interior. The temporal direction was discretized using the fourth order Runge-Kutta scheme with $\Delta t = 5\times 10^{-5}$. The observed rate of convergence in the spatial direction and is in agreement with the theory. On invalidating the penalty parameter choice by taking $\tau_0 = -\epsilon/2$ instead of $\tau_0 = -\epsilon$:
 
-https://github.com/Balaje/SBP-PML/blob/76dda6ccdb01237c5dfcf93c1701a8ea70f2cc6e/MY_SBP/sbp_sat_advection_eq.jl#L49
+https://github.com/Balaje/Summation-by-parts/blob/master/examples/sbp_sat_advection_eq.jl#L64
 
 we observe that the rate of convergence is close to $3$ instead of $4$. This can be seen in the figures below
 
@@ -124,7 +124,7 @@ $$
   A(\mathbf{x}), B(\mathbf{x}) \quad \text{and} \quad C(\mathbf{x})
 $$
 
-are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `Linear Elasticity/1_layer_linear_elasticity.jl` contains the code to solve the case when the material properties are constant in space. We assume an exact solution
+are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `examples/LinearElasticity/1_layer_linear_elasticity.jl` contains the code to solve the PDE in an arbitrary domain. We assume an exact solution
 
 $$
 \mathbf{u}(\mathbf{x},t) = 
@@ -187,6 +187,53 @@ julia> L²Error
  6.389168322477752e-5
  3.689923513170043e-5
 ```
+
+## Two-Layer Linear Elasticity
+
+The code to solve the two-layer elasticity problem is given in `examples/LinearElasticity/2_layer_linear_elasticity.jl`. The problem contains two domains, each of which is transformed to the reference grid. At the interface between the two domains, continuity of displacements and the traction is enforced.
+
+$$
+\sigma_1(\mathbf{u}_1) \cdot \mathbf{n} = \sigma_2(\mathbf{u}_2) \cdot \mathbf{n}, \quad \mathbf{u}_1 = \mathbf{u}_2
+$$
+
+At the moment, we have tested the problem for uniform interfaces, and it seems to work. The rate of convergence observed for the currect setting given in the code is 
+
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+  0.0016393313426515184
+  0.0002860389080514714
+  8.294531622338852e-5
+  3.205496733503807e-5
+
+julia> rate
+3-element Vector{Float64}:
+  4.305958370189932
+  4.30317497079639
+  4.2606178219096735
+```
+
+Convergence Rates |
+--- |
+![](./Images/2-layer/rate-domain.png) |
+
+The solution on the two layers is 
+
+$$
+\mathbf{u}_1(\mathbf{x},t) = \mathbf{u}_2(\mathbf{x},t) =
+\begin{bmatrix}
+  \sin(\pi x)\sin(\pi y)sin(\pi t)\\
+  \sin(2\pi x)\sin(2\pi y)sin(\pi t)  
+\end{bmatrix}\\\\
+$$
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/layer-1-u1.png) | ![](./Images/2-layer/layer-1-v1.png) | 
+--- | --- | 
+
+![](./Images/2-layer/layer-2-u1.png) | ![](./Images/2-layer/layer-2-v1.png) |
+--- | --- | 
 
 ## References
 

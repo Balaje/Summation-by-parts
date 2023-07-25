@@ -261,3 +261,35 @@ end
 rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
 @show L²Error
 @show rate
+
+function get_sol_vector_from_raw_vector(sol, m, n)
+    (reshape(sol[1:m^2], (m,m)), reshape(sol[m^2+1:m^2+n^2], (n,n)),
+     reshape(sol[m^2+n^2+1:m^2+n^2+m^2], (m,m)), reshape(sol[m^2+n^2+m^2+1:m^2+n^2+m^2+n^2], (n,n)))
+end
+
+𝐪𝐫 = generate_2d_grid((N[end],N[end]));
+q = LinRange(0,1,N[end]); r = LinRange(0,1,N[end]);
+Uap₁, Vap₁, Uap₂, Vap₂ = get_sol_vector_from_raw_vector(u₁, N[end], N[end]);
+𝐱𝐲₁ = vec(Ω₁.(𝐪𝐫));
+𝐱𝐲₂ = vec(Ω₂.(𝐪𝐫));
+Ue₁, Ue₂, Ve₁, Ve₂ = get_sol_vector_from_raw_vector(vcat(reduce(hcat, U.(𝐱𝐲₁,tf))', reduce(hcat, U.(𝐱𝐲₂,tf))'), N[end], N[end]);
+plt1 = contourf(q, r, Uap₁, title="u₁ Approximate (Layer 1)");
+plt2 = contourf(q, r, Ue₁, title="u₁ Exact (Layer 1)");
+plt3 = contourf(q, r, Vap₁, title="v₁ Approximate (Layer 1)");
+plt4 = contourf(q, r, Ve₁, title="v₁ Exact (Layer 1)");
+plt12 = plot(plt1, plt2, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+
+plt5 = contourf(q, r, Uap₂, title="u₁ Approximate (Layer 2)");
+plt6 = contourf(q, r, Ue₂, title="u₁ Exact (Layer 2)");
+plt7 = contourf(q, r, Vap₂, title="v₁ Approximate (Layer 2)");
+plt8 = contourf(q, r, Ve₂, title="v₁ Exact (Layer 2)");
+plt56 = plot(plt5, plt6, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+plt78 = plot(plt7, plt8, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+
+plt9 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
+plot!(plt9, h, h.^4, label="O(h⁴)", lw=1);
+plt10_1 = scatter(Tuple.(𝐱𝐲 |> vec), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
+plt10_2 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
+plt10 = plot(plt10_1, plt10_2, layout=(1,2));
+plt910 = plot(plt9, plt10, layout=(2,1), size=(700,800));
