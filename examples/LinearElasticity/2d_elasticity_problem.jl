@@ -1,13 +1,35 @@
+using SBP
 using StaticArrays
-using ForwardDiff
-using NLsolve
 using LinearAlgebra
+using SparseArrays
+using ForwardDiff
 using Plots
 
 include("geometry.jl");
-include("material_props.jl")
-include("SBP_2d.jl")
 include("time-stepping.jl")
+
+"""
+Gradient (Jacobian) of the displacement field
+"""
+@inline function ∇(u,x)
+ vec(ForwardDiff.jacobian(u, x))
+end
+
+"""
+Divergence of a tensor field
+  v is a 2×2 matrix here, where each entries are scalar functions
+"""
+function div(v,x)
+  v₁₁(x) = v(x)[1]; 
+  v₁₂(x) = v(x)[3]; 
+  v₂₁(x) = v(x)[2];
+  v₂₂(x) = v(x)[4];   
+  ∂xv₁₁ = ForwardDiff.gradient(v₁₁,x)[1];
+  ∂xv₁₂ = ForwardDiff.gradient(v₁₂,x)[1];
+  ∂yv₂₁ = ForwardDiff.gradient(v₂₁,x)[2];
+  ∂yv₂₂ = ForwardDiff.gradient(v₂₂,x)[2];
+  @SVector [∂xv₁₁ + ∂yv₂₁; ∂xv₁₂ + ∂yv₂₂]
+end
 
 """
 Exact solution

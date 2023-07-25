@@ -49,6 +49,11 @@ where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal 
 """
 𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
 
+"""
+Cauchy Stress tensor using the displacement field.
+"""
+σ(∇u,x) = 𝒫(x)*∇u
+
 
 ## Transform the material properties to the reference grid
 function t𝒫(𝒮, qr)
@@ -68,7 +73,7 @@ Cₜ²(qr) = t𝒫(Ω₂,qr)[1:2, 3:4];
 
 M = 21
 𝐪𝐫 = generate_2d_grid((M,M))
-function 𝐊2(qr)
+function 𝐊2(𝐪𝐫)
     # Property coefficients on the first layer
     Aₜ¹¹₁(x) = Aₜ¹(x)[1,1]
     Aₜ¹²₁(x) = Aₜ¹(x)[1,2]
@@ -164,8 +169,95 @@ function 𝐊2(qr)
     B̂ = [Id₁ Id₁; -Id₁ -Id₁]
     𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
-    ζ₀ = 20*(M-1)
+    ζ₀ = 20*(m-1)^3
     𝐓ᵢ = 𝐇ᵢ*(-0.5*B̂*𝐓r + 0.5*𝐓r'*B̂' + ζ₀*B̃)
 
     𝐏 - 𝐓 - 𝐓ᵢ
 end
+
+"""
+Neumann boundary condition vector
+"""
+function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C)
+    m,n= mn
+    q = LinRange(0,1,m); r = LinRange(0,1,n)
+    𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
+    P1, P2, P3, P4 = P
+    c₀, c₁, c₂, c₃ = C
+    
+    
+    bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, P1) for rᵢ in r])
+    bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, P2) for qᵢ in q])
+    bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, P3) for rᵢ in r])
+    bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, P4) for qᵢ in q])
+
+    E1(i,M) = diag(SBP.SBP_2d.E1(i,M))
+    bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
+    br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,n)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,n))
+    bqₙ = (E1(1,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[2,:]))
+    brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(m,n)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(m,n))
+
+    collect((I(2)⊗𝐇r₀)*br₀ + (I(2)⊗𝐇rₙ)*brₙ + (I(2)⊗𝐇q₀)*bq₀ + (I(2)⊗𝐇qₙ)*bqₙ)
+end
+
+#################################
+# Now begin solving the problem #
+#################################
+N = [21,31,41,51]
+h = 1 ./(N .- 1)
+L²Error = zeros(Float64, length(N))
+tf = 0.5
+Δt = 1e-3
+ntime = ceil(Int, tf/Δt)
+
+for (m,i) in zip(N, 1:length(N))
+    let
+        𝐪𝐫 = generate_2d_grid((m,m))
+        stima2 = 𝐊2(𝐪𝐫)
+        𝐱𝐲₁ = Ω₁.(𝐪𝐫)
+        𝐱𝐲₂ = Ω₂.(𝐪𝐫)        
+        massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₂)))))
+        M⁺ = (massma2 - (Δt/2)^2*stima2)
+        M⁻ = (massma2 + (Δt/2)^2*stima2)
+        luM⁺ = factorize(M⁺)
+
+        m, n = size(𝐪𝐫)
+        sbp_q = SBP_1_2_CONSTANT_0_1(m)
+        sbp_r = SBP_1_2_CONSTANT_0_1(n)
+        sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+        
+        let
+            u₀ = vcat(eltocols(vec(U.(𝐱𝐲₁,0.0))), eltocols(vec(U.(𝐱𝐲₂,0.0))))
+            v₀ = vcat(eltocols(vec(Uₜ.(𝐱𝐲₁,0.0))), eltocols(vec(Uₜ.(𝐱𝐲₂,0.0))))
+            global u₁ = zero(u₀)
+            global v₁ = zero(v₀)
+            t = 0.0
+            for i=1:ntime
+                Fₙ = vcat(eltocols(vec(F.(𝐱𝐲₁, t))), eltocols(vec(F.(𝐱𝐲₂, t))))
+                Fₙ₊₁ = vcat(eltocols(vec(F.(𝐱𝐲₁, t+Δt))), eltocols(vec(F.(𝐱𝐲₂, t+Δt))))
+                gₙ = vcat(𝐠(t, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], [c₀¹, c₁¹, c₂¹, c₃¹]),
+                          𝐠(t, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], [c₀², c₁², c₂², c₃²]))
+                gₙ₊₁ = vcat(𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], [c₀¹, c₁¹, c₂¹, c₃¹]),
+                            𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], [c₀², c₁², c₂², c₃²]))
+
+                rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
+                fargs = Δt, u₀, v₀, rhs
+                u₁,v₁ = CN(luM⁺, M⁻, massma2, fargs) # Function in "time-stepping.jl"
+                t = t+Δt
+                u₀ = u₁
+                v₀ = v₁
+            end
+        end
+
+        Hq = sbp_q.norm
+        Hr = sbp_r.norm
+        𝐇 = blockdiag((I(2) ⊗ Hq ⊗ Hr), (I(2) ⊗ Hq ⊗ Hr))
+        e = u₁ - vcat(eltocols(vec(U.(𝐱𝐲₁, tf))), eltocols(vec(U.(𝐱𝐲₂, tf))))
+        L²Error[i] = sqrt(e'*𝐇*e)
+        println("Done N = "*string(m)*", L²Error = "*string(L²Error[i]))
+    end
+end
+
+rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+@show L²Error
+@show rate
