@@ -1,4 +1,4 @@
-include("2d_elasticity_problem.jl")
+# include("2d_elasticity_problem.jl")
 
 """
 Define the geometry of the two layers. 
@@ -13,114 +13,159 @@ c₀²(r) = [0.0, r-1]; # Left boundary
 c₁²(q) = [q, -1.0]; # Bottom boundary. 
 c₂²(r) = [1.0, r-1]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
-# Compute all the intersection points 
-# Layer 1
-P₀₁¹ = SVector{2}(P(c₀¹,c₁¹));
-P₁₂¹ = SVector{2}(P(c₁¹,c₂¹));
-P₂₃¹ = SVector{2}(P(c₂¹,c₃¹));
-P₃₀¹ = SVector{2}(P(c₃¹,c₀¹));
-# Layer 2
-P₀₁² = SVector{2}(P(c₀²,c₁²));
-P₁₂² = SVector{2}(P(c₁²,c₂²));
-P₂₃² = SVector{2}(P(c₂²,c₃²));
-P₃₀² = SVector{2}(P(c₃²,c₀²));
-# Use the transfinite interpolation to obtain the physical domai
-𝒮¹(qr) = (1-qr[1])*c₀¹(qr[2]) + qr[1]*c₂¹(qr[2]) + (1-qr[2])*c₁¹(qr[1]) + qr[2]*c₃¹(qr[1]) - 
-    ((1-qr[2])*(1-qr[1])*P₀₁¹ + qr[2]*qr[1]*P₂₃¹ + qr[2]*(1-qr[1])*P₃₀¹ + (1-qr[2])*qr[1]*P₁₂¹);
-𝒮²(qr) = (1-qr[1])*c₀²(qr[2]) + qr[1]*c₂²(qr[2]) + (1-qr[2])*c₁²(qr[1]) + qr[2]*c₃²(qr[1]) - 
-    ((1-qr[2])*(1-qr[1])*P₀₁² + qr[2]*qr[1]*P₂₃² + qr[2]*(1-qr[1])*P₃₀² + (1-qr[2])*qr[1]*P₁₂²);
-# Check the domain.
+domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
+domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
+Ω₁(qr) = S(qr, domain₁)
+Ω₂(qr) = S(qr, domain₂)
+
+## Define the material properties on the physical grid
+const E = 1.0;
+const ν = 0.33;
+
+"""
+The Lamé parameters μ, λ
+"""
+μ(x) = E/(2*(1+ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+
+"""
+The density of the material
+"""
+ρ(x) = 1.0
+
+"""
+Material properties coefficients of an anisotropic material
+"""
+c₁₁(x) = 2*μ(x)+λ(x)
+c₂₂(x) = 2*μ(x)+λ(x)
+c₃₃(x) = μ(x)
+c₁₂(x) = λ(x)
+
+"""
+The material property tensor in the physical coordinates
+  𝒫(x) = [A(x) C(x); 
+          C(x)' B(x)]
+where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
+"""
+𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
+
+
+## Transform the material properties to the reference grid
+function t𝒫(𝒮, qr)
+    x = 𝒮(qr)
+    invJ = J⁻¹(qr, 𝒮)
+    S = invJ ⊗ I(2)
+    S'*𝒫(x)*S
+end
+
+# Extract the property matrices
+Aₜ¹(qr) = t𝒫(Ω₁,qr)[1:2, 1:2];
+Bₜ¹(qr) = t𝒫(Ω₁,qr)[3:4, 3:4];
+Cₜ¹(qr) = t𝒫(Ω₁,qr)[1:2, 3:4];
+Aₜ²(qr) = t𝒫(Ω₂,qr)[1:2, 1:2];
+Bₜ²(qr) = t𝒫(Ω₂,qr)[3:4, 3:4];
+Cₜ²(qr) = t𝒫(Ω₂,qr)[1:2, 3:4];
+
 M = 21
-q = LinRange(0,1,M); r = LinRange(0,1,M);  
-QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
-plt1 = scatter(Tuple.(𝒮¹.(QR)))
-scatter!(plt1, Tuple.(𝒮².(QR)))
+𝐪𝐫 = generate_2d_grid((M,M))
+function 𝐊2(qr)
+    # Property coefficients on the first layer
+    Aₜ¹¹₁(x) = Aₜ¹(x)[1,1]
+    Aₜ¹²₁(x) = Aₜ¹(x)[1,2]
+    Aₜ²¹₁(x) = Aₜ¹(x)[2,1]
+    Aₜ²²₁(x) = Aₜ¹(x)[2,2]
 
- # Get the transformed material properties on the first domain
- Aₜ¹(qr) = t𝒫(𝒮¹,qr)[1:2, 1:2];
- Bₜ¹(qr) = t𝒫(𝒮¹,qr)[3:4, 3:4];
- Cₜ¹(qr) = t𝒫(𝒮¹,qr)[1:2, 3:4];
- # Get the transformed material properties on the second domain
- Aₜ²(qr) = t𝒫(𝒮²,qr)[1:2, 1:2];
- Bₜ²(qr) = t𝒫(𝒮²,qr)[3:4, 3:4];
- Cₜ²(qr) = t𝒫(𝒮²,qr)[1:2, 3:4];
+    Bₜ¹¹₁(x) = Bₜ¹(x)[1,1]
+    Bₜ¹²₁(x) = Bₜ¹(x)[1,2]
+    Bₜ²¹₁(x) = Bₜ¹(x)[2,1]
+    Bₜ²²₁(x) = Bₜ¹(x)[2,2]
 
-# Get the SBP discretization
-sbp_1d = SBP(M);
-sbp_2d = SBP_2d(sbp_1d);
+    Cₜ¹¹₁(x) = Cₜ¹(x)[1,1]
+    Cₜ¹²₁(x) = Cₜ¹(x)[1,2]
+    Cₜ²¹₁(x) = Cₜ¹(x)[2,1]
+    Cₜ²²₁(x) = Cₜ¹(x)[2,2]
 
-function E1(i,M)
-  res = spzeros(M,M)
-  res[i,i] = 1.0
-  res
+    # Property coefficients on the second layer
+    Aₜ¹¹₂(x) = Aₜ²(x)[1,1]
+    Aₜ¹²₂(x) = Aₜ²(x)[1,2]
+    Aₜ²¹₂(x) = Aₜ²(x)[2,1]
+    Aₜ²²₂(x) = Aₜ²(x)[2,2]
+
+    Bₜ¹¹₂(x) = Bₜ²(x)[1,1]
+    Bₜ¹²₂(x) = Bₜ²(x)[1,2]
+    Bₜ²¹₂(x) = Bₜ²(x)[2,1]
+    Bₜ²²₂(x) = Bₜ²(x)[2,2]
+
+    Cₜ¹¹₂(x) = Cₜ²(x)[1,1]
+    Cₜ¹²₂(x) = Cₜ²(x)[1,2]
+    Cₜ²¹₂(x) = Cₜ²(x)[2,1]
+    Cₜ²²₂(x) = Cₜ²(x)[2,2]
+
+    detJ₁(x) = (det∘J)(x,Ω₁)
+    detJ₂(x) = (det∘J)(x,Ω₂)
+
+    # Get the norm matrices (Same for both layers)
+    m, n = size(𝐪𝐫)
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+
+    # Bulk matrices for the first layer
+    DqqA₁ = [Dqq(detJ₁.(𝐪𝐫).*Aₜ¹¹₁.(𝐪𝐫)) Dqq(detJ₁.(𝐪𝐫).*Aₜ¹²₁.(𝐪𝐫));
+             Dqq(detJ₁.(𝐪𝐫).*Aₜ²¹₁.(𝐪𝐫)) Dqq(detJ₁.(𝐪𝐫).*Aₜ²²₁.(𝐪𝐫))]
+    DrrB₁ = [Drr(detJ₁.(𝐪𝐫).*Bₜ¹¹₁.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ¹²₁.(𝐪𝐫));
+             Drr(detJ₁.(𝐪𝐫).*Bₜ²¹₁.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ²²₁.(𝐪𝐫))]
+    DqrC₁ = [Dqr(detJ₁.(𝐪𝐫).*Cₜ¹¹₁.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ¹²₁.(𝐪𝐫));
+             Dqr(detJ₁.(𝐪𝐫).*Cₜ²¹₁.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ²²₁.(𝐪𝐫))]
+    DrqCᵀ₁ = [Drq(detJ₁.(𝐪𝐫).*Cₜ¹¹₁.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²¹₁.(𝐪𝐫));
+              Drq(detJ₁.(𝐪𝐫).*Cₜ¹²₁.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²²₁.(𝐪𝐫))]    
+    𝐏₁ = DqqA₁ + DrrB₁ + DqrC₁ + DrqCᵀ₁
+
+    # Bulk matrices for the second layer
+    DqqA₂ = [Dqq(detJ₂.(𝐪𝐫).*Aₜ¹¹₂.(𝐪𝐫)) Dqq(detJ₂.(𝐪𝐫).*Aₜ¹²₂.(𝐪𝐫));
+             Dqq(detJ₂.(𝐪𝐫).*Aₜ²¹₂.(𝐪𝐫)) Dqq(detJ₂.(𝐪𝐫).*Aₜ²²₂.(𝐪𝐫))]
+    DrrB₂ = [Drr(detJ₂.(𝐪𝐫).*Bₜ¹¹₂.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ¹²₂.(𝐪𝐫));
+             Drr(detJ₂.(𝐪𝐫).*Bₜ²¹₂.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ²²₂.(𝐪𝐫))]
+    DqrC₂ = [Dqr(detJ₂.(𝐪𝐫).*Cₜ¹¹₂.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ¹²₂.(𝐪𝐫));
+             Dqr(detJ₂.(𝐪𝐫).*Cₜ²¹₂.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ²²₂.(𝐪𝐫))]
+    DrqCᵀ₂ = [Drq(detJ₂.(𝐪𝐫).*Cₜ¹¹₂.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²¹₂.(𝐪𝐫));
+              Drq(detJ₂.(𝐪𝐫).*Cₜ¹²₂.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²²₂.(𝐪𝐫))]    
+    𝐏₂ = DqqA₂ + DrrB₂ + DqrC₂ + DrqCᵀ₂
+
+    # Traction matrices for the first layer
+    TqAC₁ = [Tq(Aₜ¹¹₁.(𝐪𝐫), Cₜ¹¹₁.(𝐪𝐫)) Tq(Aₜ¹²₁.(𝐪𝐫), Cₜ¹²₁.(𝐪𝐫));
+             Tq(Aₜ²¹₁.(𝐪𝐫), Cₜ²¹₁.(𝐪𝐫)) Tq(Aₜ²²₁.(𝐪𝐫), Cₜ²²₁.(𝐪𝐫))]
+    TrCB₁ = [Tr(Cₜ¹¹₁.(𝐪𝐫), Bₜ¹¹₁.(𝐪𝐫)) Tr(Cₜ²¹₁.(𝐪𝐫), Bₜ¹²₁.(𝐪𝐫));
+             Tr(Cₜ¹²₁.(𝐪𝐫), Bₜ²¹₁.(𝐪𝐫)) Tr(Cₜ²²₁.(𝐪𝐫), Bₜ²²₁.(𝐪𝐫))]
+
+    # Traction matrices for the second layer
+    TqAC₂ = [Tq(Aₜ¹¹₂.(𝐪𝐫), Cₜ¹¹₂.(𝐪𝐫)) Tq(Aₜ¹²₂.(𝐪𝐫), Cₜ¹²₂.(𝐪𝐫));
+             Tq(Aₜ²¹₂.(𝐪𝐫), Cₜ²¹₂.(𝐪𝐫)) Tq(Aₜ²²₂.(𝐪𝐫), Cₜ²²₂.(𝐪𝐫))]
+    TrCB₂ = [Tr(Cₜ¹¹₂.(𝐪𝐫), Bₜ¹¹₂.(𝐪𝐫)) Tr(Cₜ²¹₂.(𝐪𝐫), Bₜ¹²₂.(𝐪𝐫));
+             Tr(Cₜ¹²₂.(𝐪𝐫), Bₜ²¹₂.(𝐪𝐫)) Tr(Cₜ²²₂.(𝐪𝐫), Bₜ²²₂.(𝐪𝐫))]
+
+    detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
+    detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
+
+    𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
+
+    𝐓q₁ = TqAC₁
+    𝐓r₁ = TrCB₁
+    𝐓q₂ = TqAC₂
+    𝐓r₂ = TrCB₂
+
+    𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ)*(𝐓r₁),
+                  -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))
+
+    # Traction on the interface
+    Id₁ = spdiagm(ones(m^2+n^2))
+    B̃ = [Id₁ -Id₁; -Id₁ Id₁]
+    B̂ = [Id₁ Id₁; -Id₁ -Id₁]
+    𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
+    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
+    ζ₀ = 20*(M-1)
+    𝐓ᵢ = 𝐇ᵢ*(-0.5*B̂*𝐓r + 0.5*𝐓r'*B̂' + ζ₀*B̃)
+
+    𝐏 - 𝐓 - 𝐓ᵢ
 end
-
-"""
-Function to compute the stiffness matrix using the SBP-SAT method.
-On the Neumann boundary, the penalty terms are equal to 1.
-On the Interface boundary, the penalty terms are taken from Duru, Virta 2014.
-"""
-function 𝐊2(q, r, sbp_2d, pterms, H)
-  QR = vec([@SVector [q[j], r[i]] for i=1:lastindex(q), j=1:lastindex(r)]);
-  # The determinants of the transformation
-  detJ¹ = [1,1] ⊗ (det∘J).(𝒮¹,QR) 
-  detJ² = [1,1] ⊗ (det∘J).(𝒮²,QR) 
-  𝐇𝐪₀⁻¹, 𝐇𝐫₀⁻¹, 𝐇𝐪ₙ⁻¹, 𝐇𝐫ₙ⁻¹ = sbp_2d[3] 
-  #Dq, _, _, Sr = sbp_2d[1] 
-  τ₀, τ₁, τ₂, τ₃ = pterms   
-  
-  # The second derivative SBP operators on the first domain  
-  𝐃𝐪𝐪ᴬ₁ = 𝐃𝐪𝐪2d(Aₜ¹, QR, 𝒮¹)
-  𝐃𝐫𝐫ᴮ₁ = 𝐃𝐫𝐫2d(Bₜ¹, QR, 𝒮¹)
-  𝐃𝐪C𝐃𝐫₁, 𝐃𝐫Cᵗ𝐃𝐪₁ = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ¹, QR, sbp_2d, 𝒮¹)  
-  𝐓𝐪₁, 𝐓𝐫₁ = 𝐓𝐪𝐓𝐫2d(Aₜ¹, Bₜ¹, Cₜ¹, QR, sbp_2d)
-  𝐏₁ = spdiagm(detJ¹.^-1)*(𝐃𝐪𝐪ᴬ₁ + 𝐃𝐫𝐫ᴮ₁ + 𝐃𝐪C𝐃𝐫₁ + 𝐃𝐫Cᵗ𝐃𝐪₁) # The bulk term    
-
-  # The second derivative SBP operators on the second domain
-  𝐃𝐪𝐪ᴬ₂ = 𝐃𝐪𝐪2d(Aₜ², QR, 𝒮²)
-  𝐃𝐫𝐫ᴮ₂ = 𝐃𝐫𝐫2d(Bₜ², QR, 𝒮²)
-  𝐃𝐪C𝐃𝐫₂, 𝐃𝐫Cᵗ𝐃𝐪₂ = 𝐃𝐪𝐫𝐃𝐫𝐪2d(Cₜ², QR, sbp_2d, 𝒮²)  
-  𝐓𝐪₂, 𝐓𝐫₂ = 𝐓𝐪𝐓𝐫2d(Aₜ², Bₜ², Cₜ², QR, sbp_2d)
-  𝐏₂ = spdiagm(detJ².^-1)*(𝐃𝐪𝐪ᴬ₂ + 𝐃𝐫𝐫ᴮ₂ + 𝐃𝐪C𝐃𝐫₂ + 𝐃𝐫Cᵗ𝐃𝐪₂) # The bulk term   
-
-  # The SAT terms for the Neumann boundary
-  M = size(q,1)
-  
-  Jsrₙ¹ = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮¹, @SVector[qᵢ, 1.0], @SVector[0.0, 1.0]) for qᵢ in q].^-1))  
-  Jsq₀¹ = I(2) ⊗ (spdiagm([J⁻¹s(𝒮¹, @SVector[0.0, rᵢ], @SVector[-1.0, 0.0]) for rᵢ in r].^-1)) ⊗ I(M)
-  Jsqₙ¹ = I(2) ⊗ (spdiagm([J⁻¹s(𝒮¹, @SVector[1.0, rᵢ], @SVector[1.0, 0.0]) for rᵢ in r].^-1)) ⊗ I(M)
-
-  Jsr₀² = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮², @SVector[qᵢ, 0.0], @SVector[0.0, -1.0]) for qᵢ in q].^-1))  
-  Jsq₀² = I(2) ⊗ (spdiagm([J⁻¹s(𝒮², @SVector[0.0, rᵢ], @SVector[-1.0, 0.0]) for rᵢ in r].^-1)) ⊗ I(M)
-  Jsqₙ² = I(2) ⊗ (spdiagm([J⁻¹s(𝒮², @SVector[1.0, rᵢ], @SVector[1.0, 0.0]) for rᵢ in r].^-1)) ⊗ I(M)
-
-  SATₙ₁ = τ₁*𝐇𝐫ₙ⁻¹*Jsrₙ¹*𝐓𝐫₁ - τ₂*𝐇𝐪₀⁻¹*Jsq₀¹*𝐓𝐪₁ + τ₃*𝐇𝐪ₙ⁻¹*Jsqₙ¹*𝐓𝐪₁ #=-τ₀*𝐇𝐫₀⁻¹*Jsr₀¹*𝐓𝐫₁ +=#  # r=0 (c₁) is the interface
-  SATₙ₂ = -τ₀*𝐇𝐫₀⁻¹*Jsr₀²*𝐓𝐫₂ - τ₂*𝐇𝐪₀⁻¹*Jsq₀²*𝐓𝐪₂ + τ₃*𝐇𝐪ₙ⁻¹*Jsqₙ²*𝐓𝐪₂ #=τ₁*𝐇𝐫ₙ⁻¹*Jsrₙ²*𝐓𝐫₂ =#  # r=0 (c₃) is the interface
-
-  # The SAT terms for the interface boundary  
-  B̃, B̂ = sparse([I(2M^2) -I(2M^2); -I(2M^2) I(2M^2)]), sparse([I(2M^2) I(2M^2); -I(2M^2) -I(2M^2)])
-
-  # Surface Jacobian on the interfaces
-  Jsr₀¹ = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮¹, @SVector[qᵢ, 0.0], @SVector[0.0, -1.0]) for qᵢ in q].^-1))
-  Jsrₙ² = I(2) ⊗ I(M) ⊗ (spdiagm([J⁻¹s(𝒮², @SVector[qᵢ, 1.0], @SVector[0.0, 1.0]) for qᵢ in q].^-1)) 
-
-  # Block matrices  
-  𝐇⁻¹ = blockdiag(𝐇𝐫₀⁻¹, 𝐇𝐫ₙ⁻¹)      
-  𝐓𝐫 = blockdiag(𝐓𝐫₁, 𝐓𝐫₂)
-  𝐉 = blockdiag(Jsr₀¹, Jsrₙ²)
-  𝐁ₕ = B̂
-  𝐁ₜ = B̃
-  
-  # Penalty coefficients
-  τₙ = 0.5
-  γₙ = 0.5
-  ζ₀ = 10*(M-1)
-  
-  SATᵢ = 𝐇⁻¹*(-τₙ*𝐁ₕ*𝐉*𝐓𝐫 + γₙ*𝐓𝐫'*𝐉'*𝐁ₕ' + ζ₀*𝐁ₜ)
-
-  𝒫 = blockdiag(𝐏₁ - SATₙ₁, 𝐏₂ - SATₙ₂)  
-
-  𝒫 - SATᵢ        
-end
-stima = 𝐊2(q, r, sbp_2d, (1,1,1,1), sbp_1d[1][1]);
-ev = eigvals(collect(stima));

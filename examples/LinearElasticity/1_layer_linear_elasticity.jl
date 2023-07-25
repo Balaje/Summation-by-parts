@@ -33,7 +33,7 @@ Material properties coefficients of an anisotropic material
 c₁₁(x) = 2*μ(x)+λ(x)
 c₂₂(x) = 2*μ(x)+λ(x)
 c₃₃(x) = μ(x)
-c₁₂(x) = λ(x)
+C₁₂(x) = λ(x)
 
 """
 The material property tensor in the physical coordinates
