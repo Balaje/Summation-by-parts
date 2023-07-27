@@ -1,10 +1,10 @@
 include("2d_elasticity_problem.jl");
 
 ## Define the physical domain
-c₀(r) = @SVector [0.0 + 0.0*sin(π*r), r] # Left boundary 
-c₁(q) = @SVector [q, 0.0 + 0.0*sin(2π*q)] # Bottom boundary
-c₂(r) = @SVector [1.0 + 0.0*sin(π*r), r] # Right boundary
-c₃(q) = @SVector [q, 1.0 + 0.0*sin(2π*q)] # Top boundary
+c₀(r) = @SVector [0.0 + 0.1*sin(π*r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
+c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
+c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)] # Top boundary
 domain = domain_2d(c₀, c₁, c₂, c₃)
 Ω(qr) = S(qr, domain)
 
@@ -15,8 +15,8 @@ const ν = 0.33;
 """
 The Lamé parameters μ, λ
 """
-μ(x) = E/(2*(1+ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
-λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+μ(x) = E/(2*(1+ν)) + 0.1*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.1*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
 
 """
 The density of the material
@@ -49,7 +49,8 @@ function t𝒫(𝒮, qr)
     x = 𝒮(qr)
     invJ = J⁻¹(qr, 𝒮)
     S = invJ ⊗ I(2)
-    S'*𝒫(x)*S
+    m,n = size(S)
+    SMatrix{m,n,Float64}(S'*𝒫(x)*S)
 end
 
 # Extract the property matrices
@@ -59,38 +60,15 @@ Cₜ(qr) = t𝒫(Ω,qr)[1:2, 3:4];
 
 # Stiffness matrix
 function 𝐊(𝐪𝐫)
-    Aₜ¹¹(x) = Aₜ(x)[1,1]
-    Aₜ¹²(x) = Aₜ(x)[1,2]
-    Aₜ²¹(x) = Aₜ(x)[2,1]
-    Aₜ²²(x) = Aₜ(x)[2,2]
-
-    Bₜ¹¹(x) = Bₜ(x)[1,1]
-    Bₜ¹²(x) = Bₜ(x)[1,2]
-    Bₜ²¹(x) = Bₜ(x)[2,1]
-    Bₜ²²(x) = Bₜ(x)[2,2]
-
-    Cₜ¹¹(x) = Cₜ(x)[1,1]
-    Cₜ¹²(x) = Cₜ(x)[1,2]
-    Cₜ²¹(x) = Cₜ(x)[2,1]
-    Cₜ²²(x) = Cₜ(x)[2,2]
-
     detJ(x) = (det∘J)(x,Ω)
-
-    DqqA = [Dqq(detJ.(𝐪𝐫).*Aₜ¹¹.(𝐪𝐫)) Dqq(detJ.(𝐪𝐫).*Aₜ¹².(𝐪𝐫));
-            Dqq(detJ.(𝐪𝐫).*Aₜ²¹.(𝐪𝐫)) Dqq(detJ.(𝐪𝐫).*Aₜ²².(𝐪𝐫))]
-    DrrB = [Drr(detJ.(𝐪𝐫).*Bₜ¹¹.(𝐪𝐫)) Drr(detJ.(𝐪𝐫).*Bₜ¹².(𝐪𝐫));
-            Drr(detJ.(𝐪𝐫).*Bₜ²¹.(𝐪𝐫)) Drr(detJ.(𝐪𝐫).*Bₜ²².(𝐪𝐫))]
-    DqrC = [Dqr(detJ.(𝐪𝐫).*Cₜ¹¹.(𝐪𝐫)) Dqr(detJ.(𝐪𝐫).*Cₜ¹².(𝐪𝐫));
-            Dqr(detJ.(𝐪𝐫).*Cₜ²¹.(𝐪𝐫)) Dqr(detJ.(𝐪𝐫).*Cₜ²².(𝐪𝐫))]
-    DrqCᵀ = [Drq(detJ.(𝐪𝐫).*Cₜ¹¹.(𝐪𝐫)) Drq(detJ.(𝐪𝐫).*Cₜ²¹.(𝐪𝐫));
-             Drq(detJ.(𝐪𝐫).*Cₜ¹².(𝐪𝐫)) Drq(detJ.(𝐪𝐫).*Cₜ²².(𝐪𝐫))]
+    detJ𝒫(x) = detJ(x)*t𝒫(Ω, x)
     
-    𝐏 = DqqA + DrrB + DqrC + DrqCᵀ
-
-    TqAC = [Tq(Aₜ¹¹.(𝐪𝐫), Cₜ¹¹.(𝐪𝐫)) Tq(Aₜ¹².(𝐪𝐫), Cₜ¹².(𝐪𝐫));
-            Tq(Aₜ²¹.(𝐪𝐫), Cₜ²¹.(𝐪𝐫)) Tq(Aₜ²².(𝐪𝐫), Cₜ²².(𝐪𝐫))]
-    TrCB = [Tr(Cₜ¹¹.(𝐪𝐫), Bₜ¹¹.(𝐪𝐫)) Tr(Cₜ²¹.(𝐪𝐫), Bₜ¹².(𝐪𝐫));
-            Tr(Cₜ¹².(𝐪𝐫), Bₜ²¹.(𝐪𝐫)) Tr(Cₜ²².(𝐪𝐫), Bₜ²².(𝐪𝐫))]
+    Pqr = t𝒫.(Ω,𝐪𝐫) # Property matrix evaluated at grid points
+    JPqr = detJ𝒫.(𝐪𝐫) # Property matrix * det(J)
+    𝐏 = Pᴱ(Dᴱ(JPqr)) # Elasticity bulk differential operator
+    𝐓 = Tᴱ(Pqr) # Elasticity Traction operator
+    𝐓q = 𝐓.A
+    𝐓r = 𝐓.B
 
     m, n = size(𝐪𝐫)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -98,9 +76,6 @@ function 𝐊(𝐪𝐫)
     sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
     
     𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
-
-    𝐓q = TqAC
-    𝐓r = TrCB
 
     detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
     spdiagm(detJ1.^-1)*𝐏 - (-(I(2) ⊗ 𝐇q₀)*(𝐓q) + (I(2) ⊗ 𝐇qₙ)*(𝐓q) - (I(2) ⊗ 𝐇r₀)*(𝐓r) + (I(2) ⊗ 𝐇rₙ)*(𝐓r))

@@ -69,6 +69,9 @@ function generate_2d_grid(mn::Tuple{Int64,Int64})
     qr
 end
 
+struct Dqq <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+end
 function Dqq(a_qr::AbstractMatrix{Float64})    
     m,n = size(a_qr)
     D2q = [SBP_2_VARIABLE_0_1(m, a_qr[i,:]).D2 for i=1:n]
@@ -76,6 +79,9 @@ function Dqq(a_qr::AbstractMatrix{Float64})
     sum(D2q .⊗ Er)
 end
 
+struct Drr <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+end
 function Drr(a_qr::AbstractMatrix{Float64})
     m,n = size(a_qr)
     D2r = [SBP_2_VARIABLE_0_1(n, a_qr[:,i]).D2 for i=1:m]
@@ -83,6 +89,9 @@ function Drr(a_qr::AbstractMatrix{Float64})
     sum(Eq .⊗ D2r)
 end
 
+struct Dqr <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+end
 function Dqr(a_qr::AbstractMatrix{Float64})
     m,n = size(a_qr)
     A = spdiagm(vec(a_qr))
@@ -91,6 +100,10 @@ function Dqr(a_qr::AbstractMatrix{Float64})
     sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)    
     D1q, D1r = sbp_2d.D1
     D1q*A*D1r
+end
+
+struct Drq <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
 end
 function Drq(a_qr::AbstractMatrix{Float64})
     m,n = size(a_qr)
@@ -102,6 +115,9 @@ function Drq(a_qr::AbstractMatrix{Float64})
     D1r*A*D1q
 end
 
+struct Tq <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+end
 function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
     m,n = size(a_qr)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -114,6 +130,9 @@ function Tq(a_qr::AbstractMatrix{Float64}, c_qr::AbstractMatrix{Float64})
     A*Sq + C*Dr
 end
 
+struct Tr <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+end
 function Tr(c_qr::AbstractMatrix{Float64}, b_qr::AbstractMatrix{Float64})
     m, n = size(c_qr)
     sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -124,4 +143,55 @@ function Tr(c_qr::AbstractMatrix{Float64}, b_qr::AbstractMatrix{Float64})
     C = spdiagm(vec(c_qr))
     B = spdiagm(vec(b_qr))
     C*Dq + B*Sr
+end
+
+
+"""
+Linear Elasticity SBP operator
+"""
+struct Dᴱ <: SBP_TYPE
+    A::Matrix{SparseMatrixCSC{Float64, Int64}}
+end
+function Dᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
+    Ptuple = Tuple.(Pqr)
+    P_page = reinterpret(reshape, Float64, Ptuple)
+    dim = length(size(P_page))
+    P_vec = reshape(splitdimsview(P_page, dim-2), (4,4))
+    Dᴱ₂ = [Dqq Dqq Dqr Dqr; Dqq Dqq Dqr Dqr; Drq Drq Drr Drr; Drq Drq Drr Drr]
+    res = [Dᴱ₂[i,j](P_vec[i,j]) for i=1:4, j=1:4]
+    Dᴱ(res)
+end
+
+function Pᴱ(D::Dᴱ)
+    D = D.A
+    [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
+        [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
+end
+
+"""
+Linear Elasticity traction operator
+"""
+struct Tᴱ <: SBP_TYPE
+    A::SparseMatrixCSC{Float64, Int64}
+    B::SparseMatrixCSC{Float64, Int64}
+end
+
+function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
+    Ptuple = Tuple.(Pqr)
+    P_page = reinterpret(reshape, Float64, Ptuple)
+    dim = length(size(P_page))
+    P_vec = spdiagm.(vec.(reshape(splitdimsview(P_page, dim-2), (4,4))))
+
+    m,n = size(P_page)[2:3]
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+
+    Dq, Dr = sbp_2d.D1
+    Sq, Sr = sbp_2d.S
+
+    Tq = [P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr)
+    Tr = [P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr)
+
+    Tᴱ(Tq, Tr)
 end

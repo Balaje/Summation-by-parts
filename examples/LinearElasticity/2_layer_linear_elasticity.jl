@@ -60,54 +60,32 @@ function t𝒫(𝒮, qr)
     x = 𝒮(qr)
     invJ = J⁻¹(qr, 𝒮)
     S = invJ ⊗ I(2)
-    S'*𝒫(x)*S
+    m,n = size(S)
+    SMatrix{m,n,Float64}(S'*𝒫(x)*S)
 end
-
-# Extract the property matrices
-Aₜ¹(qr) = t𝒫(Ω₁,qr)[1:2, 1:2];
-Bₜ¹(qr) = t𝒫(Ω₁,qr)[3:4, 3:4];
-Cₜ¹(qr) = t𝒫(Ω₁,qr)[1:2, 3:4];
-Aₜ²(qr) = t𝒫(Ω₂,qr)[1:2, 1:2];
-Bₜ²(qr) = t𝒫(Ω₂,qr)[3:4, 3:4];
-Cₜ²(qr) = t𝒫(Ω₂,qr)[1:2, 3:4];
 
 M = 21
 𝐪𝐫 = generate_2d_grid((M,M))
 function 𝐊2(𝐪𝐫)
-    # Property coefficients on the first layer
-    Aₜ¹¹₁(x) = Aₜ¹(x)[1,1]
-    Aₜ¹²₁(x) = Aₜ¹(x)[1,2]
-    Aₜ²¹₁(x) = Aₜ¹(x)[2,1]
-    Aₜ²²₁(x) = Aₜ¹(x)[2,2]
-
-    Bₜ¹¹₁(x) = Bₜ¹(x)[1,1]
-    Bₜ¹²₁(x) = Bₜ¹(x)[1,2]
-    Bₜ²¹₁(x) = Bₜ¹(x)[2,1]
-    Bₜ²²₁(x) = Bₜ¹(x)[2,2]
-
-    Cₜ¹¹₁(x) = Cₜ¹(x)[1,1]
-    Cₜ¹²₁(x) = Cₜ¹(x)[1,2]
-    Cₜ²¹₁(x) = Cₜ¹(x)[2,1]
-    Cₜ²²₁(x) = Cₜ¹(x)[2,2]
-
-    # Property coefficients on the second layer
-    Aₜ¹¹₂(x) = Aₜ²(x)[1,1]
-    Aₜ¹²₂(x) = Aₜ²(x)[1,2]
-    Aₜ²¹₂(x) = Aₜ²(x)[2,1]
-    Aₜ²²₂(x) = Aₜ²(x)[2,2]
-
-    Bₜ¹¹₂(x) = Bₜ²(x)[1,1]
-    Bₜ¹²₂(x) = Bₜ²(x)[1,2]
-    Bₜ²¹₂(x) = Bₜ²(x)[2,1]
-    Bₜ²²₂(x) = Bₜ²(x)[2,2]
-
-    Cₜ¹¹₂(x) = Cₜ²(x)[1,1]
-    Cₜ¹²₂(x) = Cₜ²(x)[1,2]
-    Cₜ²¹₂(x) = Cₜ²(x)[2,1]
-    Cₜ²²₂(x) = Cₜ²(x)[2,2]
-
+    # Get the bulk and the traction operator for the 1st layer
     detJ₁(x) = (det∘J)(x,Ω₁)
+    detJ₁𝒫(x) = detJ₁(x)*t𝒫(Ω₁, x)
+    Pqr₁ = t𝒫.(Ω₁,𝐪𝐫) # Property matrix evaluated at grid points
+    JPqr₁ = detJ₁𝒫.(𝐪𝐫) # Property matrix * det(J)
+    𝐏₁ = Pᴱ(Dᴱ(JPqr₁)) # Elasticity bulk differential operator
+    𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
+    𝐓q₁ = 𝐓₁.A
+    𝐓r₁ = 𝐓₁.B
+
+    # Get the bulk and the traction operator for the 2nd layer
     detJ₂(x) = (det∘J)(x,Ω₂)
+    detJ₂𝒫(x) = detJ₂(x)*t𝒫(Ω₂, x)
+    Pqr₂ = t𝒫.(Ω₂,𝐪𝐫) # Property matrix evaluated at grid points
+    JPqr₂ = detJ₂𝒫.(𝐪𝐫) # Property matrix * det(J)
+    𝐏₂ = Pᴱ(Dᴱ(JPqr₂)) # Elasticity bulk differential operator
+    𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
+    𝐓q₂ = 𝐓₂.A
+    𝐓r₂ = 𝐓₂.B
 
     # Get the norm matrices (Same for both layers)
     m, n = size(𝐪𝐫)
@@ -116,50 +94,12 @@ function 𝐊2(𝐪𝐫)
     sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
     𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
 
-    # Bulk matrices for the first layer
-    DqqA₁ = [Dqq(detJ₁.(𝐪𝐫).*Aₜ¹¹₁.(𝐪𝐫)) Dqq(detJ₁.(𝐪𝐫).*Aₜ¹²₁.(𝐪𝐫));
-             Dqq(detJ₁.(𝐪𝐫).*Aₜ²¹₁.(𝐪𝐫)) Dqq(detJ₁.(𝐪𝐫).*Aₜ²²₁.(𝐪𝐫))]
-    DrrB₁ = [Drr(detJ₁.(𝐪𝐫).*Bₜ¹¹₁.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ¹²₁.(𝐪𝐫));
-             Drr(detJ₁.(𝐪𝐫).*Bₜ²¹₁.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ²²₁.(𝐪𝐫))]
-    DqrC₁ = [Dqr(detJ₁.(𝐪𝐫).*Cₜ¹¹₁.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ¹²₁.(𝐪𝐫));
-             Dqr(detJ₁.(𝐪𝐫).*Cₜ²¹₁.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ²²₁.(𝐪𝐫))]
-    DrqCᵀ₁ = [Drq(detJ₁.(𝐪𝐫).*Cₜ¹¹₁.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²¹₁.(𝐪𝐫));
-              Drq(detJ₁.(𝐪𝐫).*Cₜ¹²₁.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²²₁.(𝐪𝐫))]    
-    𝐏₁ = DqqA₁ + DrrB₁ + DqrC₁ + DrqCᵀ₁
-
-    # Bulk matrices for the second layer
-    DqqA₂ = [Dqq(detJ₂.(𝐪𝐫).*Aₜ¹¹₂.(𝐪𝐫)) Dqq(detJ₂.(𝐪𝐫).*Aₜ¹²₂.(𝐪𝐫));
-             Dqq(detJ₂.(𝐪𝐫).*Aₜ²¹₂.(𝐪𝐫)) Dqq(detJ₂.(𝐪𝐫).*Aₜ²²₂.(𝐪𝐫))]
-    DrrB₂ = [Drr(detJ₂.(𝐪𝐫).*Bₜ¹¹₂.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ¹²₂.(𝐪𝐫));
-             Drr(detJ₂.(𝐪𝐫).*Bₜ²¹₂.(𝐪𝐫)) Drr(detJ₁.(𝐪𝐫).*Bₜ²²₂.(𝐪𝐫))]
-    DqrC₂ = [Dqr(detJ₂.(𝐪𝐫).*Cₜ¹¹₂.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ¹²₂.(𝐪𝐫));
-             Dqr(detJ₂.(𝐪𝐫).*Cₜ²¹₂.(𝐪𝐫)) Dqr(detJ₁.(𝐪𝐫).*Cₜ²²₂.(𝐪𝐫))]
-    DrqCᵀ₂ = [Drq(detJ₂.(𝐪𝐫).*Cₜ¹¹₂.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²¹₂.(𝐪𝐫));
-              Drq(detJ₂.(𝐪𝐫).*Cₜ¹²₂.(𝐪𝐫)) Drq(detJ₁.(𝐪𝐫).*Cₜ²²₂.(𝐪𝐫))]    
-    𝐏₂ = DqqA₂ + DrrB₂ + DqrC₂ + DrqCᵀ₂
-
-    # Traction matrices for the first layer
-    TqAC₁ = [Tq(Aₜ¹¹₁.(𝐪𝐫), Cₜ¹¹₁.(𝐪𝐫)) Tq(Aₜ¹²₁.(𝐪𝐫), Cₜ¹²₁.(𝐪𝐫));
-             Tq(Aₜ²¹₁.(𝐪𝐫), Cₜ²¹₁.(𝐪𝐫)) Tq(Aₜ²²₁.(𝐪𝐫), Cₜ²²₁.(𝐪𝐫))]
-    TrCB₁ = [Tr(Cₜ¹¹₁.(𝐪𝐫), Bₜ¹¹₁.(𝐪𝐫)) Tr(Cₜ²¹₁.(𝐪𝐫), Bₜ¹²₁.(𝐪𝐫));
-             Tr(Cₜ¹²₁.(𝐪𝐫), Bₜ²¹₁.(𝐪𝐫)) Tr(Cₜ²²₁.(𝐪𝐫), Bₜ²²₁.(𝐪𝐫))]
-
-    # Traction matrices for the second layer
-    TqAC₂ = [Tq(Aₜ¹¹₂.(𝐪𝐫), Cₜ¹¹₂.(𝐪𝐫)) Tq(Aₜ¹²₂.(𝐪𝐫), Cₜ¹²₂.(𝐪𝐫));
-             Tq(Aₜ²¹₂.(𝐪𝐫), Cₜ²¹₂.(𝐪𝐫)) Tq(Aₜ²²₂.(𝐪𝐫), Cₜ²²₂.(𝐪𝐫))]
-    TrCB₂ = [Tr(Cₜ¹¹₂.(𝐪𝐫), Bₜ¹¹₂.(𝐪𝐫)) Tr(Cₜ²¹₂.(𝐪𝐫), Bₜ¹²₂.(𝐪𝐫));
-             Tr(Cₜ¹²₂.(𝐪𝐫), Bₜ²¹₂.(𝐪𝐫)) Tr(Cₜ²²₂.(𝐪𝐫), Bₜ²²₂.(𝐪𝐫))]
-
+    # Determinants of the transformation
     detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
     detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
 
+    # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
-
-    𝐓q₁ = TqAC₁
-    𝐓r₁ = TrCB₁
-    𝐓q₂ = TqAC₂
-    𝐓r₂ = TrCB₂
-
     𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ)*(𝐓r₁),
                   -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))
 
