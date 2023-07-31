@@ -1,17 +1,20 @@
-# include("2d_elasticity_problem.jl")
+include("2d_elasticity_problem.jl")
 
 """
 Define the geometry of the two layers. 
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
-c₀¹(r) = [0.0, r]; # Left boundary
-c₁¹(q) = [q, 0.0]; # Bottom boundary. Also the interface
-c₂¹(r) = [1.0, r]; # Right boundary
-c₃¹(q) = [q, 1.0 + 0.0*sin(2π*q)]; # Top boundary
+# Define the parametrization for interface
+cᵢ(q) = [q, 0.0 + 0.0*sin(2π*q)];
+# Define the rest of the boundary
+c₀¹(r) = [0.0 + 0.1*sin(2π*r), r]; # Left boundary
+c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
+c₂¹(r) = [1.0 + 0.1*sin(2π*r), r]; # Right boundary
+c₃¹(q) = [q, 1.0 + 0.1*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [-1,0]
-c₀²(r) = [0.0, r-1]; # Left boundary
-c₁²(q) = [q, -1.0]; # Bottom boundary. 
-c₂²(r) = [1.0, r-1]; # Right boundary
+c₀²(r) = [0.0 + 0.1*sin(2π*r), r-1]; # Left boundary
+c₁²(q) = [q, -1.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0.1*sin(2π*r), r-1]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -96,7 +99,7 @@ function 𝐊2(𝐪𝐫)
 
     # Determinants of the transformation
     detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
-    detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
+    detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))    
 
     # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
@@ -104,13 +107,25 @@ function 𝐊2(𝐪𝐫)
                   -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))
 
     # Traction on the interface
-    Id₁ = spdiagm(ones(m^2+n^2))
-    B̃ = [Id₁ -Id₁; -Id₁ Id₁]
-    B̂ = [Id₁ Id₁; -Id₁ -Id₁]
-    𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
+    Id₃ = spdiagm(ones(m^2+n^2))
+    q = LinRange(0,1,m)
+    sJ₁ = spdiagm([J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,m)
+    sJ₂ = spdiagm([J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,m)
+    Id₁ = I(2) ⊗ sJ₁
+    Id₂ = I(2) ⊗ sJ₂
+
+    # B̂ = [Id₁ Id₂; -Id₁ -Id₂]
+    # B̃ = [Id₃ -Id₃; -Id₃ Id₃]
+    # 𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
+
+    𝐇ᵢ¹ = [(I(2) ⊗ 𝐇r₀)*Id₁ (I(2) ⊗ 𝐇rₙ)*Id₂; -(I(2) ⊗ 𝐇r₀)*Id₁ -(I(2) ⊗ 𝐇rₙ)*Id₂]
+    𝐇ᵢ² = [(I(2) ⊗ 𝐇r₀) -(I(2) ⊗ 𝐇rₙ); -(I(2) ⊗ 𝐇r₀) (I(2) ⊗ 𝐇rₙ)]
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
-    ζ₀ = 20*(m-1)^3
-    𝐓ᵢ = 𝐇ᵢ*(-0.5*B̂*𝐓r + 0.5*𝐓r'*B̂' + ζ₀*B̃)
+    
+    ζ₀ = 10*(m-1)^3
+    
+    # 𝐓ᵢ = 𝐇ᵢ*(-0.5*B̂*𝐓r + 0.5*𝐓r'*B̂' + ζ₀*B̃)
+    𝐓ᵢ = 0.5*𝐇ᵢ¹*(-𝐓r - 𝐓r') + (ζ₀*𝐇ᵢ²)
 
     𝐏 - 𝐓 - 𝐓ᵢ
 end
@@ -124,7 +139,6 @@ function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C)
     𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
     P1, P2, P3, P4 = P
     c₀, c₁, c₂, c₃ = C
-    
     
     bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, P1) for rᵢ in r])
     bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, P2) for qᵢ in q])
@@ -229,7 +243,9 @@ plt78 = plot(plt7, plt8, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
 
 plt9 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
 plot!(plt9, h, h.^4, label="O(h⁴)", lw=1);
-plt10_1 = scatter(Tuple.(𝐱𝐲 |> vec), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
-plt10_2 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
-plt10 = plot(plt10_1, plt10_2, layout=(1,2));
+plt10_1 = scatter(Tuple.(𝐱𝐲₁ |> vec), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
+plt10_2 = scatter(Tuple.(𝐱𝐲₂ |> vec), size=(700,800), markersize=0.5, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
+plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
+plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
+plt10 = plot(plt10_12, plt10_3, layout=(1,2));
 plt910 = plot(plt9, plt10, layout=(2,1), size=(700,800));

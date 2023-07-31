@@ -199,18 +199,18 @@ $$
 At the moment, we have tested the problem for uniform interfaces, and it seems to work. The rate of convergence observed for the currect setting given in the code is 
 
 ```julia
-julia> L²Error
-4-element Vector{Float64}:
-  0.0016393313426515184
-  0.0002860389080514714
-  8.294531622338852e-5
-  3.205496733503807e-5
+julia> L²Error                                                                                                                                                                                                                                                           
+4-element Vector{Float64}:                                                                                                                                                                                                                                               
+ 0.03837284115067069                                                                                                                                                                                                                                                     
+ 0.012989075940192675                                                                                                                                                                                                                                                    
+ 0.005587739656738914                                                                                                                                                                                                                                                    
+ 0.00280296789019108
 
-julia> rate
-3-element Vector{Float64}:
-  4.305958370189932
-  4.30317497079639
-  4.2606178219096735
+julia> rate                                                                                                                                                                                                                                                              
+3-element Vector{Float64}:                                                                                                                                                                                                                                               
+ 2.6716016596611785                                                                                                                                                                                                                                                      
+ 2.9321738199154286                                                                                                                                                                                                                                                      
+ 3.091713965925471 
 ```
 
 Convergence Rates |
@@ -234,6 +234,8 @@ The solution obtained from the code is
 
 ![](./Images/2-layer/layer-2-u1.png) | ![](./Images/2-layer/layer-2-v1.png) |
 --- | --- | 
+
+The reason for the suboptimal rates is perhaps due to the application of the interface conditions. This is currently being investigated.
 
 ## References
 
