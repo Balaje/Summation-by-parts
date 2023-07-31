@@ -11,12 +11,8 @@ julia> import SBP
 I have added only the fourth-order SBP operators in this code. To get the SBP operators corresponding to the constant coefficients
 
 ```julia
-sbp = SBP_1_2_CONSTANT_0_1(n+1) # Get the SBP operators using the package
+sbp = SBP_1_2_CONSTANT_0_1(n+1) # Get the SBP operators
 ```
-
-![](./Images/op.png)
-
-The figure shows the diagonal norm, the first derivative operator, the narrow stencil second derivative operators. I use the UnicodePlots.jl package to display the sparsity pattern.
 
 
 ## Advection-diffusion equation
@@ -199,18 +195,20 @@ $$
 At the moment, we have tested the problem for uniform interfaces, and it seems to work. The rate of convergence observed for the currect setting given in the code is 
 
 ```julia
-julia> L²Error                                                                                                                                                                                                                                                           
-4-element Vector{Float64}:                                                                                                                                                                                                                                               
- 0.03837284115067069                                                                                                                                                                                                                                                     
- 0.012989075940192675                                                                                                                                                                                                                                                    
- 0.005587739656738914                                                                                                                                                                                                                                                    
- 0.00280296789019108
+julia> rate                                                                                                                                                                                               
+4-element Vector{Float64}:
+ 4.0235794471352335
+ 4.114348825832268
+ 4.1347568640425605
+ 4.13613187007841 
 
-julia> rate                                                                                                                                                                                                                                                              
-3-element Vector{Float64}:                                                                                                                                                                                                                                               
- 2.6716016596611785                                                                                                                                                                                                                                                      
- 2.9321738199154286                                                                                                                                                                                                                                                      
- 3.091713965925471 
+julia> L²Error
+5-element Vector{Float64}:
+ 0.0028326305042342477
+ 0.0005542079571313435
+ 0.00016968021768838413
+ 6.744222211943307e-5
+ 3.17269114085305e-5
 ```
 
 Convergence Rates |
@@ -235,7 +233,7 @@ The solution obtained from the code is
 ![](./Images/2-layer/layer-2-u1.png) | ![](./Images/2-layer/layer-2-v1.png) |
 --- | --- | 
 
-The reason for the suboptimal rates is perhaps due to the application of the interface conditions. This is currently being investigated.
+However, when I change the interface to a curved one, the errors seem to stagnate. This is currently being investigated.
 
 ## References
 

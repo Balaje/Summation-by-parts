@@ -7,14 +7,14 @@ Define the geometry of the two layers.
 # Define the parametrization for interface
 cᵢ(q) = [q, 0.0 + 0.0*sin(2π*q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0.1*sin(2π*r), r]; # Left boundary
+c₀¹(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0.1*sin(2π*r), r]; # Right boundary
+c₂¹(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
 c₃¹(q) = [q, 1.0 + 0.1*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [-1,0]
-c₀²(r) = [0.0 + 0.1*sin(2π*r), r-1]; # Left boundary
+c₀²(r) = [0.0 + 0.0*sin(2π*r), r-1]; # Left boundary
 c₁²(q) = [q, -1.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0.1*sin(2π*r), r-1]; # Right boundary
+c₂²(r) = [1.0 + 0.0*sin(2π*r), r-1]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -28,8 +28,8 @@ const ν = 0.33;
 """
 The Lamé parameters μ, λ
 """
-μ(x) = E/(2*(1+ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
-λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.0*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
+μ(x) = E/(2*(1+ν))
+λ(x) = E*ν/((1+ν)*(1-2ν))
 
 """
 The density of the material
@@ -67,8 +67,6 @@ function t𝒫(𝒮, qr)
     SMatrix{m,n,Float64}(S'*𝒫(x)*S)
 end
 
-M = 21
-𝐪𝐫 = generate_2d_grid((M,M))
 function 𝐊2(𝐪𝐫)
     # Get the bulk and the traction operator for the 1st layer
     detJ₁(x) = (det∘J)(x,Ω₁)
@@ -112,20 +110,16 @@ function 𝐊2(𝐪𝐫)
     sJ₁ = spdiagm([J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,m)
     sJ₂ = spdiagm([J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,m)
     Id₁ = I(2) ⊗ sJ₁
-    Id₂ = I(2) ⊗ sJ₂
+    Id₂ = I(2) ⊗ sJ₂    
 
-    # B̂ = [Id₁ Id₂; -Id₁ -Id₂]
-    # B̃ = [Id₃ -Id₃; -Id₃ Id₃]
-    # 𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
-
-    𝐇ᵢ¹ = [(I(2) ⊗ 𝐇r₀)*Id₁ (I(2) ⊗ 𝐇rₙ)*Id₂; -(I(2) ⊗ 𝐇r₀)*Id₁ -(I(2) ⊗ 𝐇rₙ)*Id₂]
-    𝐇ᵢ² = [(I(2) ⊗ 𝐇r₀) -(I(2) ⊗ 𝐇rₙ); -(I(2) ⊗ 𝐇r₀) (I(2) ⊗ 𝐇rₙ)]
-    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
+    Id₃₁ = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(1,n)
+    Id₃₂ = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(m,n)
+    B̃ = [Id₃₁ -Id₃₁; -Id₃₂ Id₃₂]
+    𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
+    𝐓r = [-Id₁*𝐓r₁ -Id₁*𝐓r₁; Id₂*𝐓r₂ Id₂*𝐓r₂]
     
-    ζ₀ = 10*(m-1)^3
-    
-    # 𝐓ᵢ = 𝐇ᵢ*(-0.5*B̂*𝐓r + 0.5*𝐓r'*B̂' + ζ₀*B̃)
-    𝐓ᵢ = 0.5*𝐇ᵢ¹*(-𝐓r - 𝐓r') + (ζ₀*𝐇ᵢ²)
+    ζ₀ = 100*(m-1)^3
+    𝐓ᵢ = 𝐇ᵢ*(-0.5*𝐓r - 0.5*𝐓r') + ζ₀*B̃*𝐇ᵢ
 
     𝐏 - 𝐓 - 𝐓ᵢ
 end
@@ -157,7 +151,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41,51]
+N = [21,31,41,51,61]
 h = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 0.5
@@ -249,3 +243,7 @@ plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
 plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
 plt10 = plot(plt10_12, plt10_3, layout=(1,2));
 plt910 = plot(plt9, plt10, layout=(2,1), size=(700,800));
+
+plt11_1 = contourf(q, r, abs.(Uap₁ - Ue₁))
+plt11_2 = contourf(q, r, abs.(Uap₂ - Ue₂))
+plot(plt11_1, plt11_2)
