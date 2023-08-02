@@ -1,11 +1,11 @@
 # SBP.jl
 
-Contains code to implement the summation by parts finite difference methods for some problems. To use this package, in the Julia prompt:
+Contains code to implement the summation by parts finite difference methods for some problems. To use this package, type the following in the Julia prompt:
 
 ```julia
 julia> ]
 pkg> activate .
-julia> import SBP
+julia> using SBP
 ```
 
 I have added only the fourth-order SBP operators in this code. To get the SBP operators corresponding to the constant coefficients
