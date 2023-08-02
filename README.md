@@ -195,20 +195,20 @@ $$
 At the moment, we have tested the problem for uniform interfaces, and it seems to work. The rate of convergence observed for the currect setting given in the code is 
 
 ```julia
+julia> L²Error                                                                                                                                                                                            
+5-element Vector{Float64}:                                                                                                                                                                                
+ 0.0015399436976072506                                                                                                                                                                                    
+ 0.00026644364017707536                                                                                                                                                                                   
+ 7.675229452381408e-5                                                                                                                                                                                     
+ 2.9487507092790095e-5                                                                                                                                                                                    
+ 1.3596241413158004e-5                                                                                                                                                                                    
+                                                                                                                                                                                                          
 julia> rate                                                                                                                                                                                               
-4-element Vector{Float64}:
- 4.0235794471352335
- 4.114348825832268
- 4.1347568640425605
- 4.13613187007841 
-
-julia> L²Error
-5-element Vector{Float64}:
- 0.0028326305042342477
- 0.0005542079571313435
- 0.00016968021768838413
- 6.744222211943307e-5
- 3.17269114085305e-5
+4-element Vector{Float64}:                                                                                                                                                                                
+ 4.32673085780647                                                                                                                                                                                         
+ 4.3262322432032825
+ 4.287000861969408
+ 4.246197273743216
 ```
 
 Convergence Rates |

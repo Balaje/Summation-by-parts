@@ -13,7 +13,7 @@ c₂¹(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
 c₃¹(q) = [q, 1.0 + 0.0*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [-1,0]
 c₀²(r) = [0.0 + 0.0*sin(2π*r), r-1]; # Left boundary
-c₁²(q) = [q, -1.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
+c₁²(q) = [q, -1.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
 c₂²(r) = [1.0 + 0.0*sin(2π*r), r-1]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
