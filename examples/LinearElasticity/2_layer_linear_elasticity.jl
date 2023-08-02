@@ -10,7 +10,7 @@ cᵢ(q) = [q, 0.0 + 0.0*sin(2π*q)];
 c₀¹(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
 c₂¹(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
-c₃¹(q) = [q, 1.0 + 0.1*sin(2π*q)]; # Top boundary
+c₃¹(q) = [q, 1.0 + 0.0*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [-1,0]
 c₀²(r) = [0.0 + 0.0*sin(2π*r), r-1]; # Left boundary
 c₁²(q) = [q, -1.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
@@ -105,21 +105,24 @@ function 𝐊2(𝐪𝐫)
                   -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))
 
     # Traction on the interface
-    Id₃ = spdiagm(ones(m^2+n^2))
     q = LinRange(0,1,m)
-    sJ₁ = spdiagm([J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,m)
-    sJ₂ = spdiagm([J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,m)
-    Id₁ = I(2) ⊗ sJ₁
-    Id₂ = I(2) ⊗ sJ₂    
+    sJ₁ = spdiagm([J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,n)
+    sJ₂ = spdiagm([J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,n)
 
-    Id₃₁ = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(1,n)
-    Id₃₂ = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(m,n)
-    B̃ = [Id₃₁ -Id₃₁; -Id₃₂ Id₃₂]
-    𝐇ᵢ = blockdiag((I(2) ⊗ 𝐇r₀), (I(2) ⊗ 𝐇rₙ))
-    𝐓r = [-Id₁*𝐓r₁ -Id₁*𝐓r₁; Id₂*𝐓r₂ Id₂*𝐓r₂]
+    Id₃ = spdiagm(ones(2*m*n))
+    𝐃 = blockdiag((I(2)⊗𝐇r₀), (I(2)⊗𝐇rₙ))
+    BH = [-Id₃ -Id₃; Id₃ Id₃]
+    BHᵀ = [Id₃ -Id₃; Id₃ -Id₃]
+    BT = [Id₃ -Id₃; -Id₃ Id₃]
     
-    ζ₀ = 100*(m-1)^3
-    𝐓ᵢ = 𝐇ᵢ*(-0.5*𝐓r - 0.5*𝐓r') + ζ₀*B̃*𝐇ᵢ
+    𝐓r = blockdiag(([1 1; 1 1]⊗sJ₁).*𝐓r₁, ([1 1; 1 1]⊗sJ₂).*𝐓r₂)
+
+    𝚯 = 𝐃*BHᵀ*𝐓r;
+    𝚯ᵀ = 𝐃*𝐓r'*BH;
+    Ju = 𝐃*BT
+
+    ζ₀ = 10*(m-1)
+    𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
 end
