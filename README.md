@@ -1,6 +1,6 @@
 # SBP.jl
 
-Contains code to implement the summation by parts finite difference methods for some problems. The plan of this package is to turn these tiny codes into a full flegded package with nice interfaces. To use this package, in the Julia prompt:
+Contains code to implement the summation by parts finite difference methods for some problems. To use this package, in the Julia prompt:
 
 ```julia
 julia> ]
