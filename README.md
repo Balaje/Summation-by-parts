@@ -186,29 +186,29 @@ julia> L²Error
 
 ## Two-Layer Linear Elasticity
 
-The code to solve the two-layer elasticity problem is given in `examples/LinearElasticity/2_layer_linear_elasticity.jl`. The problem contains two domains, each of which is transformed to the reference grid. At the interface between the two domains, continuity of displacements and the traction is enforced.
+The code to solve the two-layer elasticity problem is given in `examples/LinearElasticity/2_layer_linear_elasticity.jl`. The problem contains two domains, each of which is transformed to the reference grid. At the interface between the two domains, continuity of displacements and the traction is enforced. The method is discussed in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046).
 
 $$
 \sigma_1(\mathbf{u}_1) \cdot \mathbf{n} = \sigma_2(\mathbf{u}_2) \cdot \mathbf{n}, \quad \mathbf{u}_1 = \mathbf{u}_2
 $$
 
-At the moment, we have tested the problem for uniform interfaces, and it seems to work. The rate of convergence observed for the currect setting given in the code is 
+At the moment the problem seems to work for the case discussed by [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The following rate of convergence is observed with the current parameters in the code.
 
 ```julia
-julia> L²Error                                                                                                                                                                                            
-5-element Vector{Float64}:                                                                                                                                                                                
- 0.0015399436976072506                                                                                                                                                                                    
- 0.00026644364017707536                                                                                                                                                                                   
- 7.675229452381408e-5                                                                                                                                                                                     
- 2.9487507092790095e-5                                                                                                                                                                                    
- 1.3596241413158004e-5                                                                                                                                                                                    
-                                                                                                                                                                                                          
-julia> rate                                                                                                                                                                                               
-4-element Vector{Float64}:                                                                                                                                                                                
- 4.32673085780647                                                                                                                                                                                         
- 4.3262322432032825
- 4.287000861969408
- 4.246197273743216
+julia> rate
+4-element Vector{Float64}:
+ 3.8936080729728326
+ 3.938903634179603
+ 3.78207607480662
+ 3.55429449314174
+ 
+julia> L²Error
+5-element Vector{Float64}:
+ 0.005167608899285571
+ 0.0010657596891309798
+ 0.0003431923874604628
+ 0.0001475762954941426 
+ 7.719392747926641e-5
 ```
 
 Convergence Rates |
@@ -233,8 +233,9 @@ The solution obtained from the code is
 ![](./Images/2-layer/layer-2-u1.png) | ![](./Images/2-layer/layer-2-v1.png) |
 --- | --- | 
 
-However, when I change the interface to a curved one, the errors seem to stagnate. This is currently being investigated.
+More tests are required to test the convergence rates with different examples.
 
 ## References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
+- Duru, K., Virta, K., 2014. Stable and high order accurate difference methods for the elastic wave equation in discontinuous media. Journal of Computational Physics 279, 37–62. https://doi.org/10.1016/j.jcp.2014.08.046

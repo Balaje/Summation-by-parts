@@ -3,18 +3,18 @@ include("2d_elasticity_problem.jl")
 """
 Define the geometry of the two layers. 
 """
-# Layer 1 (q,r) ∈ [0,1] × [0,1]
+# Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-cᵢ(q) = [q, 0.0 + 0.0*sin(2π*q)];
+cᵢ(q) = [q, 1.0 + 0.2*sin(2π*q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
+c₀¹(r) = [0.0 + 0.0*sin(2π*r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
-c₃¹(q) = [q, 1.0 + 0.0*sin(2π*q)]; # Top boundary
-# Layer 2 (q,r) ∈ [0,1] × [-1,0]
-c₀²(r) = [0.0 + 0.0*sin(2π*r), r-1]; # Left boundary
-c₁²(q) = [q, -1.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0.0*sin(2π*r), r-1]; # Right boundary
+c₂¹(r) = [1.0 + 0.0*sin(2π*r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0.0*sin(2π*q)]; # Top boundary
+# Layer 2 (q,r) ∈ [0,1] × [0,1]
+c₀²(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -106,25 +106,47 @@ function 𝐊2(𝐪𝐫)
 
     # Traction on the interface
     q = LinRange(0,1,m)
-    sJ₁ = spdiagm([J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,n)
-    sJ₂ = spdiagm([J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1 for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,n)
+    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,m)
+    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,m)
 
     Id₃ = spdiagm(ones(2*m*n))
-    𝐃 = blockdiag((I(2)⊗𝐇r₀), (I(2)⊗𝐇rₙ))
-    BH = [-Id₃ -Id₃; Id₃ Id₃]
-    BHᵀ = [Id₃ -Id₃; Id₃ -Id₃]
-    BT = [Id₃ -Id₃; -Id₃ Id₃]
     
-    𝐓r = blockdiag(([1 1; 1 1]⊗sJ₁).*𝐓r₁, ([1 1; 1 1]⊗sJ₂).*𝐓r₂)
+    𝐃 = blockdiag((I(2)⊗𝐇r₀), (I(2)⊗𝐇rₙ))
+    BHᵀ, BT = get_marker_matrix(m)
 
-    𝚯 = 𝐃*BHᵀ*𝐓r;
-    𝚯ᵀ = 𝐃*𝐓r'*BH;
-    Ju = 𝐃*BT
+    JJ = blockdiag(sJ₁, sJ₂)
+    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
 
-    ζ₀ = 10*(m-1)
+    𝚯 = 𝐃*(BHᵀ*JJ*𝐓r);
+    𝚯ᵀ = -𝐃*(𝐓r'*JJ'*BHᵀ);
+    Ju = -𝐃*(JJ*BT);
+
+    ζ₀ = 20*(m-1)
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
+end
+
+"""
+Function to get the marker matrix for implementing the jump conditions on the interface
+"""
+function get_marker_matrix(m)
+    X = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(1,m);
+    Y = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(m,m);
+    Xind = findnz(X);
+    Yind = findnz(Y);
+    
+    mk2 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 4*m^2, 4*m^2) +
+           sparse(Xind[1], Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2) -
+           sparse(Yind[1] .+ (2*m^2), Xind[1], ones(length(Yind[1])), 4*m^2, 4*m^2) +
+           sparse(Yind[1] .+ (2*m^2), Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2)
+    
+    mk3 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 4*m^2, 4*m^2) +
+           sparse(Xind[1], Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2) +
+           sparse(Yind[1] .+ (2*m^2), Xind[1], ones(length(Yind[1])), 4*m^2, 4*m^2) -
+           sparse(Yind[1] .+ (2*m^2), Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2)
+    
+    mk2, mk3
 end
 
 """
