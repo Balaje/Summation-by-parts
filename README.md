@@ -247,6 +247,8 @@ julia> rate
  4.264630264509913
 ```
 
+We generally observe optimal rate of convergence for this problem.
+
 ### Example 2:
 
 For Example 2, we assume the following boundaries for the two layers. 
@@ -261,12 +263,12 @@ For Example 2, we assume the following boundaries for the two layers.
   - Right: $c_2(r) = [1, r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
 
-Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following is the sparsity pattern of the surface Jacobian on the interface
+Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following are the sparsity pattern of the surface Jacobian on the interface.
 
 ![](./Images/2-layer/Eg2/sparsity_layer_1.png) | ![](./Images/2-layer/Eg2/sparsity_layer_2.png) |
 --- | --- |
 
-Following are the results and the convergence rates:
+The surface Jacobian arises in the traction term due to the transfinite interpolation. Following are the results and the convergence rates for Example 2.
 
 Computational domain | Convergence Rates |
 --- | --- |
@@ -293,6 +295,8 @@ julia> rate
  4.094927744183956
  4.0884841923321895
 ```
+
+Again, we observe optimal convergence rates for this problem. This shows that there seems to be no issue having the surface Jacobian on the traction term on the interface.
 
 ### Example 3:
 
@@ -338,6 +342,8 @@ julia> rate
  3.545700826435687
 ```
 
+The convergence seems optimal, but appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?
+
 ### Example 4:
 
 In this example, the boundary of the domain is parametrized by the following curves
@@ -351,6 +357,8 @@ In this example, the boundary of the domain is parametrized by the following cur
   - Bottom: $c_1(q) = [q, 0]$
   - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
+
+We add a curved boundary on the left and right hand sides of the domain, but keep the interface a straight line.This does not do anything to the interface condition, i.e, the surface Jacobian is still equal to 1 on the interface. But regardless, we still perform a convergence test.
 
 We have the following results:
 
@@ -382,6 +390,8 @@ julia> rate
  4.106601643470132
 ```
 
+This time, we observe optimal convergence rates.
+
 ### Example 5:
 
 In this example, the boundary of the domain is parametrized by the following curves
@@ -396,8 +406,7 @@ In this example, the boundary of the domain is parametrized by the following cur
   - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
 
-
-We have the following results:
+Now we have straight-line interface, but then we add curved boundaries on the rest of the domain. This should change the surface Jacobian for the interface condition. We have the following results:
 
 Computational domain | Convergence Rates |
 --- | --- |
@@ -427,6 +436,8 @@ julia> rate
  3.2115021316773915
 ```
 
+We observe that the convergence rates drop to $\approx 3$.
+
 ### Example 6:
 
 In this example, the boundary of the domain is parametrized by the following curves
@@ -441,8 +452,7 @@ In this example, the boundary of the domain is parametrized by the following cur
   - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
   - Top: $c_3(q) = [q, 1 + 0.1\sin(2\pi q)]$ (interface)
 
-
-We have the following results:
+Lastly, we add curved boundaries on both domains. We have the following results:
 
 Computational domain | Convergence Rates |
 --- | --- |
@@ -471,6 +481,8 @@ julia> rate
  2.9859097598727833
  3.2115021316773915
 ```
+
+The convergence rates are similar to Example 5. It drops to $\approx 3$. This behaviour needs to be investigated further. 
 
 # References
 
