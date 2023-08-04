@@ -209,15 +209,15 @@ The material properties, i.e., the Young's modulus and the Poisson's ratio are s
 
 In this example we consider a vanilla straight line interface at $y=1$ which separates the two domains $[0,1] \times [0,1]$ and $[0,1] \times [1,2]$. The boundary of the domain is parametrized by the following curves
 - Layer 1: 
-  - Left: $c_0(r) = [0,\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
-  - Right: $c_2(r) = [1,\, r+1]$
-  - Top: $c_3(q) = [q,\, 2]$
+  - Left: $c_0(r) = [0, r+1]$
+  - Bottom: $c_1(q) = [q, 1]$ (interface)
+  - Right: $c_2(r) = [1, r+1]$
+  - Top: $c_3(q) = [q, 2]$
 - Layer 2:
-  - Left: $c_0(r) = [0,\, r]$
-  - Bottom: $c_1(q) = [q,\, 0]$
-  - Right: $c_2(r) = [1,\, r]$
-  - Top: $c_3(q) = [q,\, 1]$ (interface)
+  - Left: $c_0(r) = [0, r]$
+  - Bottom: $c_1(q) = [q, 0]$
+  - Right: $c_2(r) = [1, r]$
+  - Top: $c_3(q) = [q, 1]$ (interface)
 
 We have the following results:
 
@@ -251,15 +251,15 @@ julia> rate
 
 For Example 2, we assume the following boundaries for the two layers. 
 - Layer 1: 
-  - Left: $c_0(r) = [0,\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
-  - Right: $c_2(r) = [1,\, r+1]$
-  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+  - Left: $c_0(r) = [0, r+1]$
+  - Bottom: $c_1(q) = [q, 1]$ (interface)
+  - Right: $c_2(r) = [1, r+1]$
+  - Top: $c_3(q) = [q, 2 + 0.1\sin(2\pi q)]$
 - Layer 2:
-  - Left: $c_0(r) = [0,\, r]$
-  - Bottom: $c_1(q) = [q,\, 0.1\sin(2\pi q)]$
-  - Right: $c_2(r) = [1,\, r]$
-  - Top: $c_3(q) = [q,\, 1]$ (interface)
+  - Left: $c_0(r) = [0, r]$
+  - Bottom: $c_1(q) = [q, 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1, r]$
+  - Top: $c_3(q) = [q, 1]$ (interface)
 
 Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following is the sparsity pattern of the surface Jacobian on the interface
 
@@ -298,15 +298,15 @@ julia> rate
 
 We consider the following computational domain. This example problem can be found in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The boundary of the domain is parametrized by the following curves
 - Layer 1: 
-  - Left: $c_0(r) = [0,\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1 + 0.2\sin(2\pi q)]$ (interface)
-  - Right: $c_2(r) = [1,\, r+1]$
-  - Top: $c_3(q) = [q,\, 2]$
+  - Left: $c_0(r) = [0, r+1]$
+  - Bottom: $c_1(q) = [q, 1 + 0.2\sin(2\pi q)]$ (interface)
+  - Right: $c_2(r) = [1, r+1]$
+  - Top: $c_3(q) = [q, 2]$
 - Layer 2:
-  - Left: $c_0(r) = [0,\, r]$
-  - Bottom: $c_1(q) = [q,\, 0]$
-  - Right: $c_2(r) = [1,\, r]$
-  - Top: $c_3(q) = [q,\, 1 + 0.2\sin(2\pi q)]$ (interface)
+  - Left: $c_0(r) = [0, r]$
+  - Bottom: $c_1(q) = [q, 0]$
+  - Right: $c_2(r) = [1, r]$
+  - Top: $c_3(q) = [q, 1 + 0.2\sin(2\pi q)]$ (interface)
 
 We have the following results:
 
@@ -342,15 +342,15 @@ julia> rate
 
 In this example, the boundary of the domain is parametrized by the following curves
 - Layer 1: 
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
-  - Top: $c_3(q) = [q,\, 2]$
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r+1]$
+  - Bottom: $c_1(q) = [q, 1]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r+1]$
+  - Top: $c_3(q) = [q, 2]$
 - Layer 2:
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
-  - Bottom: $c_1(q) = [q,\, 0]$
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
-  - Top: $c_3(q) = [q,\, 1]$ (interface)
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r]$
+  - Bottom: $c_1(q) = [q, 0]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
+  - Top: $c_3(q) = [q, 1]$ (interface)
 
 We have the following results:
 
@@ -386,15 +386,15 @@ julia> rate
 
 In this example, the boundary of the domain is parametrized by the following curves
 - Layer 1: 
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
-  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r+1]$
+  - Bottom: $c_1(q) = [q, 1]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r+1]$
+  - Top: $c_3(q) = [q, 2 + 0.1\sin(2\pi q)]$
 - Layer 2:
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
-  - Bottom: $c_1(q) = [q,\, 0 + 0.1\sin(2\pi q)]$
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
-  - Top: $c_3(q) = [q,\, 1]$ (interface)
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r]$
+  - Bottom: $c_1(q) = [q, 0 + 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
+  - Top: $c_3(q) = [q, 1]$ (interface)
 
 
 We have the following results:
@@ -431,15 +431,15 @@ julia> rate
 
 In this example, the boundary of the domain is parametrized by the following curves
 - Layer 1: 
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
-  - Bottom: $c_1(q) = [q,\, 1 + 0.1\sin(2\pi q)]$ (interface)
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
-  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r+1]$
+  - Bottom: $c_1(q) = [q, 1 + 0.1\sin(2\pi q)]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r+1]$
+  - Top: $c_3(q) = [q, 2 + 0.1\sin(2\pi q)]$
 - Layer 2:
-  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
-  - Bottom: $c_1(q) = [q,\, 0 + 0.1\sin(2\pi q)]$
-  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
-  - Top: $c_3(q) = [q,\, 1 + 0.1\sin(2\pi q)]$ (interface)
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r]$
+  - Bottom: $c_1(q) = [q, 0 + 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
+  - Top: $c_3(q) = [q, 1 + 0.1\sin(2\pi q)]$ (interface)
 
 
 We have the following results:
