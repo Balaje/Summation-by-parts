@@ -201,13 +201,13 @@ $$
 \end{align*}
 $$
 
-The material properties, i.e., the Young's modulus and the Poisson's ratio are set to be $E = 1.0$ units and $\nu = 0.33$, respectively. The density of the material $\rho = 1.0$ units. The right hand side and the initial conditions are computed using the exact solution. The same material properties are assumed on both domains in all the numerical experiments. In addition, we apply homogeneous Neumann boundary condition on all the boundaries other than the interface.
+The material properties, i.e., the Young's modulus and the Poisson's ratio, are $E = 1.0$ units and $\nu = 0.33$, respectively. The density of the material $\rho = 1.0$ units. The right-hand side and the initial conditions are computed using the exact solution. The same material properties are considered on both layers. In addition, we apply homogeneous Neumann boundary conditions on all the boundaries other than the interface.
 
 ## Examples:
 
 ### Example 1:
 
-In this example we consider a vanilla straight line interface at $y=1$ which separates the two domains $[0,1] \times [0,1]$ and $[0,1] \times [1,2]$. The boundary of the domain is parametrized by the following curves
+In this example, we consider a vanilla straight-line interface at $y=1$ which separates the two domains $[0,1] \times [0,1]$ and $[0,1] \times [1,2]$. The boundary of the domain is parametrized by the following curves
 - Layer 1: 
   - Left: $c_0(r) = [0, r+1]$
   - Bottom: $c_1(q) = [q, 1]$ (interface)
@@ -342,7 +342,7 @@ julia> rate
  3.545700826435687
 ```
 
-The convergence seems optimal, but appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?
+The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?
 
 ### Example 4:
 
@@ -358,7 +358,7 @@ In this example, the boundary of the domain is parametrized by the following cur
   - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
 
-We add a curved boundary on the left and right hand sides of the domain, but keep the interface a straight line.This does not do anything to the interface condition, i.e, the surface Jacobian is still equal to 1 on the interface. But regardless, we still perform a convergence test.
+We add a curved boundary on the left and right-hand sides of the domain but keep the interface a straight line. This does not do anything to the interface condition, i.e., the surface Jacobian is still equal to 1 on the interface. But regardless, we still perform a convergence test.
 
 We have the following results:
 
@@ -406,7 +406,7 @@ In this example, the boundary of the domain is parametrized by the following cur
   - Right: $c_2(r) = [1 + 0.1\sin(2\pi r), r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
 
-Now we have straight-line interface, but then we add curved boundaries on the rest of the domain. This should change the surface Jacobian for the interface condition. We have the following results:
+Now we have a straight-line interface, but we add curved boundaries on the rest of the domain. This should change the surface Jacobian for the interface condition. We have the following results:
 
 Computational domain | Convergence Rates |
 --- | --- |
