@@ -5,16 +5,16 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-cᵢ(q) = [q, 1.0 + 0.2*sin(2π*q)];
+cᵢ(q) = [q, 1.0 + 0.1*sin(2π*q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0.0*sin(2π*r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0.1*sin(2π*r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0.0*sin(2π*r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0.0*sin(2π*q)]; # Top boundary
+c₂¹(r) = [1.0 + 0.1*sin(2π*r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0.1*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
+c₀²(r) = [0.0 + 0.1*sin(2π*r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0.1*sin(2π*r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -118,10 +118,10 @@ function 𝐊2(𝐪𝐫)
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
 
     𝚯 = 𝐃*(BHᵀ*JJ*𝐓r);
-    𝚯ᵀ = -𝐃*(𝐓r'*JJ'*BHᵀ);
+    𝚯ᵀ = -𝐃*(𝐓r'*JJ*BHᵀ);
     Ju = -𝐃*(JJ*BT);
 
-    ζ₀ = 20*(m-1)
+    ζ₀ = 30*(m-1)
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
@@ -246,29 +246,34 @@ Uap₁, Vap₁, Uap₂, Vap₂ = get_sol_vector_from_raw_vector(u₁, N[end], N[
 𝐱𝐲₁ = vec(Ω₁.(𝐪𝐫));
 𝐱𝐲₂ = vec(Ω₂.(𝐪𝐫));
 Ue₁, Ue₂, Ve₁, Ve₂ = get_sol_vector_from_raw_vector(vcat(reduce(hcat, U.(𝐱𝐲₁,tf))', reduce(hcat, U.(𝐱𝐲₂,tf))'), N[end], N[end]);
-plt1 = contourf(q, r, Uap₁, title="u₁ Approximate (Layer 1)");
-plt2 = contourf(q, r, Ue₁, title="u₁ Exact (Layer 1)");
-plt3 = contourf(q, r, Vap₁, title="v₁ Approximate (Layer 1)");
-plt4 = contourf(q, r, Ve₁, title="v₁ Exact (Layer 1)");
-plt12 = plot(plt1, plt2, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
-plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
 
-plt5 = contourf(q, r, Uap₂, title="u₁ Approximate (Layer 2)");
-plt6 = contourf(q, r, Ue₂, title="u₁ Exact (Layer 2)");
-plt7 = contourf(q, r, Vap₂, title="v₁ Approximate (Layer 2)");
-plt8 = contourf(q, r, Ve₂, title="v₁ Exact (Layer 2)");
-plt56 = plot(plt5, plt6, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
-plt78 = plot(plt7, plt8, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+# Plot the horizontal solution on the physical grid
+plt1 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(Uap₁), label="", title="Approx. solution (u(x,y))", markersize=4);
+scatter!(plt1, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(Uap₂), label="", markersize=4);
+plt2 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(Ue₁), label="", title="Exact solution (u(x,y))", markersize=4);
+scatter!(plt2, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(Ue₂), label="", markersize=4);
 
-plt9 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
-plot!(plt9, h, h.^4, label="O(h⁴)", lw=1);
-plt10_1 = scatter(Tuple.(𝐱𝐲₁ |> vec), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
-plt10_2 = scatter(Tuple.(𝐱𝐲₂ |> vec), size=(700,800), markersize=0.5, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
+# Plot the vertical solution on the physical grid
+plt3 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(Vap₁), label="", title="Approx. solution (v(x,y))", markersize=4);
+scatter!(plt3, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(Vap₂), label="", markersize=4);
+plt4 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(Ve₁), label="", title="Exact solution (v(x,y))", markersize=4);
+scatter!(plt4, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(Ve₂), label="", markersize=4);
+
+# Plot the exact solution and the approximate solution together.
+plt13 = plot(plt1, plt2, layout=(1,2), size=(800,400));
+plt24 = plot(plt3, plt4, layout=(1,2), size=(800,400));
+
+plt9 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
+scatter!(plt9, h, L²Error, markersize=4, label="");
+plot!(plt9, h, h.^4, label="O(h⁴)", lw=2);
+plt10_1 = scatter(Tuple.(𝐱𝐲₁ |> vec), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1")
+plt10_2 = scatter(Tuple.(𝐱𝐲₂ |> vec), size=(800,800), markersize=4, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2")
 plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
-plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
+plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1));
 plt10 = plot(plt10_12, plt10_3, layout=(1,2));
-plt910 = plot(plt9, plt10, layout=(2,1), size=(700,800));
 
-plt11_1 = contourf(q, r, abs.(Uap₁ - Ue₁))
-plt11_2 = contourf(q, r, abs.(Uap₂ - Ue₂))
-plot(plt11_1, plt11_2)
+# Run these from the Project folder
+savefig(plt13, "./Images/2-layer/horizontal-disp.png")
+savefig(plt24, "./Images/2-layer/vertical-disp.png")
+savefig(plt9, "./Images/2-layer/rate.png")
+savefig(plt10, "./Images/2-layer/domain.png")

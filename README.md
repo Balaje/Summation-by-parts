@@ -4,7 +4,7 @@ Contains code to implement the summation by parts finite difference methods for 
 
 ```julia
 julia> ]
-pkg> activate .
+pkg> activate /path/to/this/project
 julia> using SBP
 ```
 
@@ -125,8 +125,8 @@ are symmetric matrices which are generally functions of the spatial coordinates.
 $$
 \mathbf{u}(\mathbf{x},t) = 
 \begin{bmatrix}
-  \sin(\pi x)\sin(\pi y)sin(\pi t)\\
-  \sin(2\pi x)\sin(2\pi y)sin(\pi t)  
+  \sin(\pi x)\sin(\pi y)\sin(\pi t)\\
+  \sin(2\pi x)\sin(2\pi y)\sin(\pi t)  
 \end{bmatrix}\\\\
 $$
 
@@ -192,50 +192,287 @@ $$
 \sigma_1(\mathbf{u}_1) \cdot \mathbf{n} = \sigma_2(\mathbf{u}_2) \cdot \mathbf{n}, \quad \mathbf{u}_1 = \mathbf{u}_2
 $$
 
-At the moment the problem seems to work for the case discussed by [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The following rate of convergence is observed with the current parameters in the code.
-
-```julia
-julia> rate
-4-element Vector{Float64}:
- 3.8936080729728326
- 3.938903634179603
- 3.78207607480662
- 3.55429449314174
- 
-julia> L²Error
-5-element Vector{Float64}:
- 0.005167608899285571
- 0.0010657596891309798
- 0.0003431923874604628
- 0.0001475762954941426 
- 7.719392747926641e-5
-```
-
-Convergence Rates |
---- |
-![](./Images/2-layer/rate-domain.png) |
-
-The solution on the two layers is 
+In all the experiments, we assume the following exact solution for the numerical tests on both domains
 
 $$
-\mathbf{u}_1(\mathbf{x},t) = \mathbf{u}_2(\mathbf{x},t) =
-\begin{bmatrix}
-  \sin(\pi x)\sin(\pi y)sin(\pi t)\\
-  \sin(2\pi x)\sin(2\pi y)sin(\pi t)  
-\end{bmatrix}\\\\
+\begin{align*}
+	u(x,y,t) &= \sin(\pi x)\sin(\pi y)\sin(\pi t)\\
+	v(x,y,t) &= \sin(2\pi x)\sin(2\pi y)\sin(\pi t)\\		
+\end{align*}
 $$
+
+The material properties, i.e., the Young's modulus and the Poisson's ratio are set to be $E = 1.0$ units and $\nu = 0.33$, respectively. The density of the material $\rho = 1.0$ units. The right hand side and the initial conditions are computed using the exact solution. The same material properties are assumed on both domains in all the numerical experiments. In addition, we apply homogeneous Neumann boundary condition on all the boundaries other than the interface.
+
+## Examples:
+
+### Example 1:
+
+In this example we consider a vanilla straight line interface at $y=1$ which separates the two domains $[0,1] \times [0,1]$ and $[0,1] \times [1,2]$. The boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0,\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
+  - Right: $c_2(r) = [1,\, r+1]$
+  - Top: $c_3(q) = [q,\, 2]$
+- Layer 2:
+  - Left: $c_0(r) = [0,\, r]$
+  - Bottom: $c_1(q) = [q,\, 0]$
+  - Right: $c_2(r) = [1,\, r]$
+  - Top: $c_3(q) = [q,\, 1]$ (interface)
+
+We have the following results:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg1/domain.png) | ![](./Images/2-layer/Eg1/rate.png) |
 
 The solution obtained from the code is 
 
-![](./Images/2-layer/layer-1-u1.png) | ![](./Images/2-layer/layer-1-v1.png) | 
+![](./Images/2-layer/Eg1/horizontal-disp.png) | ![](./Images/2-layer/Eg1/vertical-disp.png) | 
 --- | --- | 
 
-![](./Images/2-layer/layer-2-u1.png) | ![](./Images/2-layer/layer-2-v1.png) |
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.0014048765373793973
+ 0.0002489052338364618
+ 7.220295847822627e-5
+ 2.773681028865246e-5
+ 1.2746113394244e-5
+
+julia> rate
+4-element Vector{Float64}:
+ 4.2682648457948105
+ 4.301940698846879
+ 4.287466939069201
+ 4.264630264509913
+```
+
+### Example 2:
+
+For Example 2, we assume the following boundaries for the two layers. 
+- Layer 1: 
+  - Left: $c_0(r) = [0,\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
+  - Right: $c_2(r) = [1,\, r+1]$
+  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+- Layer 2:
+  - Left: $c_0(r) = [0,\, r]$
+  - Bottom: $c_1(q) = [q,\, 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1,\, r]$
+  - Top: $c_3(q) = [q,\, 1]$ (interface)
+
+Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following is the sparsity pattern of the surface Jacobian on the interface
+
+![](./Images/2-layer/Eg2/sparsity_layer_1.png) | ![](./Images/2-layer/Eg2/sparsity_layer_2.png) |
+--- | --- |
+
+Following are the results and the convergence rates:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg2/domain.png) | ![](./Images/2-layer/Eg2/rate.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg2/horizontal-disp.png) | ![](./Images/2-layer/Eg2/vertical-disp.png) | 
 --- | --- | 
 
-More tests are required to test the convergence rates with different examples.
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.0027907285183550058
+ 0.0005527940423015698
+ 0.00017091759284248921
+ 6.854049976017636e-5
+ 3.252490179608264e-5
 
-## References
+julia> rate
+4-element Vector{Float64}:
+ 3.9931240221672377
+ 4.080212430116334
+ 4.094927744183956
+ 4.0884841923321895
+```
+
+### Example 3:
+
+We consider the following computational domain. This example problem can be found in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0,\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1 + 0.2\sin(2\pi q)]$ (interface)
+  - Right: $c_2(r) = [1,\, r+1]$
+  - Top: $c_3(q) = [q,\, 2]$
+- Layer 2:
+  - Left: $c_0(r) = [0,\, r]$
+  - Bottom: $c_1(q) = [q,\, 0]$
+  - Right: $c_2(r) = [1,\, r]$
+  - Top: $c_3(q) = [q,\, 1 + 0.2\sin(2\pi q)]$ (interface)
+
+We have the following results:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg3/domain.png) | ![](./Images/2-layer/Eg3/rate.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg3/horizontal-disp.png) | ![](./Images/2-layer/Eg3/vertical-disp.png) | 
+--- | --- | 
+
+The following rate of convergence is observed with the current parameters in the code.
+
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.005192096994131349
+ 0.001075534324039911
+ 0.0003477263472045686
+ 0.0001499647187842862
+ 7.856626145623064e-5
+
+julia> rate
+4-element Vector{Float64}:
+ 3.8827510567289
+ 3.925017090032561
+ 3.7689449170540046
+ 3.545700826435687
+```
+
+### Example 4:
+
+In this example, the boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
+  - Top: $c_3(q) = [q,\, 2]$
+- Layer 2:
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
+  - Bottom: $c_1(q) = [q,\, 0]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
+  - Top: $c_3(q) = [q,\, 1]$ (interface)
+
+We have the following results:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg4/domain.png) | ![](./Images/2-layer/Eg4/rate.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg4/horizontal-disp.png) | ![](./Images/2-layer/Eg4/vertical-disp.png) | 
+--- | --- | 
+
+The following rate of convergence is observed with the current parameters in the code.
+
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.007682909032643207
+ 0.00154046099064925
+ 0.00047469531532226
+ 0.00018966438103023314
+ 8.97056800505284e-5
+
+julia> rate
+4-element Vector{Float64}:
+ 3.9631438251784785
+ 4.091891539718783
+ 4.111331278966825
+ 4.106601643470132
+```
+
+### Example 5:
+
+In this example, the boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
+  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+- Layer 2:
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
+  - Bottom: $c_1(q) = [q,\, 0 + 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
+  - Top: $c_3(q) = [q,\, 1]$ (interface)
+
+
+We have the following results:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg5/domain.png) | ![](./Images/2-layer/Eg5/rate.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg5/horizontal-disp.png) | ![](./Images/2-layer/Eg5/vertical-disp.png) | 
+--- | --- | 
+
+The following rate of convergence is observed with the current parameters in the code.
+
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.014592823041234606
+ 0.005485928773323668
+ 0.0025281592366808623
+ 0.0012984937719568185
+ 0.0007230180349547938
+
+julia> rate
+4-element Vector{Float64}:
+ 2.4128917795706855
+ 2.692885722704873
+ 2.9859097598727833
+ 3.2115021316773915
+```
+
+### Example 6:
+
+In this example, the boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r+1]$
+  - Bottom: $c_1(q) = [q,\, 1 + 0.1\sin(2\pi q)]$ (interface)
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r+1]$
+  - Top: $c_3(q) = [q,\, 2 + 0.1\sin(2\pi q)]$
+- Layer 2:
+  - Left: $c_0(r) = [0 + 0.1\sin(2\pi r),\, r]$
+  - Bottom: $c_1(q) = [q,\, 0 + 0.1\sin(2\pi q)]$
+  - Right: $c_2(r) = [1 + 0.1\sin(2\pi r),\, r]$
+  - Top: $c_3(q) = [q,\, 1 + 0.1\sin(2\pi q)]$ (interface)
+
+
+We have the following results:
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg6/domain.png) | ![](./Images/2-layer/Eg6/rate.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg6/horizontal-disp.png) | ![](./Images/2-layer/Eg6/vertical-disp.png) | 
+--- | --- | 
+
+The following rate of convergence is observed with the current parameters in the code.
+
+```julia
+julia> L²Error
+5-element Vector{Float64}:
+ 0.014592823041234606
+ 0.005485928773323668
+ 0.0025281592366808623
+ 0.0012984937719568185
+ 0.0007230180349547938
+
+julia> rate
+4-element Vector{Float64}:
+ 2.4128917795706855
+ 2.692885722704873
+ 2.9859097598727833
+ 3.2115021316773915
+```
+
+# References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
 - Duru, K., Virta, K., 2014. Stable and high order accurate difference methods for the elastic wave equation in discontinuous media. Journal of Computational Physics 279, 37–62. https://doi.org/10.1016/j.jcp.2014.08.046
