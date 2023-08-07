@@ -11,7 +11,7 @@ Function to compute the intersection point of two curves
 """
 function P(a, b; guess=[0.0,0.0])
     @inline function f!(F,x)
-        F[1] = a(x[1])[1] - b(x[1])[1]
+        F[1] = a(x[1])[1] - b(x[2])[1]
         F[2] = a(x[1])[2] - b(x[2])[2]
     end
     x0 = guess
