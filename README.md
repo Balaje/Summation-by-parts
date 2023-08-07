@@ -436,7 +436,39 @@ julia> rate
  3.2115021316773915
 ```
 
-We observe that the convergence rates drop to $\approx 3$.
+~~We observe that the convergence rates drop to $\approx 3$.~~ The convergence rates eventually reach 4. Here are updated the rates along with the $L^2-$ errors:
+
+```julia
+julia> N
+8-element Vector{Int64}:
+  41                                                                               
+  51                                                                                     
+  61                                                                                     
+  71                                                                                     
+  81 
+  91                                                                                  
+ 101                                                                                     
+ 111                                                                                                                                                                                                       
+julia> L²Error                                                                          
+8-element Vector{Float64}:
+ 0.0025281592366808623                                                                                  
+ 0.0012984937719568185                                                                                  
+ 0.0007230180349547938                                                                                  
+ 0.0004292941192332254 
+ 0.0026860800040655016                                                                                 
+ 0.00017553818765438645                                                                                   
+ 0.00011899345104733748                                                                                   
+ 8.321818450187672e-5                                                                                   
+                                                              
+julia> rate  
+7-element Vector{Float64}:
+ 3.2115021316773915 
+ 3.381703476165346 
+ 3.511452986406 
+ 3.611695471642677 
+ 3.6900745207942363
+ 3.7519871586182476 
+```
 
 ### Example 6:
 

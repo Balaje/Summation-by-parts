@@ -5,16 +5,16 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-cᵢ(q) = [q, 1.0 + 0.1*sin(2π*q)];
+cᵢ(q) = [q, 1.0 + 0.05*sin(2π*q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0.1*sin(2π*r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0.0*sin(2π*r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0.1*sin(2π*r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0.1*sin(2π*q)]; # Top boundary
+c₂¹(r) = [1.0 + 0.0*sin(2π*r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0.0*sin(2π*q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0.1*sin(2π*r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0.1*sin(2π*q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0.1*sin(2π*r), r]; # Right boundary
+c₀²(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -176,7 +176,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41,51,61]
+N = [21,41,61,81,101,121]
 h = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 0.5
@@ -277,3 +277,6 @@ savefig(plt13, "./Images/2-layer/horizontal-disp.png")
 savefig(plt24, "./Images/2-layer/vertical-disp.png")
 savefig(plt9, "./Images/2-layer/rate.png")
 savefig(plt10, "./Images/2-layer/domain.png")
+
+plt11 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="Approx. solution (v(x,y))", markersize=4);
+scatter!(plt11, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4);
