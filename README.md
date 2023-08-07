@@ -51,7 +51,7 @@ Solution at `T=1.0` s | |
 **Solution at `T=4.0` s** | |
 ![](./Images/sol4.0.png) | ![](./Images/rate4.0.png) |
 
-The numerical values of the convergence rates at `T=1.0` s and `T=4.0` s are $[4.2067, 4.1841, 4.1289, 4.0833]$ and $[ 4.1777, 4.1718, 4.1282, 4.0863]$, respectively. The spatial axis is discretized using $N = 30,60,100,200,300$ points (similar to the paper) and using the SBP method whose order of accuracy is 4 in the interior. The temporal direction was discretized using the fourth order Runge-Kutta scheme with $\Delta t = 5\times 10^{-5}$. The observed rate of convergence in the spatial direction and is in agreement with the theory. On invalidating the penalty parameter choice by taking $\tau_0 = -\epsilon/2$ instead of $\tau_0 = -\epsilon$:
+The numerical values of the convergence rates at `T=1.0` s and `T=4.0` s are $[4.2067, 4.1841, 4.1289, 4.0833]$ and $[ 4.1777, 4.1718, 4.1282, 4.0863]$, respectively. The spatial axis is discretized using $N = 30,60,100,200,300$ points (similar to the paper) and using the SBP method whose order of accuracy is 4 in the interior. The temporal direction was discretized using the fourth-order Runge-Kutta scheme with $\Delta t = 5\times 10^{-5}$. The observed rate of convergence in the spatial direction, and is in agreement with the theory. On invalidating the penalty parameter choice by taking $\tau_0 = -\epsilon/2$ instead of $\tau_0 = -\epsilon$:
 
 https://github.com/Balaje/Summation-by-parts/blob/master/examples/sbp_sat_advection_eq.jl#L64
 
@@ -60,7 +60,7 @@ we observe that the rate of convergence is close to $3$ instead of $4$. This can
 ![](./Images/sol_non_opt.png) | ![](./Images/rate_non_opt.png) |
 --- | --- |
 
-The numerical values of the convergence rates is $[3.0323, 3.0295, 3.0204, 3.0130]$.
+The numerical values of the convergence rates are $[3.0323, 3.0295, 3.0204, 3.0130]$.
 	
 ## Incomplete parabolic problem
 
@@ -120,7 +120,7 @@ $$
   A(\mathbf{x}), B(\mathbf{x}) \quad \text{and} \quad C(\mathbf{x})
 $$
 
-are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th order SBP method. The script `examples/LinearElasticity/1_layer_linear_elasticity.jl` contains the code to solve the PDE in an arbitrary domain. We assume an exact solution
+are symmetric matrices which are generally functions of the spatial coordinates. We then solve the PDE in the unit square using the 4th-order SBP method. The script `examples/LinearElasticity/1_layer_linear_elasticity.jl` contains the code to solve the PDE in an arbitrary domain. We assume an exact solution
 
 $$
 \mathbf{u}(\mathbf{x},t) = 
@@ -204,7 +204,7 @@ $$
 \end{align*}
 $$
 
-The material properties, i.e., the Young's modulus and the Poisson's ratio, are $\mu = 1.0$ units and $\lambda = 2.0$, respectively. The density of the material $\rho = 1.0$ units. The right-hand side and the initial conditions are computed using the exact solution. The same material properties are considered on both layers. In addition, we apply homogeneous Neumann boundary conditions on all the boundaries other than the interface. We take $N = 21, 41, 81, 161$ grid points in the spatial axis, unless otherwise specified. We use the Crank Nicolson scheme to discretize the temporal axis, with $\Delta t = 10^{-3}$ unless otherwise specified. We solve the problem till the final time $T=0.5$.
+The material properties, i.e., the Lamé parameters are assumed to be $\mu = 1.0$ units and $\lambda = 2.0$ units. The density of the material $\rho = 1.0$ units. The right-hand side and the initial conditions are computed using the exact solution. The same material properties are considered on both layers. In addition, we apply homogeneous Neumann boundary conditions on all the boundaries other than the interface. Unless otherwise specified, we take $N = 21, 41, 81, 161$ grid points in the spatial axis. We use the Crank Nicolson scheme to discretize the temporal axis, with $\Delta t = 10^{-3}$ unless otherwise specified. We solve the problem till the final time $T=0.5$.
 
 ## Examples:
 
@@ -248,7 +248,7 @@ julia> rate
   1.4830558912540412
 ```
 
-We generally observe optimal rate of convergence for this problem.
+We generally observe an optimal rate of convergence for this problem.
 
 ### Example 2:
 
@@ -264,7 +264,7 @@ For Example 2, we assume the following boundaries for the two layers.
   - Right: $c_2(r) = [1, r]$
   - Top: $c_3(q) = [q, 1]$ (interface)
 
-Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following are the sparsity pattern of the surface Jacobian on the interface.
+Here we add a curved boundary on the top and bottom, keeping the interface a straight line. This is intened to check if the interface implementation of the traction is correct. Following is the sparsity pattern of the surface Jacobian on the interface.
 
 ![](./Images/2-layer/Eg2/sparsity_layer_1.png) | ![](./Images/2-layer/Eg2/sparsity_layer_2.png) |
 --- | --- |
@@ -528,7 +528,7 @@ The solution obtained from the code is
 ![](./Images/2-layer/Eg6/horizontal-disp.png) | ![](./Images/2-layer/Eg6/vertical-disp.png) | 
 --- | --- | 
 
-The following rate of convergence is observed with the current parameters in the code. In this example I take $N = 21,31,41,51,61$.
+The following rate of convergence is observed with the current parameters in the code. In this example, I take $N = 21,31,41,51,61$.
 
 ```julia
 # Δt = 1e-3
@@ -548,9 +548,9 @@ julia> rate
  3.1688737095831887
 ```
 
-This problem seems to be difficult to solve due a combination of the distortion and time stepping. Further investigation is required to see if this can be improved.
+This problem seems to be difficult to solve due to a combination of distortion and time stepping. Further investigation is required to see if this can be improved.
 
 # References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
-- Duru, K., Virta, K., 2014. Stable and high order accurate difference methods for the elastic wave equation in discontinuous media. Journal of Computational Physics 279, 37–62. https://doi.org/10.1016/j.jcp.2014.08.046
+- Duru, K., Virta, K., 2014. Stable and high-order accurate difference methods for the elastic wave equation in discontinuous media. Journal of Computational Physics 279, 37–62. https://doi.org/10.1016/j.jcp.2014.08.046
