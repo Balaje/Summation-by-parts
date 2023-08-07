@@ -189,19 +189,22 @@ julia> L²Error
 The code to solve the two-layer elasticity problem is given in `examples/LinearElasticity/2_layer_linear_elasticity.jl`. The problem contains two domains, each of which is transformed to the reference grid. At the interface between the two domains, continuity of displacements and the traction is enforced. The method is discussed in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046).
 
 $$
-\sigma_1(\mathbf{u}_1) \cdot \mathbf{n} = \sigma_2(\mathbf{u}_2) \cdot \mathbf{n}, \quad \mathbf{u}_1 = \mathbf{u}_2
+\begin{align*}
+\sigma_1(\mathbf{u}_1) \cdot \mathbf{n} &= \sigma_2(\mathbf{u}_2) \cdot \mathbf{n},\\
+\mathbf{u}_1 &= \mathbf{u}_2
+\end{align*}
 $$
 
 In all the experiments, we assume the following exact solution for the numerical tests on both domains
 
 $$
 \begin{align*}
-	u(x,y,t) &= \sin(\pi x)\sin(\pi y)\sin(\pi t)\\
-	v(x,y,t) &= \sin(2\pi x)\sin(2\pi y)\sin(\pi t)\\		
+	u(x,y,t) &= \sin(2\pi x)\sin(2\pi y)\cos(2\pi t)\\
+	v(x,y,t) &= -\sin(2\pi x)\sin(2\pi y)\cos(2\pi t)\\		
 \end{align*}
 $$
 
-The material properties, i.e., the Young's modulus and the Poisson's ratio, are $E = 1.0$ units and $\nu = 0.33$, respectively. The density of the material $\rho = 1.0$ units. The right-hand side and the initial conditions are computed using the exact solution. The same material properties are considered on both layers. In addition, we apply homogeneous Neumann boundary conditions on all the boundaries other than the interface.
+The material properties, i.e., the Young's modulus and the Poisson's ratio, are $\mu = 1.0$ units and $\lambda = 2.0$, respectively. The density of the material $\rho = 1.0$ units. The right-hand side and the initial conditions are computed using the exact solution. The same material properties are considered on both layers. In addition, we apply homogeneous Neumann boundary conditions on all the boundaries other than the interface. We take $N = 21, 41, 81, 161$ grid points in the spatial axis, unless otherwise specified. We use the Crank Nicolson scheme to discretize the temporal axis, with $\Delta t = 10^{-3}$ unless otherwise specified. We solve the problem till the final time $T=0.5$.
 
 ## Examples:
 
@@ -232,19 +235,17 @@ The solution obtained from the code is
 
 ```julia
 julia> L²Error
-5-element Vector{Float64}:
- 0.0014048765373793973
- 0.0002489052338364618
- 7.220295847822627e-5
- 2.773681028865246e-5
- 1.2746113394244e-5
+4-element Vector{Float64}:
+ 0.0029292191489991137
+ 0.00015097078687655857
+ 7.816432852803662e-6
+ 2.7961746423513113e-6
 
 julia> rate
-4-element Vector{Float64}:
- 4.2682648457948105
- 4.301940698846879
- 4.287466939069201
- 4.264630264509913
+3-element Vector{Float64}:
+  4.278174814683486
+  4.271615240153228
+  1.4830558912540412
 ```
 
 We generally observe optimal rate of convergence for this problem.
@@ -282,18 +283,16 @@ The solution obtained from the code is
 ```julia
 julia> L²Error
 5-element Vector{Float64}:
- 0.0027907285183550058
- 0.0005527940423015698
- 0.00017091759284248921
- 6.854049976017636e-5
- 3.252490179608264e-5
+ 0.007558173340899469
+ 0.00045388123034475147
+ 2.5618346320238604e-5 
+ 3.0199888379049195e-6
 
 julia> rate
 4-element Vector{Float64}:
- 3.9931240221672377
- 4.080212430116334
- 4.094927744183956
- 4.0884841923321895
+ 4.057650872194422
+ 4.147065571813102
+ 3.0845622294783666
 ```
 
 Again, we observe optimal convergence rates for this problem. This shows that there seems to be no issue having the surface Jacobian on the traction term on the interface.
@@ -327,22 +326,92 @@ The following rate of convergence is observed with the current parameters in the
 
 ```julia
 julia> L²Error
+4-element Vector{Float64}:
+  0.016210862015016134
+  0.0012554598913067554
+  0.00012708168659424516
+  1.736858752050089e-5
+
+julia> rate
+3-element Vector{Float64}:
+  3.6906729643333986
+  3.304387891506614
+  2.8712038038632355
+```
+
+With $N=21,31,41,51,61$ we observe the following
+
+```julia
+julia> L²Error
 5-element Vector{Float64}:
- 0.005192096994131349
- 0.001075534324039911
- 0.0003477263472045686
- 0.0001499647187842862
- 7.856626145623064e-5
+ 0.016066707314881114
+ 0.0036017365712484144
+ 0.0012300006875771003
+ 0.0005560646265402666
+ 0.0003022495249636241
 
 julia> rate
 4-element Vector{Float64}:
- 3.8827510567289
- 3.925017090032561
- 3.7689449170540046
- 3.545700826435687
+ 3.687945330926127
+ 3.7346831260966966
+ 3.557734384058937
+ 3.343716536727846
 ```
 
-The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?
+~~The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?~~ This problem seems to be much well-behaved where the interface is a Gaussian that has a smooth tail: The boundary of the domain is parametrized by the following curves
+- Layer 1: 
+  - Left: $c_0(r) = [0, r+1]$
+  - Bottom: $c_1(q) = \left[q, 1 + 0.2 \left(e^{-20(q-0.5)^2}\right) \right]$ (interface)
+  - Right: $c_2(r) = [1, r+1]$
+  - Top: $c_3(q) = [q, 2]$
+- Layer 2:
+  - Left: $c_0(r) = [0, r]$
+  - Bottom: $c_1(q) = [q, 0]$
+  - Right: $c_2(r) = [1, r]$
+  - Top: $c_3(q) = \left[q, 1 + 0.2 \left(e^{-20(q-0.5)^2}\right) \right]$ (interface)
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg3/domain-2.png) | ![](./Images/2-layer/Eg3/rate-2.png) |
+
+![](./Images/2-layer/Eg3/horizontal-disp-2.png) | ![](./Images/2-layer/Eg3/vertical-disp-2.png) | 
+--- | --- | 
+
+Here we take $\Delta t = 5\times 10^{-4}$.
+
+```julia
+# Δt = 5e-4
+julia> L²Error
+5-element Vector{Float64}:
+  0.006826340978433765
+  0.000425586540937818
+  2.611151878566523e-5
+  1.9481550103655963e-6
+
+julia> rate
+3-element Vector{Float64}:
+  4.003588047602191
+  4.026694246642176
+  3.7445059958163975
+```
+
+The issue also seems to be partly due to time stepping. Reducing $\Delta t$ from $10^{-3}$ to $5\times 10^{-4}$ seem to help.
+
+```julia
+# Δt = 5e-4
+julia> rate
+3-element Vector{Float64}:
+ 4.003588047602191
+ 4.026694246642176
+ 3.7445059958163975
+
+# Δt = 1e-3
+julia> rate
+3-element Vector{Float64}:
+ 4.00548755266784
+ 4.0519597741820155
+ 3.086414419085599
+```
 
 ### Example 4:
 
@@ -371,23 +440,21 @@ The solution obtained from the code is
 ![](./Images/2-layer/Eg4/horizontal-disp.png) | ![](./Images/2-layer/Eg4/vertical-disp.png) | 
 --- | --- | 
 
-The following rate of convergence is observed with the current parameters in the code.
+The following rate of convergence is observed with $\Delta t = 10^{-3}$:
 
 ```julia
 julia> L²Error
-5-element Vector{Float64}:
- 0.007682909032643207
- 0.00154046099064925
- 0.00047469531532226
- 0.00018966438103023314
- 8.97056800505284e-5
+4-element Vector{Float64}:
+ 0.012935291001307055
+ 0.0007842570244329608
+ 4.413028838750284e-5
+ 3.3462277406906936e-6
 
 julia> rate
-4-element Vector{Float64}:
- 3.9631438251784785
- 4.091891539718783
- 4.111331278966825
- 4.106601643470132
+3-element Vector{Float64}:
+ 4.043842153976925
+ 4.151485465716138
+ 3.721161633112315
 ```
 
 This time, we observe optimal convergence rates.
@@ -421,54 +488,20 @@ The following rate of convergence is observed with the current parameters in the
 
 ```julia
 julia> L²Error
-5-element Vector{Float64}:
- 0.014592823041234606
- 0.005485928773323668
- 0.0025281592366808623
- 0.0012984937719568185
- 0.0007230180349547938
+4-element Vector{Float64}:
+ 0.030348222878644658
+ 0.0060687619680976235
+ 0.0006768305078532689
+ 4.898596393252745e-5
 
 julia> rate
-4-element Vector{Float64}:
- 2.4128917795706855
- 2.692885722704873
- 2.9859097598727833
- 3.2115021316773915
+3-element Vector{Float64}:
+ 2.3221378973273095
+ 3.1645357317336233
+ 3.7883542641706605
 ```
 
-~~We observe that the convergence rates drop to $\approx 3$.~~ The convergence rates eventually reach 4. Here are updated the rates along with the $L^2-$ errors:
-
-```julia
-julia> N
-8-element Vector{Int64}:
-  41                                                                               
-  51                                                                                     
-  61                                                                                     
-  71                                                                                     
-  81 
-  91                                                                                  
- 101                                                                                     
- 111                                                                                                                                                                                                       
-julia> L²Error                                                                          
-8-element Vector{Float64}:
- 0.0025281592366808623                                                                                  
- 0.0012984937719568185                                                                                  
- 0.0007230180349547938                                                                                  
- 0.0004292941192332254 
- 0.0026860800040655016                                                                                 
- 0.00017553818765438645                                                                                   
- 0.00011899345104733748                                                                                   
- 8.321818450187672e-5                                                                                   
-                                                              
-julia> rate  
-7-element Vector{Float64}:
- 3.2115021316773915 
- 3.381703476165346 
- 3.511452986406 
- 3.611695471642677 
- 3.6900745207942363
- 3.7519871586182476 
-```
+~~We observe that the convergence rates drop to $\approx 3$.~~ The convergence rates eventually reach 4.
 
 ### Example 6:
 
@@ -495,26 +528,27 @@ The solution obtained from the code is
 ![](./Images/2-layer/Eg6/horizontal-disp.png) | ![](./Images/2-layer/Eg6/vertical-disp.png) | 
 --- | --- | 
 
-The following rate of convergence is observed with the current parameters in the code.
+The following rate of convergence is observed with the current parameters in the code. In this example I take $N = 21,31,41,51,61$.
 
 ```julia
+# Δt = 1e-3
 julia> L²Error
 5-element Vector{Float64}:
- 0.014592823041234606
- 0.005485928773323668
- 0.0025281592366808623
- 0.0012984937719568185
- 0.0007230180349547938
+ 0.04296175304105988
+ 0.01574910722885202
+ 0.007227511185722746
+ 0.0037390561406167116
+ 0.0020981987167981776
 
 julia> rate
 4-element Vector{Float64}:
- 2.4128917795706855
- 2.692885722704873
- 2.9859097598727833
- 3.2115021316773915
+ 2.4750010688314252
+ 2.707464287141587
+ 2.953531607478651
+ 3.1688737095831887
 ```
 
-The convergence rates are similar to Example 5. It drops to $\approx 3$. This behaviour needs to be investigated further. 
+This problem seems to be difficult to solve due a combination of the distortion and time stepping. Further investigation is required to see if this can be improved.
 
 # References
 
