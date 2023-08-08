@@ -299,6 +299,8 @@ Again, we observe optimal convergence rates for this problem. This shows that th
 
 ### Example 3:
 
+#### Problem 1:
+
 We consider the following computational domain. This example problem can be found in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The boundary of the domain is parametrized by the following curves
 - Layer 1: 
   - Left: $c_0(r) = [0, r+1]$
@@ -358,7 +360,11 @@ julia> rate
  3.343716536727846
 ```
 
-~~The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?~~ This problem seems to be much well-behaved where the interface is a Gaussian that has a smooth tail: The boundary of the domain is parametrized by the following curves
+~~The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?~~ 
+
+#### Problem 2:
+
+This problem seems to be much well-behaved where the interface is a Gaussian that has a smooth tail: The boundary of the domain is parametrized by the following curves
 - Layer 1: 
   - Left: $c_0(r) = [0, r+1]$
   - Bottom: $c_1(q) = \left[q, 1 + 0.2 \left(e^{-20(q-0.5)^2}\right) \right]$ (interface)
