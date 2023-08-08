@@ -573,7 +573,7 @@ We take the following example with the boundaries of the layers given by
   - Right: $c_2(r) = [1 + f(r), r]$
   - Top: $c_3(q) = [q, 1 + f(q)]$ (interface)
 
-with the function $f(q) = 0.12 \left(e^{-40(q-0.5)^2}\right)$. We then solve the problem using $\Delta t = 10^{-3}$ till final time $T = 0.5$. The following are the results along with the convergence rates of the solution.
+with the function $f(q) = 0.12 \left(e^{-40(q-0.5)^2}\right)$. We then solve the problem using $\Delta t = 10^{-3}$ till final time $T = 0.5$. The following are the results along with the convergence rates of the solution. We take $N=21,31,41,51,61$ points in space.
 
 Computational domain | Convergence Rates |
 --- | --- |
@@ -587,7 +587,6 @@ The solution obtained from the code is
 ```julia
 # Δt = 1e-3
 julia> L²Error
-5-element Vector{Float64}:
 5-element Vector{Float64}:
  0.021155884455125167
  0.005289256259619747
