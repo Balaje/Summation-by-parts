@@ -511,6 +511,8 @@ julia> rate
 
 ### Example 6:
 
+#### Problem 1:
+
 In this example, the boundary of the domain is parametrized by the following curves
 - Layer 1: 
   - Left: $c_0(r) = [0 + 0.1\sin(2\pi r), r+1]$
@@ -554,7 +556,55 @@ julia> rate
  3.1688737095831887
 ```
 
-This problem seems to be difficult to solve due to a combination of distortion and time stepping. Further investigation is required to see if this can be improved.
+This problem seems to be difficult to solve due to a combination of distortion and time stepping. ~~Further investigation is required to see if this can be improved.~~
+
+#### Problem 2:
+
+We take the following example with the boundaries of the layers given by
+
+- Layer 1: 
+  - Left: $c_0(r) = [f(r), r+1]$
+  - Bottom: $c_1(q) = [q, 1 + f(q)]$ (interface)
+  - Right: $c_2(r) = [1 + f(r), r+1]$
+  - Top: $c_3(q) = [q, 2 + f(q)]$
+- Layer 2:
+  - Left: $c_0(r) = [f(r), r]$
+  - Bottom: $c_1(q) = [q, f(q)]$
+  - Right: $c_2(r) = [1 + f(r), r]$
+  - Top: $c_3(q) = [q, 1 + f(q)]$ (interface)
+
+with the function $f(q) = 0.12 \left(e^{-40(q-0.5)^2}\right)$. We then solve the problem using $\Delta t = 10^{-3}$ till final time $T = 0.5$. The following are the results along with the convergence rates of the solution.
+
+Computational domain | Convergence Rates |
+--- | --- |
+![](./Images/2-layer/Eg6/domain-1.png) | ![](./Images/2-layer/Eg6/rate-1.png) |
+
+The solution obtained from the code is 
+
+![](./Images/2-layer/Eg6/horizontal-disp-1.png) | ![](./Images/2-layer/Eg6/vertical-disp-1.png) | 
+--- | --- | 
+
+```julia
+# Δt = 1e-3
+julia> L²Error
+5-element Vector{Float64}:
+5-element Vector{Float64}:
+ 0.021155884455125167
+ 0.005289256259619747
+ 0.0018273840422695742
+ 0.0007770216810901281
+ 0.0003822816860382096
+
+julia> rate
+4-element Vector{Float64}:
+ 3.418889619750987
+ 3.6943288617794825
+ 3.832387176069004
+ 3.8904369355666666
+```
+
+The convergence rates of this problem seems to be optimal - indicating that the sharp corners may indeed be a problem. This may also explain the behaviour seen in Example 3. The edges when we use the sinusoidal boundaries lead to sharp corners at the interface which tend to decrease the convergence rates (to $\approx 3$ in Example 3).
+
 
 # References
 

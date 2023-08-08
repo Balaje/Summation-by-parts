@@ -5,16 +5,17 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-cᵢ(q) = [q, 1.0 + 0.2*sin(2π*q)];
+f(q) = 0.12*exp(-40*(q-0.5)^2)
+cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0.0*sin(2π*r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0.0*sin(2π*r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0.0*sin(2π*q)]; # Top boundary
+c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0.0*sin(2π*r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0.0*sin(2π*q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0.0*sin(2π*r), r]; # Right boundary
+c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -123,7 +124,7 @@ function 𝐊2(𝐪𝐫)
     𝚯ᵀ = -𝐃*(𝐓r'*JJ*BHᵀ);
     Ju = -𝐃*(JJ*BT);
 
-    ζ₀ = 1000*(m-1)
+    ζ₀ = 30*(m-1)
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
