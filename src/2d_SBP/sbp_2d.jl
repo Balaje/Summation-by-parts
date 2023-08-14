@@ -162,8 +162,8 @@ function Dᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
     Dᴱ(res)
 end
 
-function Pᴱ(D::Dᴱ)
-    D = D.A
+function Pᴱ(D1::Dᴱ)
+    D = D1.A
     [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
         [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
 end
