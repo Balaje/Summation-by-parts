@@ -173,12 +173,22 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
        JD₁    -σpα    Z       Z       Z;
        JD₂    Z      -α*Id    Z       Z;
        α*Id   Z       Z     -α*Id     Z;
-       (𝐏+ρσα) (𝐏ᴾᴹᴸ)        -ρσα    -σpα]
+       (𝐏+ρσα) (𝐏ᴾᴹᴸ)        -ρσα    -ρσ]
 
   # Get the traction operator of the elasticity part
   𝐓 = Tᴱ(P)
   𝐓q, 𝐓r = 𝐓.A, 𝐓.B
+
+  # TODO: The SAT Terms
+end 
+
+function 𝐌ᴾᴹᴸ(𝐪𝐫, Ω)
+  m, n = size(𝐪𝐫)
+  Id = sparse(I(2)⊗I(m)⊗I(n))
+  ρᵥ = I(2)⊗spdiagm(vec(ρ.(Ω.(𝐪𝐫))))
+  blockdiag(Id, Id, Id, Id, ρᵥ)
 end 
 
 𝐪𝐫 = generate_2d_grid((21,21));
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫, Ω);
+massma = 𝐌ᴾᴹᴸ(𝐪𝐫, Ω);
