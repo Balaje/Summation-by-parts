@@ -136,6 +136,24 @@ function Pᴾᴹᴸ(D::Matrix{SparseMatrixCSC{Float64, Int64}})
   D[4,1] D[4,2] D[4,3] D[4,4]]
 end
 
+"""
+Function to obtain the PML contribution to the traction on the boundary
+"""
+function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
+  P_vec = get_property_matrix_on_grid(Pqr)
+  P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
+  m, n = size(Pqr)
+  Z = spzeros(Float64, 2m^2, 2n^2)  
+  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₁₁.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))))
+  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₂₂.(𝐪𝐫)))))
+  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐪𝐫))))
+  A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
+  B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
+  Tq = [σ*Zy    Z     B     -σ*Zy     Zy]  
+  Tr = [Z     A     Z     Z       Zx]
+  Tq, Tr                  
+end
+
 function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   detJ(x) = (det∘J)(x,Ω)
   detJ𝒫(x) = detJ(x)*t𝒫(Ω, x)
@@ -156,8 +174,7 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   𝐏 = Pᴱ(Dᴱ(JP))  
   𝐏ᴾᴹᴸ = Pᴾᴹᴸ(Dᴾᴹᴸ(JPML))
   Id = sparse(I(2)⊗I(m)⊗I(n))
-  Z = zero(Id)
-  σ = I(2) ⊗ spdiagm(vec(σₚ.(𝐪𝐫)))
+  Z = zero(Id)  
   σpα = I(2) ⊗ spdiagm(α .+ vec(σₚ.(𝐪𝐫)))  
   ρσ = I(2) ⊗ spdiagm(vec(ρ.(𝐪𝐫).*σₚ.(𝐪𝐫)))
   ρσα = α*ρσ
@@ -178,8 +195,22 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   # Get the traction operator of the elasticity part
   𝐓 = Tᴱ(P)
   𝐓q, 𝐓r = 𝐓.A, 𝐓.B
+  
+  # Get the traction operator of the PML part
+  𝐓ᴾᴹᴸq, 𝐓ᴾᴹᴸr  = Tᴾᴹᴸ(t𝒫ᴾᴹᴸ.(Ω, 𝐪𝐫))
 
-  # TODO: The SAT Terms
+  # Get the overall traction operator  
+  𝐓𝐪 = [𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸq
+  𝐓𝐫 = [𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸr
+
+  # Norm matrices
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+  Hr₀ = vcat((I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀))
+  Hq₀ = vcat((I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀))
+  Hrₙ = vcat((I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ))
+  Hqₙ = vcat((I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ))  
+
+  Σ - (-Hq₀*𝐓𝐪 - Hr₀*𝐓𝐫 + Hqₙ*𝐓𝐪 + Hrₙ*𝐓𝐫)
 end 
 
 function 𝐌ᴾᴹᴸ(𝐪𝐫, Ω)
