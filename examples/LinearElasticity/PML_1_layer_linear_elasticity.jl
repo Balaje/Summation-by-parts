@@ -234,6 +234,24 @@ function 𝐌ᴾᴹᴸ(𝐪𝐫, Ω)
   blockdiag(Id, Id, Id, Id, ρᵥ)
 end 
 
-𝐪𝐫 = generate_2d_grid((21,21));
+N = 21
+𝐪𝐫 = generate_2d_grid((N,N));
+𝐱𝐲 = Ω.(𝐪𝐫)
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫, Ω);
 massma = 𝐌ᴾᴹᴸ(𝐪𝐫, Ω);
+
+#### #### #### #### #### 
+# Begin time stepping  #
+#### #### #### #### #### 
+Δt = 10^-3
+tf = 1.0
+ntime = ceil(Int, tf/Δt)
+# Initial conditions
+𝐔(x) = @SVector [exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2)), exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐕(x) = @SVector [0.0, 0.0]
+𝐖(x) = @SVector [0.0, 0.0]
+𝐐(x) = @SVector [0.0, 0.0]
+𝐑(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+
+# Raw initial condition vector
+X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))));
