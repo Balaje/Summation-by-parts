@@ -7,15 +7,6 @@ include("2d_elasticity_problem.jl");
 
 using SplitApplyCombine
 
-const α = 1.0; # The frequency shift parameter
-
-"""
-The PML damping function
-"""
-function σₚ(x)
-  1.0
-end
-
 # Define the domain
 c₀(r) = @SVector [0.0, r]
 c₁(q) = @SVector [q, 0.0]
@@ -42,6 +33,21 @@ c₁₁(x) = 2*μ(x)+λ(x)
 c₂₂(x) = 2*μ(x)+λ(x)
 c₃₃(x) = μ(x)
 c₁₂(x) = λ(x)
+
+"""
+The PML damping function
+"""
+const δ = 0.1*1 # Lₓ = 1
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const α = σ₀*0.05; # The frequency shift parameter
+
+function σₚ(x)
+  if(x[1] ≥ 0.9)
+    return σ₀*((x[1] - 1)/δ)^3
+  else
+    return 0.0
+  end
+end
 
 """
 The material property tensor in the physical coordinates
@@ -144,14 +150,23 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
   m, n = size(Pqr)
   Z = spzeros(Float64, 2m^2, 2n^2)  
+  
+  # Get the trace norms
+  sbp_q = SBP_1_2_CONSTANT_0_1(m)
+  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+
   Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₁₁.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))))
   Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₂₂.(𝐪𝐫)))))
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐪𝐫))))
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
   B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
-  Tq = [σ*Zy    Z     B     -σ*Zy     Zy]  
-  Tr = [Z     A     Z     Z       Zx]
-  Tq, Tr                  
+  Tq₀ = [Z     -(I(2)⊗𝐇q₀)*A     Z     Z    (I(2)⊗𝐇q₀)*Zx]
+  Tqₙ = [Z     (I(2)⊗𝐇qₙ)*A     Z     Z    (I(2)⊗𝐇qₙ)*Zx]
+  Tr₀ = [(I(2)⊗𝐇r₀)*σ*Zy     Z     -(I(2)⊗𝐇r₀)*B     -(I(2)⊗𝐇r₀)*σ*Zy    (I(2)⊗𝐇r₀)*Zy] 
+  Trₙ = [(I(2)⊗𝐇rₙ)*σ*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy    (I(2)⊗𝐇rₙ)*Zy] 
+  Tq₀, Tqₙ, Tr₀, Trₙ
 end
 
 function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
@@ -159,7 +174,7 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   detJ𝒫(x) = detJ(x)*t𝒫(Ω, x)
   detJ𝒫ᴾᴹᴸ(x) = detJ(x)*t𝒫ᴾᴹᴸ(Ω, x)
 
-  P = t𝒫.(Ω,𝐪𝐫) # Elasticity Bulk (For traction)
+  P = t𝒫.(Ω, 𝐪𝐫) # Elasticity Bulk (For traction)
   JP = detJ𝒫.(𝐪𝐫) # Elasticity Bulk with det(J) multiplied
   PML =  t𝒫ᴾᴹᴸ.(Ω, 𝐪𝐫) # PML Bulk (For traction??)
   JPML =  detJ𝒫ᴾᴹᴸ.(𝐪𝐫) # PML Bulk with det(J) multiplied
@@ -182,8 +197,9 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   # Get the derivate matrix transformed to the reference grid
   Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
   Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec]
-  JD₁ = [(I(2)⊗Jinv_vec_diag[1,1]) (I(2)⊗Jinv_vec_diag[1,2])]*vcat((I(2)⊗Dq), (I(2)⊗Dr))
-  JD₂ = [(I(2)⊗Jinv_vec_diag[2,1]) (I(2)⊗Jinv_vec_diag[2,2])]*vcat((I(2)⊗Dq), (I(2)⊗Dr))
+
+  JD₁ = (I(2)⊗Jinv_vec_diag[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag[1,2])*(I(2)⊗Dr)
+  JD₂ = (I(2)⊗Jinv_vec_diag[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag[2,2])*(I(2)⊗Dr)
 
   # Assemble the bulk stiffness matrix
   Σ = [Z      Z       Z       Z       Id;
@@ -194,23 +210,21 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
 
   # Get the traction operator of the elasticity part
   𝐓 = Tᴱ(P)
-  𝐓q, 𝐓r = 𝐓.A, 𝐓.B
-  
+  𝐓q, 𝐓r = 𝐓.A, 𝐓.B  
   # Get the traction operator of the PML part
-  𝐓ᴾᴹᴸq, 𝐓ᴾᴹᴸr  = Tᴾᴹᴸ(t𝒫ᴾᴹᴸ.(Ω, 𝐪𝐫))
-
-  # Get the overall traction operator  
-  𝐓𝐪 = [𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸq
-  𝐓𝐫 = [𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸr
+  𝐓ᴾᴹᴸq₀, 𝐓ᴾᴹᴸqₙ, 𝐓ᴾᴹᴸr₀, 𝐓ᴾᴹᴸrₙ  = Tᴾᴹᴸ(PML)
 
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
-  Hr₀ = vcat((I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀), (I(2)⊗𝐇r₀))
-  Hq₀ = vcat((I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀), (I(2)⊗𝐇q₀))
-  Hrₙ = vcat((I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ), (I(2)⊗𝐇rₙ))
-  Hqₙ = vcat((I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ), (I(2)⊗𝐇qₙ))  
 
-  Σ - (-Hq₀*𝐓𝐪 - Hr₀*𝐓𝐫 + Hqₙ*𝐓𝐪 + Hrₙ*𝐓𝐫)
+  # Get the overall traction operator  
+  𝐓𝐪₀ = [-(I(2)⊗𝐇q₀)*𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸq₀
+  𝐓𝐪ₙ = [(I(2)⊗𝐇qₙ)*𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸqₙ
+  𝐓𝐫₀ = [-(I(2)⊗𝐇r₀)*𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸr₀  
+  𝐓𝐫ₙ = [(I(2)⊗𝐇rₙ)*𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸrₙ  
+
+  Zb = spzeros(Float64, 8m^2, 10n^2)
+  Σ - [Zb; 𝐓𝐪₀ + 𝐓𝐪ₙ + 𝐓𝐫₀ + 𝐓𝐫ₙ]
 end 
 
 function 𝐌ᴾᴹᴸ(𝐪𝐫, Ω)
