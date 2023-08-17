@@ -42,8 +42,8 @@ const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
-  if(x[1] ≥ 0.9)
-    return σ₀*((x[1] - 1)/δ)^3
+  if((x[1] ≈ 0.9) || x[1] > 0.9)
+    return σ₀*((x[1] - 1.0)/δ)^3  
   else
     return 0.0
   end
@@ -136,6 +136,7 @@ end
 Assemble the PML contribution in the stiffness matrix
 """
 function Pᴾᴹᴸ(D::Matrix{SparseMatrixCSC{Float64, Int64}})
+  # v, w are included in the construction
   [D[1,1] D[1,2] D[1,3] D[1,4]; 
   D[2,1] D[2,2] D[2,3] D[2,4]] + 
   [D[3,1] D[3,2] D[3,3] D[3,4]; 
@@ -162,10 +163,10 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐪𝐫))))
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
   B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
-  Tq₀ = [Z     -(I(2)⊗𝐇q₀)*A     Z     Z    (I(2)⊗𝐇q₀)*Zx]
-  Tqₙ = [Z     (I(2)⊗𝐇qₙ)*A     Z     Z    (I(2)⊗𝐇qₙ)*Zx]
-  Tr₀ = [(I(2)⊗𝐇r₀)*σ*Zy     Z     -(I(2)⊗𝐇r₀)*B     -(I(2)⊗𝐇r₀)*σ*Zy    (I(2)⊗𝐇r₀)*Zy] 
-  Trₙ = [(I(2)⊗𝐇rₙ)*σ*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy    (I(2)⊗𝐇rₙ)*Zy] 
+  Tq₀ = [Z    (I(2)⊗𝐇q₀)*Zx     -(I(2)⊗𝐇q₀)*A     Z     Z]
+  Tqₙ = [Z     (I(2)⊗𝐇qₙ)*Zx     (I(2)⊗𝐇qₙ)*A     Z     Z]
+  Tr₀ = [(I(2)⊗𝐇r₀)*σ*Zy    (I(2)⊗𝐇r₀)*Zy     Z     -(I(2)⊗𝐇r₀)*B     -(I(2)⊗𝐇r₀)*σ*Zy] 
+  Trₙ = [(I(2)⊗𝐇rₙ)*σ*Zy     (I(2)⊗𝐇rₙ)*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy] 
   Tq₀, Tqₙ, Tr₀, Trₙ
 end
 
@@ -190,26 +191,26 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   𝐏ᴾᴹᴸ = Pᴾᴹᴸ(Dᴾᴹᴸ(JPML))
   Id = sparse(I(2)⊗I(m)⊗I(n))
   Z = zero(Id)  
-  σpα = I(2) ⊗ spdiagm(α .+ vec(σₚ.(𝐪𝐫)))  
-  ρσ = I(2) ⊗ spdiagm(vec(ρ.(𝐪𝐫).*σₚ.(𝐪𝐫)))
+  xy = Ω.(𝐪𝐫)
+  σ = I(2) ⊗ spdiagm(vec(σₚ.(xy)))  
+  ρσ = I(2) ⊗ spdiagm(vec(ρ.(xy).*σₚ.(xy)))
   ρσα = α*ρσ
 
-  # Get the derivate matrix transformed to the reference grid
+  # Get the derivative operator transformed to the reference grid
   Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
-  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec]
-
+  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]
   JD₁ = (I(2)⊗Jinv_vec_diag[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag[1,2])*(I(2)⊗Dr)
   JD₂ = (I(2)⊗Jinv_vec_diag[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag[2,2])*(I(2)⊗Dr)
 
   # Assemble the bulk stiffness matrix
-  Σ = [Z      Z       Z       Z       Id;
-       JD₁    -σpα    Z       Z       Z;
-       JD₂    Z      -α*Id    Z       Z;
-       α*Id   Z       Z     -α*Id     Z;
-       (𝐏+ρσα) (𝐏ᴾᴹᴸ)        -ρσα    -ρσ]
+  Σ = [Z      Id       Z       Z       Z;
+       (𝐏+ρσα)  -ρσ   (𝐏ᴾᴹᴸ)        -ρσα;
+       JD₁    Z    -(α*Id+σ)   Z       Z;
+       JD₂    Z       Z      -α*Id    Z;
+       α*Id   Z       Z       Z     -α*Id ]
 
   # Get the traction operator of the elasticity part
-  𝐓 = Tᴱ(P)
+  𝐓 = Tᴱ(P) 
   𝐓q, 𝐓r = 𝐓.A, 𝐓.B  
   # Get the traction operator of the PML part
   𝐓ᴾᴹᴸq₀, 𝐓ᴾᴹᴸqₙ, 𝐓ᴾᴹᴸr₀, 𝐓ᴾᴹᴸrₙ  = Tᴾᴹᴸ(PML)
@@ -218,40 +219,71 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
 
   # Get the overall traction operator  
-  𝐓𝐪₀ = [-(I(2)⊗𝐇q₀)*𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸq₀
-  𝐓𝐪ₙ = [(I(2)⊗𝐇qₙ)*𝐓q  Z   Z   Z   Z] + 𝐓ᴾᴹᴸqₙ
-  𝐓𝐫₀ = [-(I(2)⊗𝐇r₀)*𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸr₀  
-  𝐓𝐫ₙ = [(I(2)⊗𝐇rₙ)*𝐓r  Z   Z   Z   Z] + 𝐓ᴾᴹᴸrₙ  
+  𝐓𝐪₀ = [-(I(2)⊗𝐇q₀)*𝐓q   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀
+  𝐓𝐪ₙ = [(I(2)⊗𝐇qₙ)*𝐓q  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ
+  𝐓𝐫₀ = [-(I(2)⊗𝐇r₀)*𝐓r   Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀  
+  𝐓𝐫ₙ = [(I(2)⊗𝐇rₙ)*𝐓r  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ  
 
-  Zb = spzeros(Float64, 8m^2, 10n^2)
-  Σ - [Zb; 𝐓𝐪₀ + 𝐓𝐪ₙ + 𝐓𝐫₀ + 𝐓𝐫ₙ]
+  zbT = spzeros(Float64, 2m^2, 10n^2)
+  zbB = spzeros(Float64, 6m^2, 10n^2)
+  Σ - [zbT;   𝐓𝐪₀ + 𝐓𝐪ₙ + 𝐓𝐫₀ + 𝐓𝐫ₙ;   zbB]
 end 
 
-function 𝐌ᴾᴹᴸ(𝐪𝐫, Ω)
+function 𝐌ᴾᴹᴸ⁻¹(𝐪𝐫, Ω)
   m, n = size(𝐪𝐫)
   Id = sparse(I(2)⊗I(m)⊗I(n))
-  ρᵥ = I(2)⊗spdiagm(vec(ρ.(Ω.(𝐪𝐫))))
-  blockdiag(Id, Id, Id, Id, ρᵥ)
+  ρᵥ = I(2)⊗spdiagm(vec(1 ./ρ.(Ω.(𝐪𝐫))))
+  blockdiag(Id, ρᵥ, Id, Id, Id)
 end 
 
 N = 21
 𝐪𝐫 = generate_2d_grid((N,N));
-𝐱𝐲 = Ω.(𝐪𝐫)
+𝐱𝐲 = Ω.(𝐪𝐫);
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫, Ω);
-massma = 𝐌ᴾᴹᴸ(𝐪𝐫, Ω);
+massma = 𝐌ᴾᴹᴸ⁻¹(𝐪𝐫, Ω);
 
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### #### 
 Δt = 10^-3
-tf = 1.0
+tf = 0.5
 ntime = ceil(Int, tf/Δt)
 # Initial conditions
 𝐔(x) = @SVector [exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2)), exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐑(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
-𝐑(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 
 # Raw initial condition vector
-X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))));
+
+
+"""
+A quick implementation of the RK4 scheme
+"""
+function RK4_1(M, X₀)  
+  k₁ = M*X₀
+  k₂ = M*X₀ + (Δt/2)*k₁
+  k₃ = M*X₀ + (Δt/2)*k₂
+  k₄ = M*X₀ + (Δt)*k₃
+  X₀ + (Δt/6)*(k₁ + k₂ + k₃ + k₄)
+end
+
+# Begin time loop
+let
+  t = 0.0
+  X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
+  global X₁ = zero(X₀)
+  M = massma*stima
+  for i=1:ntime
+    X₁ = RK4_1(M, X₀)
+    X₀ = X₁
+    t += Δt    
+    println("Done t = "*string(t)*"\t sum(X₁) = "*string(sum(abs.(X₁))))
+  end  
+end
+X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
+𝐔₀,𝐕₀ = X₀[1:N^2], X₀[N^2+1:2N^2];
+𝐔₁,𝐕₁ = X₁[1:N^2], X₁[N^2+1:2N^2];
+plt = contourf(reshape(𝐕₁, (N,N)));
+plt1 = contourf(reshape(𝐕₀, (N,N)));
