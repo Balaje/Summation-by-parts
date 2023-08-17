@@ -37,13 +37,14 @@ c₁₂(x) = λ(x)
 """
 The PML damping function
 """
-const δ = 0.1*1 # Lₓ = 1
+const Lₓ = 0.9
+const δ = 0.1*Lₓ
 const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
-  if((x[1] ≈ 0.9) || x[1] > 0.9)
-    return σ₀*((x[1] - 1.0)/δ)^3  
+  if((x[1] ≈ Lₓ) || x[1] > Lₓ)
+    return σ₀*((x[1] - Lₓ)/δ)^3  
   else
     return 0.0
   end
@@ -146,7 +147,7 @@ end
 """
 Function to obtain the PML contribution to the traction on the boundary
 """
-function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
+function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω)
   P_vec = get_property_matrix_on_grid(Pqr)
   P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
   m, n = size(Pqr)
@@ -158,9 +159,15 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
 
-  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₁₁.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))))
-  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₃₃.(𝐪𝐫)))), spdiagm(vec(sqrt.(ρ.(𝐪𝐫).*c₂₂.(𝐪𝐫)))))
-  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐪𝐫))))
+  # Get the physical coordinates
+  𝐱𝐲 = Ω.(𝐪𝐫)
+
+  # Evaluate the functions on the physical grid
+  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
+  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))
+
+  # PML part of the Traction operator
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
   B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
   Tq₀ = [Z    (I(2)⊗𝐇q₀)*Zx     -(I(2)⊗𝐇q₀)*A     Z     Z]
@@ -203,17 +210,17 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   JD₂ = (I(2)⊗Jinv_vec_diag[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag[2,2])*(I(2)⊗Dr)
 
   # Assemble the bulk stiffness matrix
-  Σ = [Z      Id       Z       Z       Z;
-       (𝐏+ρσα)  -ρσ   (𝐏ᴾᴹᴸ)        -ρσα;
-       JD₁    Z    -(α*Id+σ)   Z       Z;
-       JD₂    Z       Z      -α*Id    Z;
-       α*Id   Z       Z       Z     -α*Id ]
+  Σ = [   Z      Id       Z       Z       Z;
+       (𝐏+ρσα)  -ρσ     (𝐏ᴾᴹᴸ)        -ρσα;
+          JD₁    Z    -(α*Id+σ)   Z       Z;
+          JD₂    Z       Z      -α*Id    Z;
+          α*Id   Z       Z       Z     -α*Id ]
 
   # Get the traction operator of the elasticity part
   𝐓 = Tᴱ(P) 
   𝐓q, 𝐓r = 𝐓.A, 𝐓.B  
   # Get the traction operator of the PML part
-  𝐓ᴾᴹᴸq₀, 𝐓ᴾᴹᴸqₙ, 𝐓ᴾᴹᴸr₀, 𝐓ᴾᴹᴸrₙ  = Tᴾᴹᴸ(PML)
+  𝐓ᴾᴹᴸq₀, 𝐓ᴾᴹᴸqₙ, 𝐓ᴾᴹᴸr₀, 𝐓ᴾᴹᴸrₙ  = Tᴾᴹᴸ(PML, Ω)
 
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
@@ -236,7 +243,7 @@ function 𝐌ᴾᴹᴸ⁻¹(𝐪𝐫, Ω)
   blockdiag(Id, ρᵥ, Id, Id, Id)
 end 
 
-N = 21
+N = 61
 𝐪𝐫 = generate_2d_grid((N,N));
 𝐱𝐲 = Ω.(𝐪𝐫);
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫, Ω);
@@ -246,10 +253,10 @@ massma = 𝐌ᴾᴹᴸ⁻¹(𝐪𝐫, Ω);
 # Begin time stepping  #
 #### #### #### #### #### 
 Δt = 10^-3
-tf = 0.5
+tf = 0.2
 ntime = ceil(Int, tf/Δt)
 # Initial conditions
-𝐔(x) = @SVector [exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2)), exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-0.5)^2 + (x[2]-0.5)^2)), exp(-30*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
 𝐑(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -263,13 +270,14 @@ A quick implementation of the RK4 scheme
 """
 function RK4_1(M, X₀)  
   k₁ = M*X₀
-  k₂ = M*X₀ + (Δt/2)*k₁
-  k₃ = M*X₀ + (Δt/2)*k₂
-  k₄ = M*X₀ + (Δt)*k₃
+  k₂ = M*(X₀ + (Δt/2)*k₁)
+  k₃ = M*(X₀ + (Δt/2)*k₂)
+  k₄ = M*(X₀ + (Δt)*k₃)
   X₀ + (Δt/6)*(k₁ + k₂ + k₃ + k₄)
 end
 
 # Begin time loop
+plt1 = plot()
 let
   t = 0.0
   X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
@@ -279,11 +287,14 @@ let
     X₁ = RK4_1(M, X₀)
     X₀ = X₁
     t += Δt    
-    println("Done t = "*string(t)*"\t sum(X₁) = "*string(sum(abs.(X₁))))
+    println("Done t = "*string(t))
   end  
 end
 X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
 𝐔₀,𝐕₀ = X₀[1:N^2], X₀[N^2+1:2N^2];
 𝐔₁,𝐕₁ = X₁[1:N^2], X₁[N^2+1:2N^2];
-plt = contourf(reshape(𝐕₁, (N,N)));
-plt1 = contourf(reshape(𝐕₀, (N,N)));
+m, n = N, N
+q,r = LinRange(0,1,m), LinRange(0,1,n);
+plt1 = contourf(q, r, reshape(𝐔₁, (N,N)))
+plt2 = contourf(q, r, reshape(𝐕₁, (N,N)))
+plt = plot(plt1, plt2, layout=(1,2), size=(800,800))
