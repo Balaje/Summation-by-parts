@@ -604,6 +604,59 @@ julia> rate
 
 The convergence rates of this problem seems to be optimal - indicating that the sharp corners may indeed be a problem. This may also explain the behaviour seen in Example 3. The edges when we use the sinusoidal boundaries lead to sharp corners at the interface which tend to decrease the convergence rates (to $\approx 3$ in Example 3).
 
+## Perfectly Matched Layers
+
+### Single layer 
+
+Let us assume the computational domain $\Omega = [0,1]^2$. We add a perfectly matched layer in the region $\Omega_p = [L_x, 1.0] \times [0,1]$ with the damping function given by the following function:
+
+$$
+\begin{align}
+  \sigma(x) = \begin{cases}
+                0, & \text{if} \quad x \le L_x\\
+                \sigma_0\left( \frac{x-L_x}{\delta}\right)^3 & \text{if} \quad x \ge L_x
+              \end{cases}
+\end{align}
+$$
+
+The details of the PDE system will be posted later. We consider the following initial condition for the displacement field:
+
+$$
+\begin{align}
+  \mathbf{u}_0(x,y) = [e^{-40((x-0.5)^2 + (y-0.5)^2)}, -e^{-40((x-0.5)^2 + (y-0.5)^2)}]
+\end{align}
+$$
+
+Initial Conditions | |
+--- | --- |
+![](./Images/PML/1-layer/init-cond-1.png) |![](./Images/PML/1-layer/init-cond-2.png) |
+
+To solve the PDE, we use fourth order Runge-Kutta scheme in time and the 4th order SBP-SAT method in space. We perform the grid refinement analysis to study the convergence of the scheme. Since the exact solution is unknown, we compute the solution on a mesh with $N=321$ discretization points and use that as the reference solution. We use $N=21,41,81,161$ points in space for the grid refinement analysis. We set the time discretization parameter $\Delta t = 10^{-4}$ and solve till final time $T=0.2$. The plot of the PML damping function considered in this example is shown below. We obtain the following error and convergence rates (only the displacement vector is considered when computing the error).
+
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+ 0.10473513601109809
+ 0.03849555545138056
+ 0.002328787144654755
+ 0.00012846337170572273
+
+julia> rate
+3-element Vector{Float64}:
+ 1.4439817189491857
+ 4.047041201648996
+ 4.180149807875461
+```
+
+Convergence Rates | PML Damping Function |
+--- | --- |
+![](./Images/PML/1-layer/rate.png) | ![](./Images/PML/1-layer/damping-function.png)
+
+| Horizontal Displacements| Vertical Displacements |
+--- | --- |
+| ![](./Images/PML/1-layer/horizontal-disp.png) | ![](./Images/PML/1-layer/vertical-disp.png) |
+
+We see that the convergence rate is 4th order as expected. Looking at the solution profiles (top: approximate solution, bottom: reference solution) at $T=0.2$, we see that the waves coming into the PML are absorbed.
 
 # References
 
