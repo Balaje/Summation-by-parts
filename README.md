@@ -619,7 +619,7 @@ $$
 \end{align}
 $$
 
-The details of the PDE system will be posted later. We consider the following initial condition for the displacement field:
+The details of the PDE system will be posted later. The code to solve the problem is found in `examples/LinearElasticity/PML_1_layer_linear_elasticity .jl`. We consider the following initial condition for the displacement field:
 
 $$
 \begin{align}
@@ -631,7 +631,7 @@ Initial Conditions | |
 --- | --- |
 ![](./Images/PML/1-layer/init-cond-1.png) |![](./Images/PML/1-layer/init-cond-2.png) |
 
-To solve the PDE, we use fourth order Runge-Kutta scheme in time and the 4th order SBP-SAT method in space. We perform the grid refinement analysis to study the convergence of the scheme. Since the exact solution is unknown, we compute the solution on a mesh with $N=321$ discretization points and use that as the reference solution. We use $N=21,41,81,161$ points in space for the grid refinement analysis. We set the time discretization parameter $\Delta t = 10^{-4}$ and solve till final time $T=0.2$. The plot of the PML damping function considered in this example is shown below. We obtain the following error and convergence rates (only the displacement vector is considered when computing the error).
+To solve the PDE, we use fourth-order Runge-Kutta scheme in time and the 4th order SBP-SAT method in space. We perform the grid refinement analysis to study the convergence of the scheme. Since the exact solution is unknown, we compute the solution on a mesh with $N=321$ discretization points and use that as the reference solution. We use $N=21,41,81,161$ points in space for the grid refinement analysis. We set the time discretization parameter $\Delta t = 10^{-4}$ and solve till final time $T=0.2$. The plot of the PML damping function considered in this example is shown below. We obtain the following error and convergence rates (only the displacement vector is considered when computing the error).
 
 ```julia
 julia> L²Error
