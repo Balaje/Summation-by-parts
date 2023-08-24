@@ -7,20 +7,26 @@ include("2d_elasticity_problem.jl");
 
 using SplitApplyCombine
 
-# Define the first domain
-c₀¹(r) = @SVector [0.0, r]
-c₁¹(q) = @SVector [q, 0.0]
-c₂¹(r) = @SVector [1.0, r]
-c₃¹(q) = @SVector [q, 1.0]
+"""
+Define the geometry of the two layers. 
+"""
+# Layer 1 (q,r) ∈ [0,1] × [1,2]
+# Define the parametrization for interface
+f(q) = 0.12*exp(-40*(q-0.5)^2)
+cᵢ(q) = [q, 1.0 + f(q)];
+# Define the rest of the boundary
+c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
+c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
+c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
+# Layer 2 (q,r) ∈ [0,1] × [0,1]
+c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
+c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-Ω₁(qr) = S(qr, domain₁)
-
-# Define the second domain
-c₀²(r) = @SVector [0.0, r]
-c₁²(q) = @SVector [q, 0.0]
-c₂²(r) = @SVector [1.0, r]
-c₃²(q) = @SVector [q, 1.0]
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
+Ω₁(qr) = S(qr, domain₁)
 Ω₂(qr) = S(qr, domain₂)
 
 ##############################################
@@ -194,15 +200,22 @@ function get_marker_matrix(m)
   Xind = findnz(X);
   Yind = findnz(Y);
   
-  mk2 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Xind[1], Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-         sparse(Yind[1] .+ (10m^2), Xind[1], ones(length(Yind[1])), 20m^2, 20m^2) +
-         sparse(Yind[1] .+ (10m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  # Order = [u1, r1, v1, w1, q1], [u2, r2, v2, w2, q2]] Starting indices: ([0, 2m^2, 4m^2, 6m^2, 8m^2]; [10m^2, 12m^2, 14m^2, 16m^2, 18m^2])
+  mk2_u = -sparse(Xind[1], Xind[1] .+ (2m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+         sparse(Xind[1], Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
+         sparse(Yind[1] .+ (10m^2), Xind[1] .+ (2m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
+         sparse(Yind[1] .+ (10m^2), Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
+  mk2_w = -sparse(Xind[1] .+ (6m^2), Xind[1] .+ (8m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+         sparse(Xind[1] .+ (6m^2), Yind[1] .+ (18m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
+         sparse(Yind[1] .+ (16m^2), Xind[1] .+ (8m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+         sparse(Yind[1] .+ (16m^2), Yind[1] .+ (18m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  mk2 = mk2_u + mk2_w
   
-  mk3 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Xind[1], Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Yind[1] .+ (10m^2), Xind[1], ones(length(Yind[1])), 20m^2, 20m^2) -
-         sparse(Yind[1] .+ (10m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  mk3_u = -sparse(Xind[1], Xind[1] .+ (2m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+          sparse(Xind[1], Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+          sparse(Yind[1] .+ (10m^2), Xind[1] .+ (2m^2), ones(length(Yind[1])), 20m^2, 20m^2) -
+          sparse(Yind[1] .+ (10m^2), Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  mk3 = mk3_u
   
   mk2, mk3
 end
@@ -268,7 +281,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
       α*Id   Z       Z       Z     -α*Id ]
   Σ₂ = [   Z      Id       Z       Z       Z;
       (𝐏₂+ρσα₂)  -ρσ₂     (𝐏ᴾᴹᴸ₂)        -ρσα₂;
-      JD₁²    Z    -(α*Id+σ₁)   Z       Z;
+      JD₁²    Z    -(α*Id+σ₂)   Z       Z;
       JD₂²    Z       Z      -α*Id    Z;
       α*Id   Z       Z       Z     -α*Id ]
   Σ = blockdiag(Σ₁, Σ₂)
@@ -276,11 +289,11 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Get the traction operator of the elasticity and PML parts on Layer 1
   𝐓₁ = Tᴱ(P₁) 
   𝐓q₁, 𝐓r₁ = 𝐓₁.A, 𝐓₁.B  
-  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, Ω₁, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, _, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, Ω₁, 𝐪𝐫)
   # Get the traction operator of the elasticity and PML parts on Layer 2
   𝐓₂ = Tᴱ(P₂) 
   𝐓q₂, 𝐓r₂ = 𝐓₂.A, 𝐓₂.B  
-  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, Ω₂, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², _  = Tᴾᴹᴸ(PML₂, Ω₂, 𝐪𝐫)
   
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
@@ -291,12 +304,36 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐓𝐫ₙ¹ = [(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹  
   𝐓𝐪₀² = [-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²
   𝐓𝐪ₙ² = [(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²  
-  𝐓𝐫₀² = [(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²  
+  𝐓𝐫₀² = [-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²  
 
-  # Interface conditions:  
-  𝐓ᵢ = 
+  # Interface conditions: 
+  zbT = spzeros(Float64, 2m^2, 10n^2)
+  zbB = spzeros(Float64, 6m^2, 10n^2)
+  P_vec₁ = get_property_matrix_on_grid(PML₁)
+  P_vec₂ = get_property_matrix_on_grid(PML₂)
+  P_vec_diag₁ = [spdiagm(vec(p)) for p in P_vec₁]  
+  P_vec_diag₂ = [spdiagm(vec(p)) for p in P_vec₂]
+  B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
+  B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
+  𝐓𝐫₁ = [𝐓r₁   Z     Z    B₁     Z]  
+  𝐓𝐫₂ = [𝐓r₂   Z     Z    B₂     Z]  
+  𝐃₁ = blockdiag([zbT;   (I(2)⊗𝐇r₀)  Z   Z    (I(2)⊗𝐇r₀)   Z;     zbB], [zbT;  (I(2)⊗𝐇rₙ)  Z   Z   (I(2)⊗𝐇rₙ)   Z;     zbB])
+  𝐃₂ = blockdiag([zbT;   (I(2)⊗𝐇r₀)  Z   Z    Z   Z;     zbB], [zbT;  (I(2)⊗𝐇rₙ)  Z   Z   Z   Z;     zbB])
+  𝐓𝐫 = blockdiag([zbT;  𝐓𝐫₁;  zbB], [zbT;  𝐓𝐫₂;  zbB])
   
-  # zbT = spzeros(Float64, 2m^2, 10n^2)
-  # zbB = spzeros(Float64, 6m^2, 10n^2)
-  # Σ - [zbT;   𝐓𝐪₀ + 𝐓𝐪ₙ + 𝐓𝐫₀ + 𝐓𝐫ₙ;   zbB]
+  BHᵀ, BT = get_marker_matrix(m)
+
+  ζ₀ = 30*(m-1)
+  𝚯 = 𝐃₁*(BHᵀ*𝐓𝐫)
+  𝚯ᵀ = -𝐃₁*(𝐓𝐫'*BHᵀ)
+  Ju =  -𝐃₂*(BT)
+  𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
+
+  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀²;   zbB])
+    
+  Σ - 𝐓ₙ - 𝐓ᵢ
 end 
+
+m = 21;
+𝐪𝐫 = generate_2d_grid((m,m));
+stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
