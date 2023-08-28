@@ -56,7 +56,7 @@ The PML damping
 """
 const Lₓ = 0.8
 const δ = 0.1*Lₓ
-const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -419,7 +419,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-N = 81
+N = 41
 𝐪𝐫 = generate_2d_grid((N,N));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
