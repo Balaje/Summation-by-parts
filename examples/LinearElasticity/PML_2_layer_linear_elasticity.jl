@@ -12,7 +12,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.12*exp(-40*(q-0.5)^2)
+f(q) = 0.0*exp(-40*(q-0.5)^2)
 cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
@@ -56,7 +56,7 @@ The PML damping
 """
 const Lₓ = 0.8
 const δ = 0.1*Lₓ
-const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -200,24 +200,30 @@ function get_marker_matrix(m)
   Xind = findnz(X);
   Yind = findnz(Y);
   
-  # Order = [u1, r1, v1, w1, q1], [u2, r2, v2, w2, q2]] Starting indices: ([0, 2m^2, 4m^2, 6m^2, 8m^2]; [10m^2, 12m^2, 14m^2, 16m^2, 18m^2])
-  mk2_u = -sparse(Xind[1], Xind[1] .+ (2m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Xind[1], Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-         sparse(Yind[1] .+ (10m^2), Xind[1] .+ (2m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
-         sparse(Yind[1] .+ (10m^2), Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
-  mk2_w = -sparse(Xind[1] .+ (6m^2), Xind[1] .+ (8m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Xind[1] .+ (6m^2), Yind[1] .+ (18m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-         sparse(Yind[1] .+ (16m^2), Xind[1] .+ (8m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-         sparse(Yind[1] .+ (16m^2), Yind[1] .+ (18m^2), ones(length(Xind[1])), 20m^2, 20m^2)
-  mk2 = mk2_u + mk2_w
-  
-  mk3_u = -sparse(Xind[1], Xind[1] .+ (2m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-          sparse(Xind[1], Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-          sparse(Yind[1] .+ (10m^2), Xind[1] .+ (2m^2), ones(length(Yind[1])), 20m^2, 20m^2) -
-          sparse(Yind[1] .+ (10m^2), Yind[1] .+ (12m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  # Order = [u1, r1, v1, w1, q1], [u2, r2, v2, w2, q2]] Starting indices: ([0, 2m^2, 4m^2, 6m^2, 8m^2]; [10m^2, 12m^2, 14m^2, 16m^2, 18m^2])    
+  mk2_u = -sparse(Xind[1] .+ (2m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Xind[1] .+ (2m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
+           sparse(Yind[1] .+ (12m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
+           sparse(Yind[1] .+ (12m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
+  mk2 = mk2_u
+
+  mk3_u = -sparse(Xind[1] .+ (2m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Xind[1] .+ (2m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Yind[1] .+ (12m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) -
+           sparse(Yind[1] .+ (12m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)
   mk3 = mk3_u
+
+  mk4_u = -sparse(Xind[1] .+ (0m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Xind[1] .+ (0m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
+           sparse(Yind[1] .+ (10m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
+           sparse(Yind[1] .+ (10m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
+  mk4_w = -sparse(Xind[1] .+ (6m^2), Xind[1] .+ (6m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Xind[1] .+ (6m^2), Yind[1] .+ (16m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
+           sparse(Yind[1] .+ (16m^2), Xind[1] .+ (6m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
+           sparse(Yind[1] .+ (16m^2), Yind[1] .+ (16m^2), ones(length(Xind[1])), 20m^2, 20m^2)
+  mk4 = mk4_u + mk4_w
   
-  mk2, mk3
+  mk2, mk3, mk4
 end
 
 function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
@@ -278,7 +284,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
       (𝐏₁+ρσα₁)  -ρσ₁     (𝐏ᴾᴹᴸ₁)        -ρσα₁;
       JD₁¹    Z    -(α*Id+σ₁)   Z       Z;
       JD₂¹    Z       Z      -α*Id    Z;
-      α*Id   Z       Z       Z     -α*Id ]
+      α*Id    Z       Z       Z     -α*Id ]
   Σ₂ = [   Z      Id       Z       Z       Z;
       (𝐏₂+ρσα₂)  -ρσ₂     (𝐏ᴾᴹᴸ₂)        -ρσα₂;
       JD₁²    Z    -(α*Id+σ₂)   Z       Z;
@@ -289,22 +295,26 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Get the traction operator of the elasticity and PML parts on Layer 1
   𝐓₁ = Tᴱ(P₁) 
   𝐓q₁, 𝐓r₁ = 𝐓₁.A, 𝐓₁.B  
-  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, _, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, Ω₁, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, Ω₁, 𝐪𝐫)
   # Get the traction operator of the elasticity and PML parts on Layer 2
   𝐓₂ = Tᴱ(P₂) 
   𝐓q₂, 𝐓r₂ = 𝐓₂.A, 𝐓₂.B  
-  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², _  = Tᴾᴹᴸ(PML₂, Ω₂, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, Ω₂, 𝐪𝐫)
   
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
   
   # Get the overall traction operator on the outer boundaries of both Layer 1 and Layer 2
   𝐓𝐪₀¹ = [-(I(2)⊗𝐇q₀)*𝐓q₁   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀¹
-  𝐓𝐪ₙ¹ = [(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹  
-  𝐓𝐫ₙ¹ = [(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹  
+  𝐓𝐪ₙ¹ = [(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹      
+  𝐓𝐫ₙ¹ = [(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹    
   𝐓𝐪₀² = [-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²
   𝐓𝐪ₙ² = [(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²  
-  𝐓𝐫₀² = [-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²  
+  𝐓𝐫₀² = [-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀² 
+  
+  # Interface (But not required. Will be multiplied by 0)
+  𝐓𝐫₀¹ = [-(I(2)⊗𝐇r₀)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀¹
+  𝐓𝐫ₙ² = [(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ²  
 
   # Interface conditions: 
   zbT = spzeros(Float64, 2m^2, 10n^2)
@@ -316,24 +326,125 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
   𝐓𝐫₁ = [𝐓r₁   Z     Z    B₁     Z]  
-  𝐓𝐫₂ = [𝐓r₂   Z     Z    B₂     Z]  
-  𝐃₁ = blockdiag([zbT;   (I(2)⊗𝐇r₀)  Z   Z    (I(2)⊗𝐇r₀)   Z;     zbB], [zbT;  (I(2)⊗𝐇rₙ)  Z   Z   (I(2)⊗𝐇rₙ)   Z;     zbB])
-  𝐃₂ = blockdiag([zbT;   (I(2)⊗𝐇r₀)  Z   Z    Z   Z;     zbB], [zbT;  (I(2)⊗𝐇rₙ)  Z   Z   Z   Z;     zbB])
-  𝐓𝐫 = blockdiag([zbT;  𝐓𝐫₁;  zbB], [zbT;  𝐓𝐫₂;  zbB])
+  𝐓𝐫₂ = [𝐓r₂   Z     Z    B₂     Z]    
+  𝐃₁ = 𝐃₂ = blockdiag((I(5)⊗I(2)⊗𝐇r₀), (I(5)⊗I(2)⊗𝐇rₙ))
+  𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
+  # Transpose matrix
+  𝐓𝐫₁ᵀ = [𝐓r₁'   Z     Z    B₁'   Z]  
+  𝐓𝐫₂ᵀ = [𝐓r₂'   Z     Z    B₂'   Z]  
+  𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
-  BHᵀ, BT = get_marker_matrix(m)
+  BH, BT, BHᵀ = get_marker_matrix(m);
 
-  ζ₀ = 30*(m-1)
-  𝚯 = 𝐃₁*(BHᵀ*𝐓𝐫)
-  𝚯ᵀ = -𝐃₁*(𝐓𝐫'*BHᵀ)
-  Ju =  -𝐃₂*(BT)
+  ζ₀ = 50*(m-1)
+  𝚯 = 𝐃₁*(BH*𝐓𝐫)
+  𝚯ᵀ = -𝐃₁*(𝐓𝐫ᵀ*BHᵀ) 
+  Ju = -𝐃₂*(BT)
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
-  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀²;   zbB])
+  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
     
   Σ - 𝐓ₙ - 𝐓ᵢ
 end 
 
-m = 21;
-𝐪𝐫 = generate_2d_grid((m,m));
+function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
+  m, n = size(𝐪𝐫)
+  Id = sparse(I(2)⊗I(m)⊗I(n))
+  ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ.(Ω₁.(𝐪𝐫))))
+  ρᵥ² = I(2)⊗spdiagm(vec(1 ./ρ.(Ω₂.(𝐪𝐫))))
+  blockdiag(blockdiag(Id, ρᵥ¹, Id, Id, Id), blockdiag(Id, ρᵥ², Id, Id, Id))
+end 
+
+#### #### #### #### #### 
+# Begin time stepping  #
+#### #### #### #### ####
+const Δt = 10^-4
+const tf = 0.3
+const ntime = ceil(Int, tf/Δt)
+"""
+A quick implementation of the RK4 scheme
+"""
+function RK4_1(M, X₀)  
+  k₁ = M*X₀
+  k₂ = M*(X₀ + (Δt/2)*k₁)
+  k₃ = M*(X₀ + (Δt/2)*k₂)
+  k₄ = M*(X₀ + (Δt)*k₃)
+  X₀ + (Δt/6)*(k₁ + k₂ + k₃ + k₄)
+end
+
+"""
+Initial conditions (Layer 1)
+"""
+𝐔₁(x) = @SVector [exp(-40*((x[1]-0.5)^2 + (x[2]-1.5)^2)), -exp(-40*((x[1]-0.5)^2 + (x[2]-1.5)^2))]
+𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+𝐕₁(x) = @SVector [0.0, 0.0]
+𝐖₁(x) = @SVector [0.0, 0.0]
+𝐐₁(x) = @SVector [0.0, 0.0]
+
+"""
+Initial conditions (Layer 2)
+"""
+𝐔₂(x) = @SVector [exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2)), -exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+𝐕₂(x) = @SVector [0.0, 0.0]
+𝐖₂(x) = @SVector [0.0, 0.0]
+𝐐₂(x) = @SVector [0.0, 0.0]
+
+"""
+Function to compute the L²-Error using the reference solution
+"""
+function compute_l2_error(sol, ref_sol, norm, mn)
+  m,n = mn
+  err = zero(sol)  
+  ar = ceil(Int64, (n-1)/(m-1))    
+  for i=1:N
+    err[i] = sol[i] - ref_sol[i*ar-1]
+  end  
+  sqrt(err'*norm*err)  
+end
+
+"""
+Function to split the solution into the corresponding variables
+"""
+function split_solution(X)
+  N = Int(sqrt(length(X)/10))
+  u1,u2 = X[1:N^2], X[N^2+1:2N^2];
+  r1,r2 = [2N^2+1:3N^2], X[3N^2+1:4N^2];
+  v1,v2 = [4N^2+1:5N^2], X[5N^2+1:6N^2];
+  w1,w2 = [6N^2+1:7N^2], X[7N^2+1:8N^2];
+  q1,q2 = [8N^2+1:9N^2], X[9N^2+1:10N^2];
+  (u1,u2), (r1,r2), (v1, v2), (w1,w2), (q1,q2)
+end
+
+#############################
+# Obtain Reference Solution #
+#############################
+N = 81
+𝐪𝐫 = generate_2d_grid((N,N));
+𝐱𝐲₁ = Ω₁.(𝐪𝐫);
+𝐱𝐲₂ = Ω₂.(𝐪𝐫);
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
+massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
+# Begin time loop
+let
+  t = 0.0
+  X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
+  X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+  X₀ = vcat(X₀¹, X₀²)
+  global Xref = zero(X₀)
+  M = massma*stima
+  for i=1:ntime
+    Xref = RK4_1(M, X₀)
+    X₀ = Xref
+    t += Δt    
+    (i%100==0) && println("Done t = "*string(t))
+  end  
+end 
+
+u1ref₁,u2ref₁ = split_solution(Xref[1:10N^2])[1];
+u1ref₂,u2ref₂ = split_solution(Xref[10N^2+1:20N^2])[1];
+m, n = Int(sqrt(length(u1ref₁))), Int(sqrt(length(u2ref₁)));
+q,r = LinRange(0,1,m), LinRange(0,1,n);
+plt31 = contourf(q, r, reshape(u1ref₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
+plt32 = contourf(q, r, reshape(u1ref₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
+plt3 = plot(plt31,plt32,layout=(2,1), size=(800,800))
