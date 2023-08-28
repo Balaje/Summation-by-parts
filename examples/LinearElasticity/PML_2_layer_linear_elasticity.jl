@@ -359,7 +359,7 @@ end
 # Begin time stepping  #
 #### #### #### #### ####
 const Δt = 10^-4
-const tf = 0.3
+const tf = 0.4
 const ntime = ceil(Int, tf/Δt)
 """
 A quick implementation of the RK4 scheme
@@ -419,7 +419,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-N = 41
+N = 161
 𝐪𝐫 = generate_2d_grid((N,N));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -447,4 +447,12 @@ m, n = Int(sqrt(length(u1ref₁))), Int(sqrt(length(u2ref₁)));
 q,r = LinRange(0,1,m), LinRange(0,1,n);
 plt31 = contourf(q, r, reshape(u1ref₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
 plt32 = contourf(q, r, reshape(u1ref₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
+vline!(plt31, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
+vline!(plt32, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
 plt3 = plot(plt31,plt32,layout=(2,1), size=(800,800))
+
+plt61 = contourf(q, r, σₚ.(𝐱𝐲₁), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
+plt62 = contourf(q, r, σₚ.(𝐱𝐲₂), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
+vline!(plt61, [Lₓ], lw=2, lc=:red, label="x ≥ "*string(Lₓ)*" (PML)")
+vline!(plt62, [Lₓ], lw=2, lc=:red, label="x ≥ "*string(Lₓ)*" (PML)")
+plt6 = plot(plt61,plt62,layout=(2,1), size=(800,800))
