@@ -336,7 +336,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   
   BH, BT, BHᵀ = get_marker_matrix(m);
 
-  ζ₀ = 50*(m-1)
+  ζ₀ = 30*(m-1)
   𝚯 = 𝐃₁*(BH*𝐓𝐫)
   𝚯ᵀ = -𝐃₁*(𝐓𝐫ᵀ*BHᵀ) 
   Ju = -𝐃₂*(BT)
@@ -358,8 +358,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 10^-4
-const tf = 0.4
+const Δt = 5e-5
+const tf = 0.1
 const ntime = ceil(Int, tf/Δt)
 """
 A quick implementation of the RK4 scheme
@@ -394,13 +394,24 @@ Initial conditions (Layer 2)
 Function to compute the L²-Error using the reference solution
 """
 function compute_l2_error(sol, ref_sol, norm, mn)
-  m,n = mn
-  err = zero(sol)  
+  m,n = mn 
+  m = Int64(m);
+  n = Int64(n)
   ar = ceil(Int64, (n-1)/(m-1))    
-  for i=1:N
-    err[i] = sol[i] - ref_sol[i*ar-1]
+  sol_sq_1 = reshape(sol[1:m^2], (m,m))
+  sol_sq_2 = reshape(sol[m^2+1:2m^2], (m,m))
+  ref_sol_sq_1 = reshape(ref_sol[1:n^2], (n,n))
+  ref_sol_sq_2 = reshape(ref_sol[n^2+1:2n^2], (n,n))
+  err_1 = zero(sol_sq_1)  
+  err_2 = zero(sol_sq_2)  
+  for i=1:m, j=1:m
+    err_1[i,j] = sol_sq_1[i,j] - ref_sol_sq_1[(i-1)*ar+1, (j-1)*ar+1]
+    err_2[i,j] = sol_sq_2[i,j] - ref_sol_sq_2[(i-1)*ar+1, (j-1)*ar+1]
   end  
-  sqrt(err'*norm*err)  
+  err_1 = vec(err_1)
+  err_2 = vec(err_2)
+  err = vcat(err_1, err_2)  
+  sqrt(err'*norm*err)
 end
 
 """
@@ -419,8 +430,8 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-N = 161
-𝐪𝐫 = generate_2d_grid((N,N));
+𝐍 = 321
+𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
@@ -441,15 +452,80 @@ let
   end  
 end 
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:10N^2])[1];
-u1ref₂,u2ref₂ = split_solution(Xref[10N^2+1:20N^2])[1];
-m, n = Int(sqrt(length(u1ref₁))), Int(sqrt(length(u2ref₁)));
+############################
+# Grid Refinement Analysis # 
+############################
+𝒩 = [21,41,81,161]
+L²Error = zeros(Float64,length(𝒩))
+for (N,i) ∈ zip(𝒩,1:lastindex(𝒩))
+  let 
+    𝐪𝐫 = generate_2d_grid((N,N));
+    𝐱𝐲₁ = Ω₁.(𝐪𝐫);
+    𝐱𝐲₂ = Ω₂.(𝐪𝐫);
+    stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
+    massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
+    # Begin time loop
+    let
+      t = 0.0      
+      X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
+      X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+      X₀ = vcat(X₀¹, X₀²)
+      global X₁ = zero(X₀)
+      M = massma*stima
+      for i=1:ntime
+        X₁ = RK4_1(M, X₀)
+        X₀ = X₁
+        t += Δt    
+        # println("Done t = "*string(t))
+      end  
+    end  
+    # Compute the error with the reference solution
+    m, n = size(𝐪𝐫)
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    Hq = sbp_q.norm
+    Hr = sbp_r.norm
+    𝐇 = (I(2) ⊗ Hq ⊗ Hr)
+
+    # Split the solution to obtain the displacement vectors (u1, u2)
+    u1₁, u2₁ = split_solution(X₁[1:10m^2])[1] # Current refinement
+    u1₂, u2₂ = split_solution(X₁[10m^2+1:20m^2])[1] # Current refinement
+    u1ref₁,u2ref₁ = split_solution(Xref[1:10𝐍^2])[1];
+    u1ref₂,u2ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])[1];
+    sol₁ = vcat(u1₁, u2₁);   
+    sol_ref₁ = vcat(u1ref₁, u2ref₁)
+    sol₂ = vcat(u1₂, u2₂);   
+    sol_ref₂ = vcat(u1ref₂, u2ref₂)    
+    L²Error[i]  = sqrt(compute_l2_error(sol₁, sol_ref₁, 𝐇, (n,𝐍))^2 +
+                       compute_l2_error(sol₂, sol_ref₂, 𝐇, (n,𝐍))^2)   
+    println("Done N = "*string(N))
+  end
+end
+
+h = 1 ./(𝒩 .- 1);
+rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+@show L²Error
+@show rate
+
+u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
+u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
+m, n = Int(sqrt(length(u1₁))), Int(sqrt(length(u2₁)));
 q,r = LinRange(0,1,m), LinRange(0,1,n);
-plt31 = contourf(q, r, reshape(u1ref₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
-plt32 = contourf(q, r, reshape(u1ref₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
+plt31 = contourf(q, r, reshape(u1₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
+plt32 = contourf(q, r, reshape(u1₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
 vline!(plt31, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
 vline!(plt32, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
 plt3 = plot(plt31,plt32,layout=(2,1), size=(800,800))
+
+u1ref₁,u2ref₁ = split_solution(Xref[1:10𝐍^2])[1];
+u1ref₂,u2ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])[1];
+m, n = Int(sqrt(length(u1ref₁))), Int(sqrt(length(u2ref₁)));
+q,r = LinRange(0,1,m), LinRange(0,1,n);
+plt51 = contourf(q, r, reshape(u1ref₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
+plt52 = contourf(q, r, reshape(u1ref₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
+vline!(plt51, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
+vline!(plt52, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
+plt5 = plot(plt51,plt52,layout=(2,1), size=(800,800))
 
 plt61 = contourf(q, r, σₚ.(𝐱𝐲₁), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
 plt62 = contourf(q, r, σₚ.(𝐱𝐲₂), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")

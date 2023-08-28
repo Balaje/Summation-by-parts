@@ -246,8 +246,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 10^-4
-const tf = 0.2
+const Δt = 5*10^-5
+const tf = 0.1
 const ntime = ceil(Int, tf/Δt)
 """
 A quick implementation of the RK4 scheme
@@ -272,13 +272,24 @@ Initial conditions
 Function to compute the L²-Error using the reference solution
 """
 function compute_l2_error(sol, ref_sol, norm, mn)
-  m,n = mn
-  err = zero(sol)  
+  m,n = mn 
+  m = Int64(m)
+  n = Int64(n)
   ar = ceil(Int64, (n-1)/(m-1))    
-  for i=1:N
-    err[i] = sol[i] - ref_sol[i*ar-1]
+  sol_sq_1 = reshape(sol[1:m^2], (m,m))
+  sol_sq_2 = reshape(sol[m^2+1:2m^2], (m,m))
+  ref_sol_sq_1 = reshape(ref_sol[1:n^2], (n,n))
+  ref_sol_sq_2 = reshape(ref_sol[n^2+1:2n^2], (n,n))
+  err_1 = zero(sol_sq_1)  
+  err_2 = zero(sol_sq_2)  
+  for i=1:m, j=1:m
+    err_1[i,j] = sol_sq_1[i,j] - ref_sol_sq_1[(i-1)*ar+1, (j-1)*ar+1]
+    err_2[i,j] = sol_sq_2[i,j] - ref_sol_sq_2[(i-1)*ar+1, (j-1)*ar+1]
   end  
-  sqrt(err'*norm*err)  
+  err_1 = vec(err_1)
+  err_2 = vec(err_2)
+  err = vcat(err_1, err_2)  
+  sqrt(err'*norm*err)
 end
 
 """
