@@ -722,7 +722,7 @@ The computational domain we consider here is given by the parametrization:
   - Right: $c_2(r) = [1, r]$
   - Top: $c_3(q) = [q, 1 + f(q)]$ (interface)
 
-with the function $f(q) = 0.12 \left(e^{-40(q-0.5)^2}\right)$ for a Gaussian hill, and $f(q) = 0$ for a flat interface. We take the PML damping function of the form 
+with the function $f(q) = 0$ for a flat interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
 
 $$
 \begin{align}
@@ -744,16 +744,15 @@ $$
 
 The plots of the PML damping function are shown below
 
-Flat Interface | Gaussian Hill |
---- | --- |
-![](./Images/PML/2-layer/uniform/pml-damping.png) | ![](./Images/PML/2-layer/gaussian/pml-damping.png)
+Flat Interface |
+--- |
+![](./Images/PML/2-layer/uniform/pml-damping.png) |
 
 We solve the problem using the 4th order SBP-SAT method in space and the 4th order Runge Kutta scheme in the temporal direction. In both cases we take $\Delta t = 5\times 10^{-5}$ and solve till final time $T=0.2$ s. The discrete solution computing using $(321 \times 321)$ points in the spatial axis is treated as the exact solution. For the grid refinement analysis, we use $N \times N$ grids with $N=21,41,81,161$ points in space and compute the error. Following are the solution plots for the displacements
 
 Horizontal Displacement | Vertical Displacement |
 --- | --- |
 ![](./Images/PML/2-layer/uniform/horz-disp.png) | ![](./Images/PML/2-layer/uniform/vert-disp.png) |
-![](./Images/PML/2-layer/gaussian/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/vert-disp.png) |
 
 The error and convergence rates of the method are as follows
 
@@ -761,6 +760,7 @@ The error and convergence rates of the method are as follows
 #####################
 # Uniform Interface #
 #####################
+# Tf = 0.2
 julia> L²Error
 4-element Vector{Float64}:
  0.006681049017310784
@@ -772,21 +772,6 @@ julia> rate
  1.1195188271749204
  2.289828662161561
  3.1899308418814973
-
-######################
-# Gaussian Interface #
-######################
-julia> L²Error
-4-element Vector{Float64}:
-  0.007012015716318112
-  0.00308016466332667
-  0.000631048669338259
-  7.436827095898331e-5
-julia> rate
-3-element Vector{Float64}:
-  1.1868217512800554
-  2.287184296589922
-  3.0849921412884393
 ```
 
 The rates may eventually increase to 4 as we reduce the number of points in the spatial axis, or running it for a smaller final time:
@@ -809,9 +794,9 @@ julia> rate
  3.4056089380828776
 ```
 
-(Rate) Flat Interface | (Rate) Gaussian Hill |
---- | --- |
-![](./Images/PML/2-layer/uniform/rate-of-convergence.png) | ![](./Images/PML/2-layer/gaussian/rate-of-convergence.png)
+(Rate) Flat Interface |
+--- |
+![](./Images/PML/2-layer/uniform/rate-of-convergence.png)
 
 
 # References
