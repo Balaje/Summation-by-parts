@@ -12,7 +12,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.12*exp(-40*(q-0.5)^2)
+f(q) = 0.0*exp(-40*(q-0.5)^2)
 cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
@@ -359,7 +359,7 @@ end
 # Begin time stepping  #
 #### #### #### #### ####
 const Δt = 5e-5
-const tf = 0.2
+const tf = 0.1
 const ntime = ceil(Int, tf/Δt)
 
 """

@@ -789,7 +789,25 @@ julia> rate
   3.0849921412884393
 ```
 
-The rates may eventually increase to 4 as we reduce the number of points in the spatial axis, or running it for a smaller final time.
+The rates may eventually increase to 4 as we reduce the number of points in the spatial axis, or running it for a smaller final time:
+
+```julia
+#####################
+# Uniform Interface #
+#####################
+# Tf = 0.1
+julia> L²Error
+4-element Vector{Float64}:
+ 0.0009953122500664323
+ 0.000339863153857915
+ 6.588706607130658e-5
+ 6.2174131175056185e-6
+julia> rate
+3-element Vector{Float64}:
+ 1.5501952388887459
+ 2.36688677050507
+ 3.4056089380828776
+```
 
 (Rate) Flat Interface | (Rate) Gaussian Hill |
 --- | --- |
