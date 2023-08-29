@@ -794,10 +794,29 @@ julia> rate
  3.4056089380828776
 ```
 
-(Rate) Flat Interface |
---- |
-![](./Images/PML/2-layer/uniform/rate-of-convergence.png)
+Setting the PML damping function $\sigma_p(\mathbf{x}) = 0$, we see that the convergence rates improve:
 
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+ 0.0011193223390751164
+ 7.470656489483577e-5
+ 4.777941776532673e-6
+ 3.7243838857381865e-7
+julia> rate
+3-element Vector{Float64}:
+ 3.905246722411347
+ 3.966773847990031
+ 3.6813155839025518
+```
+
+Horizontal Displacement | Vertical Displacement |
+--- | --- |
+![](./Images/PML/2-layer/no-pml/horz-disp.png) | ![](./Images/PML/2-layer/no-pml/vert-disp.png) |
+
+Damping Function |
+--- |
+![](./Images/PML/2-layer/no-pml/damping-function.png) |
 
 # References
 
