@@ -246,7 +246,7 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 5*10^-5
+const Δt = 5e-5
 const tf = 0.1
 const ntime = ceil(Int, tf/Δt)
 """
@@ -298,10 +298,10 @@ Function to split the solution into the corresponding variables
 function split_solution(X)
   N = Int(sqrt(length(X)/10))
   u1,u2 = X[1:N^2], X[N^2+1:2N^2];
-  r1,r2 = [2N^2+1:3N^2], X[3N^2+1:4N^2];
-  v1,v2 = [4N^2+1:5N^2], X[5N^2+1:6N^2];
-  w1,w2 = [6N^2+1:7N^2], X[7N^2+1:8N^2];
-  q1,q2 = [8N^2+1:9N^2], X[9N^2+1:10N^2];
+  r1,r2 = X[2N^2+1:3N^2], X[3N^2+1:4N^2];
+  v1,v2 = X[4N^2+1:5N^2], X[5N^2+1:6N^2];
+  w1,w2 = X[6N^2+1:7N^2], X[7N^2+1:8N^2];
+  q1,q2 = X[8N^2+1:9N^2], X[9N^2+1:10N^2];
   (u1,u2), (r1,r2), (v1, v2), (w1,w2), (q1,q2)
 end
 
@@ -377,16 +377,16 @@ rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
 # The results:
 #= julia> L²Error
 4-element Vector{Float64}:
- 0.09172090125133316
- 0.03702255715052676
- 0.0022691719444432996
- 0.00012618541835588743
+ 0.004723955236564345
+ 0.002174302183436065
+ 0.0004446449423672759
+ 4.872447046438603e-5
 
 julia> rate
 3-element Vector{Float64}:
- 1.3088459852434446
- 4.028166708522643
- 4.168548820913155 =#
+ 1.1194428347161927
+ 2.2898267784804034
+ 3.1899353642173014 =#
 
 ###############################################
 # Plot the solution and the convergence rates #

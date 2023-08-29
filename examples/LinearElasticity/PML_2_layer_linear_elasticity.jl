@@ -12,7 +12,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.0*exp(-40*(q-0.5)^2)
+f(q) = 0.12*exp(-40*(q-0.5)^2)
 cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
@@ -359,8 +359,9 @@ end
 # Begin time stepping  #
 #### #### #### #### ####
 const Δt = 5e-5
-const tf = 0.1
+const tf = 0.2
 const ntime = ceil(Int, tf/Δt)
+
 """
 A quick implementation of the RK4 scheme
 """
@@ -395,7 +396,7 @@ Function to compute the L²-Error using the reference solution
 """
 function compute_l2_error(sol, ref_sol, norm, mn)
   m,n = mn 
-  m = Int64(m);
+  m = Int64(m)
   n = Int64(n)
   ar = ceil(Int64, (n-1)/(m-1))    
   sol_sq_1 = reshape(sol[1:m^2], (m,m))
@@ -420,10 +421,10 @@ Function to split the solution into the corresponding variables
 function split_solution(X)
   N = Int(sqrt(length(X)/10))
   u1,u2 = X[1:N^2], X[N^2+1:2N^2];
-  r1,r2 = [2N^2+1:3N^2], X[3N^2+1:4N^2];
-  v1,v2 = [4N^2+1:5N^2], X[5N^2+1:6N^2];
-  w1,w2 = [6N^2+1:7N^2], X[7N^2+1:8N^2];
-  q1,q2 = [8N^2+1:9N^2], X[9N^2+1:10N^2];
+  r1,r2 = X[2N^2+1:3N^2], X[3N^2+1:4N^2];
+  v1,v2 = X[4N^2+1:5N^2], X[5N^2+1:6N^2];
+  w1,w2 = X[6N^2+1:7N^2], X[7N^2+1:8N^2];
+  q1,q2 = X[8N^2+1:9N^2], X[9N^2+1:10N^2];
   (u1,u2), (r1,r2), (v1, v2), (w1,w2), (q1,q2)
 end
 
@@ -455,7 +456,7 @@ end
 ############################
 # Grid Refinement Analysis # 
 ############################
-𝒩 = [21,41,81,161]
+𝒩 = [21,41,81,161];
 L²Error = zeros(Float64,length(𝒩))
 for (N,i) ∈ zip(𝒩,1:lastindex(𝒩))
   let 
@@ -488,47 +489,50 @@ for (N,i) ∈ zip(𝒩,1:lastindex(𝒩))
     𝐇 = (I(2) ⊗ Hq ⊗ Hr)
 
     # Split the solution to obtain the displacement vectors (u1, u2)
-    u1₁, u2₁ = split_solution(X₁[1:10m^2])[1] # Current refinement
-    u1₂, u2₂ = split_solution(X₁[10m^2+1:20m^2])[1] # Current refinement
-    u1ref₁,u2ref₁ = split_solution(Xref[1:10𝐍^2])[1];
-    u1ref₂,u2ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])[1];
+    X_split₁ = split_solution(X₁[1:10m^2])    
+    X_split₂ = split_solution(X₁[10m^2+1:20m^2])
+    X_split_ref₁ = split_solution(Xref[1:10𝐍^2])
+    X_split_ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])    
+    u1₁, u2₁ = X_split₁[1] # Current refinement
+    u1₂, u2₂ = X_split₂[1] # Current refinement
+    u1ref₁,u2ref₁ = X_split_ref₁[1];
+    u1ref₂,u2ref₂ = X_split_ref₂[1];
     sol₁ = vcat(u1₁, u2₁);   
     sol_ref₁ = vcat(u1ref₁, u2ref₁)
     sol₂ = vcat(u1₂, u2₂);   
     sol_ref₂ = vcat(u1ref₂, u2ref₂)    
     L²Error[i]  = sqrt(compute_l2_error(sol₁, sol_ref₁, 𝐇, (n,𝐍))^2 +
-                       compute_l2_error(sol₂, sol_ref₂, 𝐇, (n,𝐍))^2)   
+                       compute_l2_error(sol₂, sol_ref₂, 𝐇, (n,𝐍))^2)       
     println("Done N = "*string(N))
   end
 end
 
 h = 1 ./(𝒩 .- 1);
-rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1]);
 @show L²Error
 @show rate
 
 u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
 u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
-m, n = Int(sqrt(length(u1₁))), Int(sqrt(length(u2₁)));
-q,r = LinRange(0,1,m), LinRange(0,1,n);
-plt31 = contourf(q, r, reshape(u1₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
-plt32 = contourf(q, r, reshape(u1₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
-vline!(plt31, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-vline!(plt32, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-plt3 = plot(plt31,plt32,layout=(2,1), size=(800,800))
+𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
+xy₁ = vec(Ω₁.(𝐪𝐫));
+xy₂ = vec(Ω₂.(𝐪𝐫));
+plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
+title!(plt1, "Horizontal Displacement")
+plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
+scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
+title!(plt2, "Vertical Displacement")
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:10𝐍^2])[1];
-u1ref₂,u2ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])[1];
-m, n = Int(sqrt(length(u1ref₁))), Int(sqrt(length(u2ref₁)));
-q,r = LinRange(0,1,m), LinRange(0,1,n);
-plt51 = contourf(q, r, reshape(u1ref₁, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 1)");
-plt52 = contourf(q, r, reshape(u1ref₂, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor) (Layer 2)");
-vline!(plt51, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-vline!(plt52, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-plt5 = plot(plt51,plt52,layout=(2,1), size=(800,800))
+plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
+title!(plt3, "PML Function")
 
-plt61 = contourf(q, r, σₚ.(𝐱𝐲₁), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
-plt62 = contourf(q, r, σₚ.(𝐱𝐲₂), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
-vline!(plt61, [Lₓ], lw=2, lc=:red, label="x ≥ "*string(Lₓ)*" (PML)")
-vline!(plt62, [Lₓ], lw=2, lc=:red, label="x ≥ "*string(Lₓ)*" (PML)")
-plt6 = plot(plt61,plt62,layout=(2,1), size=(800,800))
+plt4 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
+plot!(plt4, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
