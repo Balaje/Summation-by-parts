@@ -831,6 +831,13 @@ julia> rate
  3.644804864710969
 ```
 
+Plotting the difference between the reference solution and the test solution, we see that the error is maximum near the PML:
+
+Error | PML Damping function
+--- | --- |
+![](./Images/PML/2-layer/gaussian/error.png) | ![](./Images/PML/2-layer/gaussian/pml-damping.png) |
+
+
 # References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
