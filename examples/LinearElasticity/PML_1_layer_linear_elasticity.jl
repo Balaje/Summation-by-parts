@@ -8,10 +8,10 @@ include("2d_elasticity_problem.jl");
 using SplitApplyCombine
 
 # Define the domain
-c₀(r) = @SVector [0.0, r]
-c₁(q) = @SVector [q, 0.0]
-c₂(r) = @SVector [1.0, r]
-c₃(q) = @SVector [q, 1.0]
+c₀(r) = @SVector [0.0, 2r]
+c₁(q) = @SVector [2q, 0.0]
+c₂(r) = @SVector [2.0, 2r]
+c₃(q) = @SVector [2q, 2.0]
 domain = domain_2d(c₀, c₁, c₂, c₃)
 Ω(qr) = S(qr, domain)
 
@@ -37,7 +37,7 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const Lₓ = 0.8
+const Lₓ = 1.6
 const δ = 0.1*Lₓ
 const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
@@ -53,7 +53,7 @@ end
 """
 The material property tensor in the physical coordinates
 𝒫(x) = [A(x) C(x); 
-C(x)' B(x)]
+        C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
 """
 𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
@@ -61,7 +61,7 @@ where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal 
 """
 The material property tensor with the PML is given as follows:
 𝒫ᴾᴹᴸ(x) = [-σₚ(x)*A(x)      0; 
-0         σₚ(x)*B(x)]
+              0         σₚ(x)*B(x)]
 where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and the damping parameter in the physical domain
 """
 𝒫ᴾᴹᴸ(x) = @SMatrix [-σₚ(x)*c₁₁(x) 0 0 0; 0 -σₚ(x)*c₃₃(x) 0 0; 0 0 σₚ(x)*c₃₃(x) 0; 0 0 0 σₚ(x)*c₂₂(x)];
@@ -92,20 +92,20 @@ end
 Function to get the property tensors on the grid
 Input a Matrix or Vector of Tensors (in turn a matrix) evaluated on the grid points.
 Pqr::Matrix{SMatrix{m,n,Float64}}
-= [P(x₁₁) P(x₁₂) ... P(x₁ₙ)
-P(x₂₁) P(x₂₂) ... P(x₂ₙ)
-...
-P(xₙ₁) P(xₙ₂) ... P(xₙₙ)]
+              = [P(x₁₁) P(x₁₂) ... P(x₁ₙ)
+                 P(x₂₁) P(x₂₂) ... P(x₂ₙ)
+                               ...
+                 P(xₙ₁) P(xₙ₂) ... P(xₙₙ)]
 where P(x) = [P₁₁(x) P₁₂(x)
-P₂₁(x) P₂₂(x)]
+              P₂₁(x) P₂₂(x)]
 Returns a matrix of matrix with the following form
 result = [ [P₁₁(x₁₁) ... P₁₁(x₁ₙ)        [P₁₂(x₁₁) ... P₁₂(x₁ₙ)
-...                          ...
-P₁₁(xₙ₁) ... P₁₁(xₙₙ)],         P₁₂(xₙ₁) ... P₁₂(x₁ₙ)];              
-[P₂₁(x₁₁) ... P₂₁(x₁ₙ)        [P₂₂(x₁₁) ... P₂₂(x₁ₙ)
-...                          ...
-P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
-]
+                     ...                          ...
+            P₁₁(xₙ₁) ... P₁₁(xₙₙ)],         P₁₂(xₙ₁) ... P₁₂(x₁ₙ)];              
+           [P₂₁(x₁₁) ... P₂₁(x₁ₙ)        [P₂₂(x₁₁) ... P₂₂(x₁ₙ)
+                     ...                          ...
+            P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
+         ]
 """
 function get_property_matrix_on_grid(Pqr)
   m,n = size(Pqr[1])
@@ -202,6 +202,9 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   σ = I(2) ⊗ spdiagm(vec(σₚ.(xy)))  
   ρσ = I(2) ⊗ spdiagm(vec(ρ.(xy).*σₚ.(xy)))
   ρσα = α*ρσ
+
+  # Determinant of the Jacobian Matrix
+  detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
   
   # Get the derivative operator transformed to the reference grid
   Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
@@ -211,7 +214,7 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫, Ω)
   
   # Assemble the bulk stiffness matrix
   Σ = [   Z      Id       Z       Z       Z;
-  (𝐏+ρσα)  -ρσ     (𝐏ᴾᴹᴸ)        -ρσα;
+  (spdiagm(detJ1.^-1)*𝐏+ρσα)  -ρσ     (spdiagm(detJ1.^-1)*𝐏ᴾᴹᴸ)        -ρσα;
   JD₁    Z    -(α*Id+σ)   Z       Z;
   JD₂    Z       Z      -α*Id    Z;
   α*Id   Z       Z       Z     -α*Id ]
@@ -246,8 +249,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 5e-5
-const tf = 0.1
+const Δt = 1e-4
+const tf = 0.4
 const ntime = ceil(Int, tf/Δt)
 """
 A quick implementation of the RK4 scheme
@@ -262,7 +265,7 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2)), -exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐔(x) = @SVector [exp(-10*((x[1]-1.0)^2 + (x[2]-1.0)^2)), -exp(-10*((x[1]-1.0)^2 + (x[2]-1.0)^2))]
 𝐑(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -374,61 +377,53 @@ rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
 @show L²Error
 @show rate
 
-# The results:
-#= julia> L²Error
-4-element Vector{Float64}:
- 0.004723955236564345
- 0.002174302183436065
- 0.0004446449423672759
- 4.872447046438603e-5
-
-julia> rate
-3-element Vector{Float64}:
- 1.1194428347161927
- 2.2898267784804034
- 3.1899353642173014 =#
-
 ###############################################
 # Plot the solution and the convergence rates #
 ###############################################
 u1,u2 = split_solution(X₁)[1];
-m, n = Int(sqrt(length(u1))), Int(sqrt(length(u2)));
-q,r = LinRange(0,1,m), LinRange(0,1,n);
-plt1 = contourf(q, r, reshape(u1, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="App. Sol (Hor)");
-vline!(plt1, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-plt2 = contourf(q, r, reshape(u2, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="App. Sol (Ver)");
-vline!(plt2, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
+𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
+xy = vec(Ω.(𝐪𝐫));
+plt1 = scatter(Tuple.(xy), zcolor=vec(u1), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+title!(plt1, "Horizontal Displacement (App. Sol.)")
+plt2 = scatter(Tuple.(xy), zcolor=vec(u2), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
+title!(plt2, "Vertical Displacement (App. Sol.)")
 #
 u1ref,u2ref = split_solution(Xref)[1];
-m, n = Int(sqrt(length(u1ref))), Int(sqrt(length(u2ref)));
-q,r = LinRange(0,1,m), LinRange(0,1,n);
-plt3 = contourf(q, r, reshape(u1ref, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Hor)");
-vline!(plt3, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-plt4 = contourf(q, r, reshape(u2ref, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Ref. Sol (Ver)");
-vline!(plt4, [Lₓ], lw=2, lc=:black, label="x ≥ "*string(Lₓ)*" (PML)")
-plt34 = plot(plt3, plt4, layout=(1,2), size=(800,800));
+𝐪𝐫 = generate_2d_grid((N,N));
+xy = vec(Ω.(𝐪𝐫));
+plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+title!(plt3, "Horizontal Displacement (Ref. Sol.)")
+plt4 = scatter(Tuple.(xy), zcolor=vec(u2ref), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+scatter!(plt4, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
+title!(plt4, "Vertical Displacement (Ref. Sol.)")
 #
 plt5 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
 plot!(plt5, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
 #
-plt6 = contourf(q, r, σₚ.(𝐱𝐲), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function")
-vline!(plt6, [Lₓ], lw=2, lc=:red, label="x ≥ "*string(Lₓ)*" (PML)")
+plt6 = scatter(Tuple.(xy), zcolor=σₚ.(xy), colormap=:redsblues, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=2, msw=0.1)
+scatter!(plt6, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), mc=:white, label="x ≥ "*string(Lₓ)*" (PML)")
 #
-X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
+𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
+xy = vec(Ω.(𝐪𝐫));
+X₀ = vcat(eltocols(vec(𝐔.(xy))), eltocols(vec(𝐑.(xy))), eltocols(vec(𝐕.(xy))), eltocols(vec(𝐖.(xy))), eltocols(vec(𝐐.(xy))));
 u0,v0 = split_solution(X₀)[1];
-m, n = Int(sqrt(length(u0))), Int(sqrt(length(u0)));
-plt7 = contourf(q, r, reshape(u0, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Init. Cond. (Hor)");
-vline!(plt7, [Lₓ], lw=2, lc=:white, label="x ≥ "*string(Lₓ)*" (PML)")
-plt8 = contourf(q, r, reshape(v0, (m,n)), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="Init. Cond. (Ver)");
-vline!(plt8, [Lₓ], lw=2, lc=:white, label="x ≥ "*string(Lₓ)*" (PML)")
+plt7 = scatter(Tuple.(xy), zcolor=vec(u0), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+scatter!(plt7, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+title!(plt7, "Horizontal Displacement (Init. Cond.)")
+plt8 = scatter(Tuple.(xy), zcolor=vec(v0), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+scatter!(plt8, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
+title!(plt8, "Vertical Displacement (Init. Cond.)")
 
 plt13 = plot(plt1, plt3, layout=(2,1), size=(800,800));
 plt24 = plot(plt2, plt4, layout=(2,1), size=(800,800));
 plt78 = plot(plt7, plt8, layout=(2,1), size=(800,800)); 
 
-savefig(plt13, "./Images/PML/1-layer/horizontal-disp.png")
+#=savefig(plt13, "./Images/PML/1-layer/horizontal-disp.png")
 savefig(plt24, "./Images/PML/1-layer/vertical-disp.png")
 savefig(plt7, "./Images/PML/1-layer/init-cond-1.png")
 savefig(plt8, "./Images/PML/1-layer/init-cond-2.png")
 savefig(plt5, "./Images/PML/1-layer/rate.png")
-savefig(plt6, "./Images/PML/1-layer/damping-function.png")
+savefig(plt6, "./Images/PML/1-layer/damping-function.png")=#

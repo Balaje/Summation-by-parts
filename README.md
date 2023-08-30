@@ -608,7 +608,7 @@ The convergence rates of this problem seems to be optimal - indicating that the 
 
 ### Single layer 
 
-Let us assume the computational domain $\Omega = [0,1]^2$. We add a perfectly matched layer in the region $\Omega_p = [L_x, 1.0] \times [0,1]$ with the damping function given by the following function:
+Let us assume the computational domain $\Omega = [0,2]^2$. We add a perfectly matched layer in the region $\Omega_p = [L_x, 2] \times [0,2]$ with the damping function given by the following function:
 
 $$
 \begin{align}
@@ -619,11 +619,11 @@ $$
 \end{align}
 $$
 
-The details of the PDE system will be posted later. The code to solve the problem is found in `examples/LinearElasticity/PML_1_layer_linear_elasticity .jl`. We consider the following initial condition for the displacement field:
+We take $L_x = 1.6$. The details of the PDE system will be posted later. The code to solve the problem is found in `examples/LinearElasticity/PML_1_layer_linear_elasticity .jl`. We consider the following initial condition for the displacement field:
 
 $$
 \begin{align}
-  \mathbf{u}_0(x,y) = [e^{-40((x-0.5)^2 + (y-0.5)^2)}, -e^{-40((x-0.5)^2 + (y-0.5)^2)}]
+  \mathbf{u}_0(x,y) = [e^{-10((x-1)^2 + (y-1)^2)}, -e^{-10((x-1)^2 + (y-1)^2)}]
 \end{align}
 $$
 
@@ -631,30 +631,30 @@ Initial Conditions | |
 --- | --- |
 ![](./Images/PML/1-layer/init-cond-1.png) |![](./Images/PML/1-layer/init-cond-2.png) |
 
-To solve the PDE, we use fourth-order Runge-Kutta scheme in time and the 4th order SBP-SAT method in space. We perform the grid refinement analysis to study the convergence of the scheme. Since the exact solution is unknown, we compute the solution on a mesh with $N=321$ discretization points and use that as the reference solution. We use $N=21,41,81,161$ points in space for the grid refinement analysis. We set the time discretization parameter $\Delta t = 10^{-4}$ and solve till final time $T=0.2$. The plot of the PML damping function considered in this example is shown below. We obtain the following error and convergence rates (only the displacement vector is considered when computing the error).
+To solve the PDE, we use fourth-order Runge-Kutta scheme in time and the 4th order SBP-SAT method in space. We perform the grid refinement analysis to study the convergence of the scheme. Since the exact solution is unknown, we compute the solution on a mesh with $N=321$ discretization points and use that as the reference solution. We use $N=21,41,81,161$ points in space for the grid refinement analysis. We set the time discretization parameter $\Delta t = 10^{-4}$ and solve till final time $T=0.4$. The plot of the PML damping function considered in this example is shown below. We obtain the following error and convergence rates (only the displacement vector is considered when computing the error).
 
 ```julia
 #######################
-# Final time Tf = 0.2 #
+# Final time Tf = 0.4 #
 #######################
 julia> L²Error
 4-element Vector{Float64}:
- 0.004723955236564345
- 0.002174302183436065
- 0.0004446449423672759
- 4.872447046438603e-5
+ 0.004724627594901014
+ 0.0021742814910358297
+ 0.00044464551896707626
+ 4.8726693818656066e-5
 julia> rate
 3-element Vector{Float64}:
- 1.1194428347161927
- 2.2898267784804034
- 3.1899353642173014
+ 1.119661888120624
+ 2.289811177739521
+ 3.1898714047007766
 ```
 
 Convergence Rates | PML Damping Function |
 --- | --- |
 ![](./Images/PML/1-layer/rate.png) | ![](./Images/PML/1-layer/damping-function.png)
 
-| Horizontal Displacements| Vertical Displacements |
+| Horizontal Displacements (T=0.4)| Vertical Displacements (T=0.4)|
 --- | --- |
 | ![](./Images/PML/1-layer/horizontal-disp.png) | ![](./Images/PML/1-layer/vertical-disp.png) |
 
@@ -666,19 +666,22 @@ Convergence Rates | PML Damping Function |
 #######################
 julia> L²Error
 4-element Vector{Float64}:
- 0.000703989927098145
- 0.00024032024728754518
- 4.658858168522433e-5
- 4.394987022138958e-6
+ 0.0002861949154791032
+ 4.7937405779561474e-5
+ 6.175542541600229e-6
+ 4.961184505664009e-7
 julia> rate
 3-element Vector{Float64}:
- 1.5505965840042568
- 2.3669098867998986
- 3.406045600189327
+ 2.5777742993328343
+ 2.956514044163965
+ 3.6378093708002477
 ```
 
+| Horizontal Displacements (T=0.1) | Vertical Displacements (T=0.1)|
+--- | --- |
+| ![](./Images/PML/1-layer/Tf0.1/horizontal-disp.png) | ![](./Images/PML/1-layer/Tf0.1/vertical-disp.png) |
 
-Looking at the solution profiles (top: approximate solution, bottom: reference solution) at $T=0.2$, we see that the waves coming into the PML are absorbed.
+Looking at the solution profiles (top: approximate solution, bottom: reference solution) at $T=0.4$, we see that the waves coming into the PML are absorbed.
 
 ### Two Layers
 
@@ -712,17 +715,17 @@ The PML model actually consists of a system of ten partial differential equation
 The computational domain we consider here is given by the parametrization:
 
 - Layer 1: 
-  - Left: $c_0(r) = [0, r+1]$
-  - Bottom: $c_1(q) = [q, 1 + f(q)]$ (interface)
-  - Right: $c_2(r) = [1, r+1]$
-  - Top: $c_3(q) = [q, 2]$
+  - Left: $c_0(r) = [0, 2r+2]$
+  - Bottom: $c_1(q) = [2q, 2 + 2f(q)]$ (interface)
+  - Right: $c_2(r) = [2, 2r+2]$
+  - Top: $c_3(q) = [2q, 4]$
 - Layer 2:
-  - Left: $c_0(r) = [0, r]$
-  - Bottom: $c_1(q) = [q, 0]$
-  - Right: $c_2(r) = [1, r]$
-  - Top: $c_3(q) = [q, 1 + f(q)]$ (interface)
+  - Left: $c_0(r) = [0, 2r]$
+  - Bottom: $c_1(q) = [2q, 0]$
+  - Right: $c_2(r) = [2, 2r]$
+  - Top: $c_3(q) = [2q, 2 + 2f(q)]$ (interface)
 
-with the function $f(q) = 0$ for a flat interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
+with the function $f(q) = 0$ for a flat interface and $f(q) = 0.12e^{-40(q-0.5)^2}$ for a Gaussian interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
 
 $$
 \begin{align}
@@ -737,86 +740,96 @@ with $L_x = 0.8$. We consider the following initial condition for the displaceme
 
 $$
 \begin{align}
-  \mathbf{u}_0^1(x,y) = [e^{-40((x-0.5)^2 + (y-0.5)^2)}, -e^{-40((x-1.5)^2 + (y-1.5)^2)}] \quad \text{Layer 1}\\
-  \mathbf{u}_0^2(x,y) = [e^{-40((x-0.5)^2 + (y-0.5)^2)}, -e^{-40((x-0.5)^2 + (y-0.5)^2)}] \quad \text{Layer 2}\\
+  \mathbf{u}_0^1(x,y) = [e^{-40((x-1)^2 + (y-3)^2)}, -e^{-40((x-1)^2 + (y-3)^2)}] \quad \text{Layer 1}\\
+  \mathbf{u}_0^2(x,y) = [e^{-40((x-1)^2 + (y-1)^2)}, -e^{-40((x-1)^2 + (y-1)^2)}] \quad \text{Layer 2}\\
 \end{align}
 $$
 
 The plots of the PML damping function are shown below
 
-Flat Interface |
---- |
-![](./Images/PML/2-layer/uniform/pml-damping.png) |
-
-We solve the problem using the 4th order SBP-SAT method in space and the 4th order Runge Kutta scheme in the temporal direction. In both cases we take $\Delta t = 5\times 10^{-5}$ and solve till final time $T=0.2$ s. The discrete solution computing using $(321 \times 321)$ points in the spatial axis is treated as the exact solution. For the grid refinement analysis, we use $N \times N$ grids with $N=21,41,81,161$ points in space and compute the error. Following are the solution plots for the displacements
-
-Horizontal Displacement | Vertical Displacement |
+Flat Interface | Gaussian Interface |
 --- | --- |
-![](./Images/PML/2-layer/uniform/horz-disp.png) | ![](./Images/PML/2-layer/uniform/vert-disp.png) |
+![](./Images/PML/2-layer/uniform/pml-damping.png) | ![](./Images/PML/2-layer/gaussian/Tf0.1/pml-damping.png) |
 
-The error and convergence rates of the method are as follows
+We solve the problem using the 4th order SBP-SAT method in space and the 4th order Runge Kutta scheme in the temporal direction. In both cases we take $\Delta t = 1\times 10^{-4}$ and solve till final time $T=0.1, 0.4$. The discrete solution computing using $(321 \times 321)$ points in the spatial axis is treated as the exact solution. For the grid refinement analysis, we use $N \times N$ grids with $N=21,41,81,161$ points in space and compute the error.
 
-```julia
-#####################
-# Uniform Interface #
-#####################
-# Tf = 0.2
-julia> L²Error
-4-element Vector{Float64}:
- 0.006681049017310784
- 0.0030749347917503993
- 0.0006288235501474897
- 6.890709332296337e-5
-julia> rate
-3-element Vector{Float64}:
- 1.1195188271749204
- 2.289828662161561
- 3.1899308418814973
-```
 
-The rates may eventually increase to 4 as we reduce the number of points in the spatial axis, or running it for a smaller final time:
+#### Gaussian Interface
 
-```julia
-#####################
-# Uniform Interface #
-#####################
-# Tf = 0.1
-julia> L²Error
-4-element Vector{Float64}:
- 0.0009953122500664323
- 0.000339863153857915
- 6.588706607130658e-5
- 6.2174131175056185e-6
-julia> rate
-3-element Vector{Float64}:
- 1.5501952388887459
- 2.36688677050507
- 3.4056089380828776
-```
+Following are the solution plots for the displacements
 
-Setting the PML damping function $\sigma_p(\mathbf{x}) = 0$, we see that the convergence rates improve:
-
-```julia
-julia> L²Error
-4-element Vector{Float64}:
- 0.0011193223390751164
- 7.470656489483577e-5
- 4.777941776532673e-6
- 3.7243838857381865e-7
-julia> rate
-3-element Vector{Float64}:
- 3.905246722411347
- 3.966773847990031
- 3.6813155839025518
-```
-
-Horizontal Displacement | Vertical Displacement |
+| Horizontal Displacements (T=0.1) | Vertical Displacements (T=0.1)|
 --- | --- |
-![](./Images/PML/2-layer/no-pml/horz-disp.png) | ![](./Images/PML/2-layer/no-pml/vert-disp.png) |
+| ![](./Images/PML/2-layer/gaussian/Tf0.1/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/Tf0.1/vert-disp.png) |
 
-Damping Function |
---- |
-![](./Images/PML/2-layer/no-pml/damping-function.png) |
+Following are the convergence rates and the error
+
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+ 0.0049211600017672295
+ 0.0004934010819621833
+ 3.5103704259689214e-5
+ 2.1270915133724984e-6
+julia> rate
+3-element Vector{Float64}:
+ 3.3181656392112195
+ 3.8130656976206225
+ 4.04466926805857
+```
+
+which seem to be optimal. We run the same simulation till final time $T=0.4$:
+
+| Horizontal Displacements (T=0.4) | Vertical Displacements (T=0.4)|
+--- | --- |
+| ![](./Images/PML/2-layer/gaussian/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/vert-disp.png) |
+
+The error and the convergence rates still seem to be optimal
+
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+ 0.01627819229530209
+ 0.0017985110457154313
+ 0.00015189755355752736
+ 1.1119544023742606e-5
+julia> rate
+3-element Vector{Float64}:
+ 3.178065571147892
+ 3.565632480661451
+ 3.771929100000528
+```
+
+which again seems optimal. Removing PML by setting $\sigma_p(\mathbf{x}) = 0$, we can see that the wave is undamped close to the right hand side boundary.
+A comparison with and without PML is shown in the figure below:
+
+| Without PML | With PML|
+--- | --- |
+| ![](./Images/PML/2-layer/no-pml/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/horz-disp.png) |
+
+#### Flat Interface
+
+Following are the solution plots for the displacements
+
+| Horizontal Displacements (T=0.4) | Vertical Displacements (T=0.4)|
+--- | --- |
+| ![](./Images/PML/2-layer/uniform/horz-disp.png) | ![](./Images/PML/2-layer/uniform/vert-disp.png) |
+
+and the convergence rates, which seem optimal as well:
+
+```julia
+julia> L²Error
+4-element Vector{Float64}:
+ 0.013033503224447334
+ 0.001189430801677138
+ 0.00011183015078714318
+ 8.94053109243881e-6
+julia> rate
+3-element Vector{Float64}:
+ 3.4538816657286917
+ 3.410890227450973
+ 3.644804864710969
+```
 
 # References
 

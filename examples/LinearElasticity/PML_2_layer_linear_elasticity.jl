@@ -12,17 +12,17 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.0*exp(-40*(q-0.5)^2)
-cᵢ(q) = [q, 1.0 + f(q)];
+f(q) = 0.12*exp(-40*(q-0.5)^2)
+cᵢ(q) = 2*[q, 1.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
+c₀¹(r) = 2*[0.0 + 0*f(r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = 2*[1.0 + 0*f(r), r+1]; # Right boundary
+c₃¹(q) = 2*[q, 2.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
+c₀²(r) = 2*[0.0 + 0*f(r), r]; # Left boundary
+c₁²(q) = 2*[q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = 2*[1.0 + 0*f(r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -54,7 +54,7 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const Lₓ = 0.8
+const Lₓ = 1.6
 const δ = 0.1*Lₓ
 const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
@@ -251,6 +251,12 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
   Dq, Dr = sbp_2d.D1
+
+  # Jacobian and Surface Jacobian
+  detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
+  detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
+  sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(1,m)
+  sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(m,m)    
   
   # Bulk stiffness matrix components on Layer 1
   𝐏₁ = Pᴱ(Dᴱ(JP₁))  
@@ -281,12 +287,12 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   
   # Assemble the bulk stiffness matrix
   Σ₁ = [   Z      Id       Z       Z       Z;
-      (𝐏₁+ρσα₁)  -ρσ₁     (𝐏ᴾᴹᴸ₁)        -ρσα₁;
+      (spdiagm(detJ1₁.^-1)*𝐏₁+ρσα₁)  -ρσ₁     (spdiagm(detJ1₁.^-1)*𝐏ᴾᴹᴸ₁)        -ρσα₁;
       JD₁¹    Z    -(α*Id+σ₁)   Z       Z;
       JD₂¹    Z       Z      -α*Id    Z;
       α*Id    Z       Z       Z     -α*Id ]
   Σ₂ = [   Z      Id       Z       Z       Z;
-      (𝐏₂+ρσα₂)  -ρσ₂     (𝐏ᴾᴹᴸ₂)        -ρσα₂;
+      (spdiagm(detJ1₂.^-1)*𝐏₂+ρσα₂)  -ρσ₂     (spdiagm(detJ1₂.^-1)*𝐏ᴾᴹᴸ₂)        -ρσα₂;
       JD₁²    Z    -(α*Id+σ₂)   Z       Z;
       JD₂²    Z       Z      -α*Id    Z;
       α*Id   Z       Z       Z     -α*Id ]
@@ -325,13 +331,13 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   P_vec_diag₂ = [spdiagm(vec(p)) for p in P_vec₂]
   B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
-  𝐓𝐫₁ = [𝐓r₁   Z     Z    B₁     Z]  
-  𝐓𝐫₂ = [𝐓r₂   Z     Z    B₂     Z]    
+  𝐓𝐫₁ = [sJ₁*𝐓r₁   Z     Z    sJ₁*B₁     Z]  
+  𝐓𝐫₂ = [sJ₂*𝐓r₂   Z     Z    sJ₂*B₂     Z]    
   𝐃₁ = 𝐃₂ = blockdiag((I(5)⊗I(2)⊗𝐇r₀), (I(5)⊗I(2)⊗𝐇rₙ))
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
-  𝐓𝐫₁ᵀ = [𝐓r₁'   Z     Z    B₁'   Z]  
-  𝐓𝐫₂ᵀ = [𝐓r₂'   Z     Z    B₂'   Z]  
+  𝐓𝐫₁ᵀ = [(sJ₁*𝐓r₁)'   Z     Z    (sJ₁*B₁)'   Z]  
+  𝐓𝐫₂ᵀ = [(sJ₂*𝐓r₂)'   Z     Z    (sJ₂*B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
   BH, BT, BHᵀ = get_marker_matrix(m);
@@ -358,8 +364,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 5e-5
-const tf = 0.2
+const Δt = 1e-4
+const tf = 0.4
 const ntime = ceil(Int, tf/Δt)
 
 """
@@ -376,7 +382,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-40*((x[1]-0.5)^2 + (x[2]-1.5)^2)), -exp(-40*((x[1]-0.5)^2 + (x[2]-1.5)^2))]
+𝐔₁(x) = @SVector [exp(-40*((x[1]-1.0)^2 + (x[2]-3.0)^2)), -exp(-40*((x[1]-1.0)^2 + (x[2]-3.0)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -385,7 +391,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2)), -exp(-40*((x[1]-0.5)^2 + (x[2]-0.5)^2))]
+𝐔₂(x) = @SVector [exp(-40*((x[1]-1.0)^2 + (x[2]-1.0)^2)), -exp(-40*((x[1]-1.0)^2 + (x[2]-1.0)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -519,18 +525,18 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
-scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
-scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt2, "Vertical Displacement")
 
 plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
 scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
 title!(plt3, "PML Function")
 
