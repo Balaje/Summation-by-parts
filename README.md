@@ -689,7 +689,7 @@ Now, we consider the elastic wave equation on two domains coupled at the interfa
 
 $$
 \begin{align*}
-  \sigma_1^{PML}(\mathbf{u}_1, \mathbf{v}_1) \cdot \mathbf{n} &= \sigma_2^{PML}(\mathbf{u}_2, \mathbf{v}_2) \cdot \mathbf{n},\\
+  \sigma_1^{PML}(\mathbf{u}_1, \mathbf{v}_1, \mathbf{w}_1) \cdot \mathbf{n} &= \sigma_2^{PML}(\mathbf{u}_2, \mathbf{v}_2, \mathbf{w}_2) \cdot \mathbf{n},\\
   \mathbf{u}_1 &= \mathbf{u}_2
 \end{align*}
 $$
@@ -697,17 +697,20 @@ $$
 where 
 
 $$
-  \sigma_i^{PML}(\mathbf{u}, \mathbf{v}) = 
+  \sigma_i^{PML}(\mathbf{u}_i, \mathbf{v}_i, \mathbf{w}_i) = 
     \begin{bmatrix}
       A_i(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial x} + C_i(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial y} - \sigma_p(\mathbf{x})A_i(\mathbf{x})\mathbf{v}_i&
-      C_i^T(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial x} + B_i(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial y} + \sigma_p(\mathbf{x})B_i(\mathbf{x})\mathbf{v}_i
+      C_i^T(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial x} + B_i(\mathbf{x})\frac{\partial \mathbf{u}_i}{\partial y} + \sigma_p(\mathbf{x})B_i(\mathbf{x})\mathbf{w}_i
     \end{bmatrix}
 $$
 
 with $i=1,2$ and $\sigma_p(\mathbf{x})$ is the PML damping function. Here the auxiliary variable $\mathbf{v}_i$ is related to the displacement by the relation
 
 $$
-  \frac{\partial \mathbf{v}_i}{\partial t} = -(\sigma_p + \alpha)\mathbf{v}_i + \frac{\partial \mathbf{u}_i}{\partial x}
+\begin{align*}
+  \frac{\partial \mathbf{v}_i}{\partial t} &= -(\sigma_p + \alpha)\mathbf{v}_i + \frac{\partial \mathbf{u}_i}{\partial x}\\
+  \frac{\partial \mathbf{w}_i}{\partial t} &= -\alpha\mathbf{w}_i + \frac{\partial \mathbf{u}_i}{\partial y}
+\end{align*}
 $$
 
 The PML model actually consists of a system of ten partial differential equations per layer. More details will be added here soon.

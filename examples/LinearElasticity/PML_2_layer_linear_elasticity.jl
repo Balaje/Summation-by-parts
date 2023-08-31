@@ -12,7 +12,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.12*exp(-40*(q-0.5)^2)
+f(q) = 0.0*exp(-40*(q-0.5)^2)
 cᵢ(q) = 2*[q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = 2*[0.0 + 0*f(r), r+1]; # Left boundary
@@ -56,7 +56,7 @@ The PML damping
 """
 const Lₓ = 1.6
 const δ = 0.1*Lₓ
-const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -364,8 +364,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 1e-4
-const tf = 0.4
+const Δt = 5e-4
+const tf = 20.0
 const ntime = ceil(Int, tf/Δt)
 
 """
@@ -437,7 +437,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 321
+𝐍 = 81
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -449,16 +449,33 @@ let
   X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
   X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
   X₀ = vcat(X₀¹, X₀²)
+  #X₀ = Xref
   global Xref = zero(X₀)
   M = massma*stima
-  for i=1:ntime
+  @gif for i=1:ntime
     Xref = RK4_1(M, X₀)
     X₀ = Xref
     t += Δt    
     (i%100==0) && println("Done t = "*string(t))
-  end  
+
+    𝒩 = [𝐍]
+    X₁ = Xref
+    u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
+    u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
+    𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
+    xy₁ = vec(Ω₁.(𝐪𝐫));
+    xy₂ = vec(Ω₂.(𝐪𝐫));
+    # plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="", clims=(-0.25,0.25));
+    # scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="", clims=(-0.25,0.25));
+    plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
+    title!(plt1, "Time t="*string(t))
+  end  every 100
 end 
 
+#=
 ############################
 # Grid Refinement Analysis # 
 ############################
@@ -517,28 +534,31 @@ h = 1 ./(𝒩 .- 1);
 rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1]);
 @show L²Error
 @show rate
+ =#
 
+𝒩 = [𝐍]
+X₁ = Xref
 u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
 u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
 𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
-plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
-scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt1, "Horizontal Displacement")
-plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
-scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
+plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");
+scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt2, "Vertical Displacement")
 
-plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
-scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
 title!(plt3, "PML Function")
 
-plt4 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
-plot!(plt4, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
+# plt4 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
+# plot!(plt4, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");

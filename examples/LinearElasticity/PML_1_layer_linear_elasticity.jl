@@ -249,8 +249,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 1e-4
-const tf = 0.4
+const Δt = 5e-4
+const tf = 40.0
 const ntime = ceil(Int, tf/Δt)
 """
 A quick implementation of the RK4 scheme
@@ -312,7 +312,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-N = 321
+N = 81
 𝐪𝐫 = generate_2d_grid((N,N));
 𝐱𝐲 = Ω.(𝐪𝐫);
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫, Ω);
@@ -323,14 +323,22 @@ let
   X₀ = vcat(eltocols(vec(𝐔.(𝐱𝐲))), eltocols(vec(𝐑.(𝐱𝐲))), eltocols(vec(𝐕.(𝐱𝐲))), eltocols(vec(𝐖.(𝐱𝐲))), eltocols(vec(𝐐.(𝐱𝐲))));
   global Xref = zero(X₀)
   M = massma*stima
-  for i=1:ntime
+  @gif for i=1:ntime
     Xref = RK4_1(M, X₀)
     X₀ = Xref
     t += Δt    
     (i%100==0) && println("Done t = "*string(t))
-  end  
+
+    u1ref,u2ref = split_solution(Xref)[1];
+    𝐪𝐫 = generate_2d_grid((N,N));
+    xy = vec(Ω.(𝐪𝐫));
+    plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);  
+    title!(plt3, "Time t="*string(t))    
+  end  every 100
 end  
 
+#= 
 ############################
 # Grid Refinement Analysis # 
 ############################
@@ -388,7 +396,7 @@ scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])
 title!(plt1, "Horizontal Displacement (App. Sol.)")
 plt2 = scatter(Tuple.(xy), zcolor=vec(u2), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.1, label="");
 scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
-title!(plt2, "Vertical Displacement (App. Sol.)")
+title!(plt2, "Vertical Displacement (App. Sol.)") =#
 #
 u1ref,u2ref = split_solution(Xref)[1];
 𝐪𝐫 = generate_2d_grid((N,N));
@@ -400,8 +408,8 @@ plt4 = scatter(Tuple.(xy), zcolor=vec(u2ref), colormap=:redsblues, ylabel="y(=r)
 scatter!(plt4, Tuple.([[Lₓ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₓ)*" (PML)", markercolor=:white, markersize=2, msw=0.1)
 title!(plt4, "Vertical Displacement (Ref. Sol.)")
 #
-plt5 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
-plot!(plt5, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
+# plt5 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
+# plot!(plt5, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
 #
 plt6 = scatter(Tuple.(xy), zcolor=σₚ.(xy), colormap=:redsblues, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=2, msw=0.1)
 scatter!(plt6, Tuple.([[Lₓ,q] for q in LinRange(0,2,𝒩[end])]), mc=:white, label="x ≥ "*string(Lₓ)*" (PML)")
