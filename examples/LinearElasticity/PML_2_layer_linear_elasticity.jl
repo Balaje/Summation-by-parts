@@ -15,14 +15,14 @@ Define the geometry of the two layers.
 f(q) = 0.0*exp(-40*(q-0.5)^2)
 cᵢ(q) = 4.4π*[q, 1.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = 4.4π*[0.0 + 0*f(r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0*f(r), 4.0π*r+4.0π]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = 4.4π*[1.0 + 0*f(r), r+1]; # Right boundary
-c₃¹(q) = 4.4π*[q, 2.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = [4.4π + 0*f(r), 4.0π*r+4.0π]; # Right boundary
+c₃¹(q) = [4.4π*q, 8.8π + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = 4.4π*[0.0 + 0*f(r), r]; # Left boundary
-c₁²(q) = 4.4π*[q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = 4.4π*[1.0 + 0*f(r), r]; # Right boundary
+c₀²(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
+c₁²(q) = [4.4π*q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -54,8 +54,8 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const δ = 0.1*4π
-const Lₓ = 4π
+const δ = 0.2*4π
+const Lₓ = 3.8π
 const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
@@ -364,8 +364,8 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 5e-3
-const tf = 0.0
+const Δt = 1e-3
+const tf = 30.0
 const ntime = ceil(Int, tf/Δt)
 
 """
@@ -437,7 +437,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 61
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -473,10 +473,10 @@ let
     scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    plt1₂ = contourf(LinRange(0,2,𝐍), LinRange(2,4,𝐍), σₚ.(vec(Ω₁.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
-    contourf!(plt1₂, LinRange(0,2,𝐍), LinRange(0,2,𝐍), σₚ.(vec(Ω₂.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
+    plt1₂ = contourf(LinRange(0,4.4π,𝐍), LinRange(4.0π,8.0π,𝐍), σₚ.(vec(Ω₁.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
+    contourf!(plt1₂, LinRange(0,4.4π,𝐍), LinRange(0,4.0π,𝐍), σₚ.(vec(Ω₂.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
     plt1 = plot(plt1₁, plt1₂, layout=(1,2))
-  end  every 10
+  end  every 100
 end 
 
 #=
