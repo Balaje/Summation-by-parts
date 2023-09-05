@@ -12,7 +12,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.0*exp(-40*(q-0.5)^2)
+f(q) = 0.0*exp(-4π*(q-0.5)^2)
 cᵢ(q) = 4.4π*[q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), 4.0π*r+4.0π]; # Left boundary
@@ -54,8 +54,8 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const δ = 0.2*4π
-const Lₓ = 3.8π
+const δ = 0.1*4π
+const Lₓ = 4π
 const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
@@ -365,7 +365,7 @@ end
 # Begin time stepping  #
 #### #### #### #### ####
 const Δt = 1e-3
-const tf = 30.0
+const tf = Δt
 const ntime = ceil(Int, tf/Δt)
 
 """
@@ -437,7 +437,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 61
+𝐍 = 21
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
