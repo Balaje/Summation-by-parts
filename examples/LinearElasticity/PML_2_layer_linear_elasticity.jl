@@ -12,8 +12,9 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.0*exp(-4π*(q-0.5)^2)
-cᵢ(q) = 4.4π*[q, 1.0 + f(q)];
+#f(q) = 0.05*exp(-5*4π*(q-0.75)^2)
+f(q) = 0.05*sin(8π*q)
+cᵢ(q) = [4.4π*q, 4.0π + 8.0π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), 4.0π*r+4.0π]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
@@ -56,7 +57,7 @@ The PML damping
 """
 const δ = 0.1*4π
 const Lₓ = 4π
-const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -342,7 +343,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   
   BH, BT, BHᵀ = get_marker_matrix(m);
 
-  ζ₀ = 30*(m-1)
+  ζ₀ = 10*(m-1)/Lₓ
   𝚯 = 𝐃₁*(BH*𝐓𝐫)
   𝚯ᵀ = -𝐃₁*(𝐓𝐫ᵀ*BHᵀ) 
   Ju = -𝐃₂*(BT)
@@ -364,10 +365,6 @@ end
 #### #### #### #### #### 
 # Begin time stepping  #
 #### #### #### #### ####
-const Δt = 1e-3
-const tf = Δt
-const ntime = ceil(Int, tf/Δt)
-
 """
 A quick implementation of the RK4 scheme
 """
@@ -437,13 +434,20 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 101
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 const h = Lₓ/(𝐍-1)
+
+cmax = sqrt(2^2+1^2)
+τ₀ = 20
+const Δt = 0.2/(cmax*τ₀)*h
+const tf = 10.0
+const ntime = ceil(Int, tf/Δt)
+
 # Begin time loop
 let
   t = 0.0
@@ -457,7 +461,7 @@ let
     Xref = RK4_1(M, X₀)
     X₀ = Xref
     t += Δt    
-    (i%100==0) && println("Done t = "*string(t))
+    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(abs.(Xref))))
 
     𝒩 = [𝐍]
     X₁ = Xref
@@ -549,8 +553,8 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=4, msw=0.1, size=(800,800))
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");

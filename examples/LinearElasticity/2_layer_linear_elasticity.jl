@@ -5,17 +5,18 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.12*exp(-40*(q-0.5)^2)
-cᵢ(q) = [q, 1.0 + f(q)];
+# f(q) = 0.12*exp(-40*(q-0.5)^2)
+f(q) = 0.0*sin(2π*q)
+cᵢ(q) = 2*[q, 1.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
+c₀¹(r) = 2*[0.0 + 0*f(r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = 2*[1.0 + 0*f(r), r+1]; # Right boundary
+c₃¹(q) = 2*[q, 2.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
+c₀²(r) = 2*[0.0 + 0*f(r), r]; # Left boundary
+c₁²(q) = 2*[q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = 2*[1.0 + 0*f(r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -109,10 +110,8 @@ function 𝐊2(𝐪𝐫)
 
     # Traction on the interface
     q = LinRange(0,1,m)
-    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ SBP.SBP_2d.E1(1,m)
-    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ SBP.SBP_2d.E1(m,m)
-
-    Id₃ = spdiagm(ones(2*m*n))
+    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ I(m)
+    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ I(m)
     
     𝐃 = blockdiag((I(2)⊗𝐇r₀), (I(2)⊗𝐇rₙ))
     BHᵀ, BT = get_marker_matrix(m)
@@ -120,9 +119,9 @@ function 𝐊2(𝐪𝐫)
     JJ = blockdiag(sJ₁, sJ₂)
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
 
-    𝚯 = 𝐃*(BHᵀ*JJ*𝐓r);
-    𝚯ᵀ = -𝐃*(𝐓r'*JJ*BHᵀ);
-    Ju = -𝐃*(JJ*BT);
+    𝚯 = 𝐃*(BHᵀ*𝐓r);
+    𝚯ᵀ = 𝐃*(𝐓r'*BHᵀ);
+    Ju = -𝐃*(BT);
 
     ζ₀ = 30*(m-1)
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
@@ -179,17 +178,17 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41,51,61]
-h = 1 ./(N .- 1)
+N = [21]
+h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
-tf = 0.5
 Δt = 1e-3
+tf = Δt
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
     let
         𝐪𝐫 = generate_2d_grid((m,m))
-        stima2 = 𝐊2(𝐪𝐫)
+        global stima2 = 𝐊2(𝐪𝐫)
         𝐱𝐲₁ = Ω₁.(𝐪𝐫)
         𝐱𝐲₂ = Ω₂.(𝐪𝐫)        
         massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₂)))))
@@ -234,10 +233,10 @@ for (m,i) in zip(N, 1:length(N))
     end
 end
 
-rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+#= rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
 @show L²Error
 @show rate
-
+ =#
 function get_sol_vector_from_raw_vector(sol, m, n)
     (reshape(sol[1:m^2], (m,m)), reshape(sol[m^2+1:m^2+n^2], (n,n)),
      reshape(sol[m^2+n^2+1:m^2+n^2+m^2], (m,m)), reshape(sol[m^2+n^2+m^2+1:m^2+n^2+m^2+n^2], (n,n)))
@@ -266,20 +265,20 @@ scatter!(plt4, Tuple.(𝐱𝐲₂), zcolor=vec(Ve₂), label="", markersize=4, m
 plt13 = plot(plt1, plt2, layout=(1,2), size=(800,400));
 plt24 = plot(plt3, plt4, layout=(1,2), size=(800,400));
 
-plt9 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
-scatter!(plt9, h, L²Error, markersize=4, label="");
-plot!(plt9, h, h.^4, label="O(h⁴)", lw=2);
+plt9 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
+scatter!(plt9, h1, L²Error, markersize=4, label="");
+plot!(plt9, h1, h1.^4, label="O(h⁴)", lw=2);
 plt10_1 = scatter(Tuple.(𝐱𝐲₁), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
-plt10_2 = scatter(Tuple.(𝐱𝐲₂), size=(800,800), markersize=4, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
+plt10_2 = scatter!(plt10_1,Tuple.(𝐱𝐲₂), size=(800,800), markersize=2, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
 plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
 plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
 plt10 = plot(plt10_12, plt10_3, layout=(1,2));
 
-# Run these from the Project folder
+#= # Run these from the Project folder
 savefig(plt13, "./Images/2-layer/horizontal-disp.png")
 savefig(plt24, "./Images/2-layer/vertical-disp.png")
 savefig(plt9, "./Images/2-layer/rate.png")
-savefig(plt10, "./Images/2-layer/domain.png")
+savefig(plt10, "./Images/2-layer/domain.png") =#
 
 plt11 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="Approx. solution (v(x,y))", markersize=4, msw=0.1);
 scatter!(plt11, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4, msw=0.1);
