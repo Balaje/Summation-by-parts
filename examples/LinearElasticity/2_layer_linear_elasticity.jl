@@ -5,18 +5,18 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-# f(q) = 0.12*exp(-40*(q-0.5)^2)
-f(q) = 0.0*sin(2π*q)
-cᵢ(q) = 2*[q, 1.0 + f(q)];
+f(q) = 0.12*exp(-40*(q-0.5)^2)
+# f(q) = 0.1*sin(2π*q)
+cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = 2*[0.0 + 0*f(r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = 2*[1.0 + 0*f(r), r+1]; # Right boundary
-c₃¹(q) = 2*[q, 2.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
+c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = 2*[0.0 + 0*f(r), r]; # Left boundary
-c₁²(q) = 2*[q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = 2*[1.0 + 0*f(r), r]; # Right boundary
+c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
+c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -110,45 +110,47 @@ function 𝐊2(𝐪𝐫)
 
     # Traction on the interface
     q = LinRange(0,1,m)
-    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ I(m)
-    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ I(m)
+    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ E1(1,1,m)
+    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ E1(m,m,m)
     
-    𝐃 = blockdiag((I(2)⊗𝐇r₀), (I(2)⊗𝐇rₙ))
+    Hq = (sbp_q.norm)\I(m) |> sparse
+    Hr = (sbp_r.norm)\I(n) |> sparse
+    𝐃⁻¹ = blockdiag((I(2)⊗Hr⊗ I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), (I(2)⊗Hr⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m))) # # The inverse is contained in the 2d stencil struct
+    𝐃 = sparse((𝐃⁻¹ |> findnz)[1], (𝐃⁻¹ |> findnz)[2], (𝐃⁻¹ |> findnz)[3].^-1) # The actual norm matrix on the interface    
+    𝐃₁⁻¹ = blockdiag(spdiagm(detJ1₁.^-1)*(I(2)⊗Hq⊗Hr), spdiagm(detJ1₂.^-1)*(I(2)⊗Hq⊗Hr))
     BHᵀ, BT = get_marker_matrix(m)
 
     JJ = blockdiag(sJ₁, sJ₂)
-    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
+    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)    
 
-    𝚯 = 𝐃*(BHᵀ*𝐓r);
-    𝚯ᵀ = 𝐃*(𝐓r'*BHᵀ);
-    Ju = -𝐃*(BT);
+    𝚯 = 𝐃₁⁻¹*𝐃*BHᵀ*JJ*𝐓r;
+    𝚯ᵀ = -𝐃₁⁻¹*𝐓r'*JJ'*𝐃*BHᵀ;
+    Ju = -𝐃₁⁻¹*𝐃*(BT);
 
-    ζ₀ = 30*(m-1)
+    h = cᵢ(1)[1]/(m-1)
+    ζ₀ = 200/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
+end
+
+function E1(i,j,m)
+  X = spzeros(Float64,m,m)
+  X[i,j] = 1.0
+  X
 end
 
 """
 Function to get the marker matrix for implementing the jump conditions on the interface
 """
 function get_marker_matrix(m)
-    X = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(1,m);
-    Y = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(m,m);
-    Xind = findnz(X);
-    Yind = findnz(Y);
-    
-    mk2 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 4*m^2, 4*m^2) +
-           sparse(Xind[1], Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2) -
-           sparse(Yind[1] .+ (2*m^2), Xind[1], ones(length(Yind[1])), 4*m^2, 4*m^2) +
-           sparse(Yind[1] .+ (2*m^2), Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2)
-    
-    mk3 = -sparse(Xind[1], Xind[1], ones(length(Xind[1])), 4*m^2, 4*m^2) +
-           sparse(Xind[1], Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2) +
-           sparse(Yind[1] .+ (2*m^2), Xind[1], ones(length(Yind[1])), 4*m^2, 4*m^2) -
-           sparse(Yind[1] .+ (2*m^2), Yind[1] .+ (2*m^2), ones(length(Xind[1])), 4*m^2, 4*m^2)
-    
-    mk2, mk3
+  X₁ = I(2)⊗ I(m)⊗ E1(1,1,m)
+  X₂ = I(2)⊗ I(m)⊗ E1(m,m,m)  
+  Y₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
+  Y₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
+  mk1 = [-X₁  Y₁; -Y₂  X₂]
+  mk2 = [-X₁  Y₁; Y₂  -X₂]
+  mk1, mk2
 end
 
 """
@@ -178,11 +180,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [21,31,41,51]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = Δt
+tf = 1.0
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
@@ -218,6 +220,7 @@ for (m,i) in zip(N, 1:length(N))
                 rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
                 fargs = Δt, u₀, v₀, rhs
                 u₁,v₁ = CN(luM⁺, M⁻, massma2, fargs) # Function in "time-stepping.jl"
+                (i%100==0) && println("Done t = "*string(t))
                 t = t+Δt
                 u₀ = u₁
                 v₀ = v₁
