@@ -5,8 +5,8 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.12*exp(-40*(q-0.5)^2)
-# f(q) = 0.1*sin(2π*q)
+# f(q) = 0.0*exp(-40*(q-0.5)^2)
+f(q) = 0.0*sin(2π*q)
 cᵢ(q) = [q, 1.0 + f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
@@ -117,18 +117,18 @@ function 𝐊2(𝐪𝐫)
     Hr = (sbp_r.norm)\I(n) |> sparse
     𝐃⁻¹ = blockdiag((I(2)⊗Hr⊗ I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), (I(2)⊗Hr⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m))) # # The inverse is contained in the 2d stencil struct
     𝐃 = sparse((𝐃⁻¹ |> findnz)[1], (𝐃⁻¹ |> findnz)[2], (𝐃⁻¹ |> findnz)[3].^-1) # The actual norm matrix on the interface    
-    𝐃₁⁻¹ = blockdiag(spdiagm(detJ1₁.^-1)*(I(2)⊗Hq⊗Hr), spdiagm(detJ1₂.^-1)*(I(2)⊗Hq⊗Hr))
+    𝐃₁⁻¹ = blockdiag(spdiagm(detJ1₁.^-0.5)*(I(2)⊗Hq⊗Hr), spdiagm(detJ1₂.^-0.5)*(I(2)⊗Hq⊗Hr))
     BHᵀ, BT = get_marker_matrix(m)
 
     JJ = blockdiag(sJ₁, sJ₂)
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)    
 
     𝚯 = 𝐃₁⁻¹*𝐃*BHᵀ*JJ*𝐓r;
-    𝚯ᵀ = -𝐃₁⁻¹*𝐓r'*JJ'*𝐃*BHᵀ;
-    Ju = -𝐃₁⁻¹*𝐃*(BT);
+    𝚯ᵀ = -𝐃₁⁻¹*𝐓r'*JJ*𝐃*BHᵀ;
+    Ju = -𝐃₁⁻¹*JJ*𝐃*(BT);
 
     h = cᵢ(1)[1]/(m-1)
-    ζ₀ = 200/h
+    ζ₀ = 40/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
@@ -180,11 +180,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41,51]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 1.0
+tf = 50
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
