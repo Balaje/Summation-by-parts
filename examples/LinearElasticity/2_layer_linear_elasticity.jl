@@ -110,14 +110,18 @@ function 𝐊2(𝐪𝐫)
 
     # Traction on the interface
     q = LinRange(0,1,m)
-    sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q]) ⊗ E1(1,1,m)
-    sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q]) ⊗ E1(m,m,m)
+    sJ₁⁻¹ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q])
+    sJ₂⁻¹ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q])
+    sJ₁ = sJ₁⁻¹\I(m)
+    sJ₂ = sJ₂⁻¹\I(m)
     
-    Hq = (sbp_q.norm)\I(m) |> sparse
-    Hr = (sbp_r.norm)\I(n) |> sparse
-    𝐃⁻¹ = blockdiag((I(2)⊗Hr⊗ I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), (I(2)⊗Hr⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m))) # # The inverse is contained in the 2d stencil struct
+    Hq⁻¹ = (sbp_q.norm)\I(m) |> sparse
+    Hr⁻¹ = (sbp_r.norm)\I(n) |> sparse
+    Hq = sbp_q.norm
+    Hr = sbp_r.norm
+    𝐃⁻¹ = blockdiag((I(2)⊗(sJ₁⁻¹*Hr⁻¹)⊗ I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), (I(2)⊗(sJ₂⁻¹*Hr⁻¹)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m))) # # The inverse is contained in the 2d stencil struct
     𝐃 = sparse((𝐃⁻¹ |> findnz)[1], (𝐃⁻¹ |> findnz)[2], (𝐃⁻¹ |> findnz)[3].^-1) # The actual norm matrix on the interface    
-    𝐃₁⁻¹ = blockdiag(spdiagm(detJ1₁.^-0.5)*(I(2)⊗Hq⊗Hr), spdiagm(detJ1₂.^-0.5)*(I(2)⊗Hq⊗Hr))
+    𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⊗Hr), (I(2)⊗Hq⊗Hr))
     BHᵀ, BT = get_marker_matrix(m)
 
     JJ = blockdiag(sJ₁, sJ₂)
@@ -180,11 +184,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [21,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 50
+tf = 1.0
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))

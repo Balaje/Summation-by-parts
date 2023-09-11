@@ -13,17 +13,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 #f(q) = 0.05*exp(-5*4π*(q-0.75)^2)
-f(q) = 0.05*sin(8π*q)
-cᵢ(q) = [4.4π*q, 4.0π + 8.0π*f(q)];
+f(q) = 0.0*sin(8π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 8.0π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), 4.0π*r+4.0π]; # Left boundary
+c₀¹(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π + 0*f(r), 4.0π*r+4.0π]; # Right boundary
-c₃¹(q) = [4.4π*q, 8.8π + 0*f(q)]; # Top boundary
+c₂¹(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 0.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
-c₁²(q) = [4.4π*q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
+c₀²(r) = [0.0 + 0*f(r), -4.0π*r]; # Left boundary
+c₁²(q) = [4.4π*q, -4.0π + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [4.4π + 0*f(r), -4.0π*r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -192,39 +192,56 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   Tq₀, Tqₙ, Tr₀, Trₙ
 end
 
+function E1(i,j,m)
+  X = spzeros(Float64,m,m)
+  X[i,j] = 1.0
+  X
+end
+
 """
 Redefine the marker matrix for the PML
 """
 function get_marker_matrix(m)
-  X = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(1,m);
-  Y = I(2) ⊗ I(m) ⊗ SBP.SBP_2d.E1(m,m);
-  Xind = findnz(X);
-  Yind = findnz(Y);
+  X₁ = I(2)⊗ I(m)⊗ E1(1,1,m)
+  X₂ = I(2)⊗ I(m)⊗ E1(m,m,m)  
+  Y₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
+  Y₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
+  Z = zero(X₁)
   
-  # Order = [u1, r1, v1, w1, q1], [u2, r2, v2, w2, q2]] Starting indices: ([0, 2m^2, 4m^2, 6m^2, 8m^2]; [10m^2, 12m^2, 14m^2, 16m^2, 18m^2])    
-  mk2_u = -sparse(Xind[1] .+ (2m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Xind[1] .+ (2m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-           sparse(Yind[1] .+ (12m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
-           sparse(Yind[1] .+ (12m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
-  mk2 = mk2_u
+  mk1 = [Z   Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        -X₁  Z   Z   Z    Z    Y₁  Z   Z   Z   Z; 
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;        
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        -Y₂  Z   Z   Z    Z    X₂  Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
 
-  mk3_u = -sparse(Xind[1] .+ (2m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Xind[1] .+ (2m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Yind[1] .+ (12m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) -
-           sparse(Yind[1] .+ (12m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)
-  mk3 = mk3_u
+  mk2 = [Z   Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        -X₁  Z   Z   Z    Z    Y₁  Z   Z   Z   Z; 
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;                
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Y₂   Z   Z   Z    Z   -X₂  Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
+        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
 
-  mk4_u = -sparse(Xind[1] .+ (0m^2), Xind[1] .+ (0m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Xind[1] .+ (0m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-           sparse(Yind[1] .+ (10m^2), Xind[1] .+ (0m^2), ones(length(Yind[1])), 20m^2, 20m^2) +
-           sparse(Yind[1] .+ (10m^2), Yind[1] .+ (10m^2), ones(length(Xind[1])), 20m^2, 20m^2)         
-  mk4_w = -sparse(Xind[1] .+ (6m^2), Xind[1] .+ (6m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Xind[1] .+ (6m^2), Yind[1] .+ (16m^2), ones(length(Xind[1])), 20m^2, 20m^2) -
-           sparse(Yind[1] .+ (16m^2), Xind[1] .+ (6m^2), ones(length(Xind[1])), 20m^2, 20m^2) +
-           sparse(Yind[1] .+ (16m^2), Yind[1] .+ (16m^2), ones(length(Xind[1])), 20m^2, 20m^2)
-  mk4 = mk4_u + mk4_w
-  
-  mk2, mk3, mk4
+  mk3 = [-X₁   Z   Z   Z    Z   -Y₁   Z   Z   Z   Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
+          Z    Z   Z  -X₁   Z    Z    Z   Z  -Y₁  Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
+          Y₂   Z   Z   Z    Z    X₂   Z   Z   Z   Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
+          Z    Z   Z   Y₂   Z    Z    Z   Z   X₂  Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z];
+
+  mk1, mk2, mk3
 end
 
 function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
@@ -256,8 +273,8 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Jacobian and Surface Jacobian
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
-  sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(1,m)
-  sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(m,m)    
+  sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^0) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(1,m)
+  sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^0) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(m,m)    
   
   # Bulk stiffness matrix components on Layer 1
   𝐏₁ = Pᴱ(Dᴱ(JP₁))  
@@ -332,18 +349,18 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   P_vec_diag₂ = [spdiagm(vec(p)) for p in P_vec₂]
   B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
-  𝐓𝐫₁ = [(sJ₁*𝐓r₁)   Z     Z    (sJ₁*B₁)     Z]  
-  𝐓𝐫₂ = [(sJ₂*𝐓r₂)   Z     Z    (sJ₂*B₂)     Z]    
+  𝐓𝐫₁ = [(𝐓r₁)   Z     Z    (B₁)     Z]  
+  𝐓𝐫₂ = [(𝐓r₂)   Z     Z    (B₂)     Z]    
   𝐃₁ = 𝐃₂ = blockdiag((I(5)⊗I(2)⊗𝐇r₀), (I(5)⊗I(2)⊗𝐇rₙ))
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
-  𝐓𝐫₁ᵀ = [(sJ₁*𝐓r₁)'   Z     Z    (sJ₁*B₁)'   Z]  
-  𝐓𝐫₂ᵀ = [(sJ₂*𝐓r₂)'   Z     Z    (sJ₂*B₂)'   Z]  
+  𝐓𝐫₁ᵀ = [(𝐓r₁)'   Z     Z    (B₁)'   Z]  
+  𝐓𝐫₂ᵀ = [(𝐓r₂)'   Z     Z    (B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
   BH, BT, BHᵀ = get_marker_matrix(m);
 
-  ζ₀ = 10*(m-1)/Lₓ
+  ζ₀ = 0.0
   𝚯 = 𝐃₁*(BH*𝐓𝐫)
   𝚯ᵀ = -𝐃₁*(𝐓𝐫ᵀ*BHᵀ) 
   Ju = -𝐃₂*(BT)
@@ -434,7 +451,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 101
+𝐍 = 21
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -445,7 +462,7 @@ const h = Lₓ/(𝐍-1)
 cmax = sqrt(2^2+1^2)
 τ₀ = 20
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 10.0
+const tf = Δt
 const ntime = ceil(Int, tf/Δt)
 
 # Begin time loop
@@ -553,18 +570,18 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
 scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=4, msw=0.1, size=(800,800))
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.1, label="");
-scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt2, "Vertical Displacement")
 
 plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
 title!(plt3, "PML Function")
 
