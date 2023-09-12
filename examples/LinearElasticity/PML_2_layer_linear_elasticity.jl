@@ -351,7 +351,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
   𝐓𝐫₁ = [(𝐓r₁)   Z     Z    (B₁)     Z]  
   𝐓𝐫₂ = [(𝐓r₂)   Z     Z    (B₂)     Z]    
-  𝐃₁ = 𝐃₂ = blockdiag((I(5)⊗I(2)⊗𝐇r₀), (I(5)⊗I(2)⊗𝐇rₙ))
+  
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
   𝐓𝐫₁ᵀ = [(𝐓r₁)'   Z     Z    (B₁)'   Z]  
@@ -359,16 +359,24 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
   BH, BT, BHᵀ = get_marker_matrix(m);
+  Hq⁻¹ = (sbp_q.norm\I(m)) |> sparse
+  Hr⁻¹ = (sbp_r.norm\I(m)) |> sparse
+  # Hq = sbp_q.norm
+  Hr = sbp_q.norm
+  𝐃₁⁻¹ = blockdiag((I(10)⊗Hq⁻¹⊗Hr⁻¹), (I(10)⊗Hq⁻¹⊗Hr⁻¹))
+  𝐃 = blockdiag((I(10)⊗(Hr)⊗ I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
+  𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
+                 (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
   ζ₀ = 0.0
-  𝚯 = 𝐃₁*(BH*𝐓𝐫)
-  𝚯ᵀ = -𝐃₁*(𝐓𝐫ᵀ*BHᵀ) 
-  Ju = -𝐃₂*(BT)
-  𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
+  𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
+  𝚯ᵀ = -𝐃₁⁻¹*(𝐓𝐫ᵀ*𝐃₂*BHᵀ) 
+  Ju = -𝐃₁⁻¹*𝐃*(BT)
+  𝐓ᵢ = 0.5*𝚯 + 0.0*𝚯ᵀ + ζ₀*Ju
 
   𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
     
-  Σ - 𝐓ₙ - 𝐓ᵢ
+  0*Σ - 0*𝐓ₙ - 𝐓ᵢ
 end 
 
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
