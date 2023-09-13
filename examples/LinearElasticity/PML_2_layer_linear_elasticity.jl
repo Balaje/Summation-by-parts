@@ -12,8 +12,8 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-#f(q) = 0.05*exp(-5*4π*(q-0.75)^2)
-f(q) = 0.0*sin(8π*q)
+# f(q) = 0.12*exp(-5*4π*(q-0.5)^2)
+f(q) = 0.1*sin(π*q)
 cᵢ(q) = [4.4π*q, 0.0π + 8.0π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
@@ -21,9 +21,9 @@ c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
 c₂¹(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
 c₃¹(q) = [4.4π*q, 0.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), -4.0π*r]; # Left boundary
+c₀²(r) = [0.0 + 0*f(r), 4.0π*r - 4.0π]; # Left boundary
 c₁²(q) = [4.4π*q, -4.0π + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [4.4π + 0*f(r), -4.0π*r]; # Right boundary
+c₂²(r) = [4.4π + 0*f(r), 4.0π*r - 4.0π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -57,7 +57,7 @@ The PML damping
 """
 const δ = 0.1*4π
 const Lₓ = 4π
-const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 10*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -176,11 +176,16 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   
   # Get the physical coordinates
   𝐱𝐲 = Ω.(𝐪𝐫)
-  
+
+  # Inverse Jacobian
+  Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
+  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
+  Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
+
   # Evaluate the functions on the physical grid
-  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
-  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
-  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))
+  Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
+  Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
   
   # PML part of the Traction operator
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
@@ -230,15 +235,15 @@ function get_marker_matrix(m)
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
 
-  mk3 = [-X₁   Z   Z   Z    Z   -Y₁   Z   Z   Z   Z;
+  mk3 = [-X₁   Z   Z   Z    Z    Y₁   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z  -X₁   Z    Z    Z   Z  -Y₁  Z;
+          Z    Z   Z  -X₁   Z    Z    Z   Z   Y₁  Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Y₂   Z   Z   Z    Z    X₂   Z   Z   Z   Z;
+         -Y₂   Z   Z   Z    Z    X₂   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z   Y₂   Z    Z    Z   Z   X₂  Z;
+          Z    Z   Z  -Y₂   Z    Z    Z   Z   X₂  Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z];
 
   mk1, mk2, mk3
@@ -273,8 +278,8 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Jacobian and Surface Jacobian
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
-  sJ₁ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^0) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(1,m)
-  sJ₂ = I(2) ⊗ spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^0) for qᵢ in LinRange(0,1,m)]) ⊗ SBP.SBP_2d.E1(m,m)    
+  sJ₁ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1]))^0 for qᵢ in LinRange(0,1,m)])
+  sJ₂ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1]))^0 for qᵢ in LinRange(0,1,m)])
   
   # Bulk stiffness matrix components on Layer 1
   𝐏₁ = Pᴱ(Dᴱ(JP₁))  
@@ -364,19 +369,19 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Hq = sbp_q.norm
   Hr = sbp_q.norm
   𝐃₁⁻¹ = blockdiag((I(10)⊗Hq⁻¹⊗Hr⁻¹), (I(10)⊗Hq⁻¹⊗Hr⁻¹))
-  𝐃 = blockdiag((I(10)⊗(Hr)⊗ I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
-  𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
-                 (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
+  𝐃 = blockdiag((I(10)⊗(sJ₁*Hr)⊗ I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(sJ₂*Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
+  𝐃₂ = blockdiag((I(2)⊗(sJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(sJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
+                 (I(2)⊗(sJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(sJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 0.0
+  ζ₀ = 100/(4*pi/(m-1))
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
-  𝚯ᵀ = -𝐃₁⁻¹*(𝐓𝐫ᵀ*𝐃₂*BHᵀ) 
-  Ju = -𝐃₁⁻¹*𝐃*(BT)
-  𝐓ᵢ = 0.5*𝚯 + 0.0*𝚯ᵀ + ζ₀*Ju
+  𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*𝐃₂*BHᵀ
+  Ju = -𝐃₁⁻¹*𝐃*BT
+  𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
   𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
     
-  0*Σ - 0*𝐓ₙ - 𝐓ᵢ
+  Σ - 𝐓ₙ - 𝐓ᵢ
 end 
 
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
@@ -404,7 +409,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-6.6π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-6.6π)^2))]
+𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -413,7 +418,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-6.6π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-6.6π)^2))]
+𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -459,7 +464,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 61
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -470,7 +475,7 @@ const h = Lₓ/(𝐍-1)
 cmax = sqrt(2^2+1^2)
 τ₀ = 20
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = Δt
+const tf = 10.0
 const ntime = ceil(Int, tf/Δt)
 
 # Begin time loop
@@ -479,7 +484,7 @@ let
   X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
   X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
   X₀ = vcat(X₀¹, X₀²)
-  #X₀ = Xref
+  # X₀ = Xref
   global Xref = zero(X₀)
   M = massma*stima
   @gif for i=1:ntime
