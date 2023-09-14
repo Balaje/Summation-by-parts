@@ -473,7 +473,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 const h = Lₓ/(𝐍-1)
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 20
+τ₀ = 3
 const Δt = 0.2/(cmax*τ₀)*h
 const tf = 10.0
 const ntime = ceil(Int, tf/Δt)
@@ -510,7 +510,7 @@ let
     plt1₂ = contourf(LinRange(0,4.4π,𝐍), LinRange(4.0π,8.0π,𝐍), σₚ.(vec(Ω₁.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
     contourf!(plt1₂, LinRange(0,4.4π,𝐍), LinRange(0,4.0π,𝐍), σₚ.(vec(Ω₂.(𝐪𝐫)')), colormap=:turbo, alpha=0.3, label="")
     plt1 = plot(plt1₁, plt1₂, layout=(1,2))
-  end  every 100
+  end  every 10
 end 
 
 #=

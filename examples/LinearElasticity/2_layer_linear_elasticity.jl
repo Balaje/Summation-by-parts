@@ -1,22 +1,24 @@
 include("2d_elasticity_problem.jl")
 
+using SplitApplyCombine
+
 """
 Define the geometry of the two layers. 
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-40*(q-0.5)^2)
-f(q) = 0.0*sin(2π*q)
-cᵢ(q) = [q, 1.0 + f(q)];
+f(q) = 0.1*sin(π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 8.0π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), r+1]; # Left boundary
+c₀¹(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0 + 0*f(r), r+1]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 0.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), r]; # Left boundary
-c₁²(q) = [q, 0.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0*f(r), r]; # Right boundary
+c₀²(r) = [0.0 + 0*f(r), 4.0π*r - 4.0π]; # Left boundary
+c₁²(q) = [4.4π*q, -4.0π + 0*f(q)]; # Bottom boundary. 
+c₂²(r) = [4.4π + 0*f(r), 4.0π*r - 4.0π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -71,6 +73,14 @@ function t𝒫(𝒮, qr)
     SMatrix{m,n,Float64}(S'*𝒫(x)*S)
 end
 
+function get_property_matrix_on_grid(Pqr)
+  m,n = size(Pqr[1])
+  Ptuple = Tuple.(Pqr)
+  P_page = reinterpret(reshape, Float64, Ptuple)
+  dim = length(size(P_page))
+  reshape(splitdimsview(P_page, dim-2), (m,n))
+end
+
 function 𝐊2(𝐪𝐫)
     # Get the bulk and the traction operator for the 1st layer
     detJ₁(x) = (det∘J)(x,Ω₁)
@@ -103,33 +113,38 @@ function 𝐊2(𝐪𝐫)
     detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
     detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))    
 
+    # Jinv_vec₁ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₁))
+    # Jinv_vec_diag₁ = [spdiagm(vec(p)) for p in Jinv_vec₁] #[qx rx; qy ry]    
+    # Jinv₁ = [Jinv_vec_diag₁[1,1] Jinv_vec_diag₁[1,2]; Jinv_vec_diag₁[2,1] Jinv_vec_diag₁[2,2]]
+    # Jinv_vec₂ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₂))
+    # Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]    
+    # Jinv₂ = [Jinv_vec_diag₂[1,1] Jinv_vec_diag₂[1,2]; Jinv_vec_diag₂[2,1] Jinv_vec_diag₂[2,2]]
+    # Jinv = blockdiag(Jinv₁, Jinv₂)
+    sJ₁ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,1]))^-1 for qᵢ in LinRange(0,1,m)])
+    sJ₂ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,-1]))^-1 for qᵢ in LinRange(0,1,m)]) 
+
     # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
     𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ)*(𝐓r₁),
-                  -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))
+                  -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))    
 
-    # Traction on the interface
-    q = LinRange(0,1,m)
-    sJ₁⁻¹ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])^-1) for qᵢ in q])
-    sJ₂⁻¹ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])^-1) for qᵢ in q])
-    sJ₁ = sJ₁⁻¹\I(m)
-    sJ₂ = sJ₂⁻¹\I(m)
-    
-    Hq⁻¹ = (sbp_q.norm)\I(m) |> sparse
-    Hr⁻¹ = (sbp_r.norm)\I(n) |> sparse
+    # Traction on the interface      
     Hq = sbp_q.norm
+    Hr = sbp_q.norm    
+    Hq⁻¹ = (Hq)\I(m) |> sparse
+    Hr⁻¹ = (Hr)\I(n) |> sparse
+    # Hq = sbp_q.norm
     Hr = sbp_r.norm
-    𝐃⁻¹ = blockdiag((I(2)⊗(sJ₁⁻¹*Hr⁻¹)⊗ I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), (I(2)⊗(sJ₂⁻¹*Hr⁻¹)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m))) # # The inverse is contained in the 2d stencil struct
-    𝐃 = sparse((𝐃⁻¹ |> findnz)[1], (𝐃⁻¹ |> findnz)[2], (𝐃⁻¹ |> findnz)[3].^-1) # The actual norm matrix on the interface    
-    𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⊗Hr), (I(2)⊗Hq⊗Hr))
+    𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
+    𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
     BHᵀ, BT = get_marker_matrix(m)
 
-    JJ = blockdiag(sJ₁, sJ₂)
-    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)    
+    𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
+    𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'
 
-    𝚯 = 𝐃₁⁻¹*𝐃*BHᵀ*JJ*𝐓r;
-    𝚯ᵀ = -𝐃₁⁻¹*𝐓r'*JJ*𝐃*BHᵀ;
-    Ju = -𝐃₁⁻¹*JJ*𝐃*(BT);
+    𝚯 = 𝐃₁⁻¹*BHᵀ*𝐃*𝐓r;
+    𝚯ᵀ = -𝐃₁⁻¹*𝐓rᵀ*𝐃*BHᵀ;
+    Ju = -𝐃₁⁻¹*𝐃*(BT);   
 
     h = cᵢ(1)[1]/(m-1)
     ζ₀ = 40/h
@@ -184,11 +199,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,41]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 1.0
+tf = Δt
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
