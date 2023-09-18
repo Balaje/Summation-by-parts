@@ -7,18 +7,18 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-# f(q) = 0.0*exp(-40*(q-0.5)^2)
-f(q) = 0.1*sin(π*q)
-cᵢ(q) = [q, 0.0 + f(q)];
+f(q) = 0.0*exp(-40*(q-0.5)^2)
+f₁(q) = 0.25 + 0.5*q
+cᵢ(q) = [f₁(q), 0.0 + f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), r]; # Left boundary
+c₀¹(r) = [0.0 + 0.0*abs(r - 0.5), r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [0.0 + 0*f(r), r]; # Right boundary
+c₂¹(r) = [1.0 - 0.0*abs(r - 0.5), r]; # Right boundary
 c₃¹(q) = [q, 1.0 + 0*f(q)]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), r - 1.0]; # Left boundary
+c₀²(r) = [0.0 + 0.0*abs(r - 0.5), r-1]; # Left boundary
 c₁²(q) = [q, -1.0 + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [1.0 + 0*f(r), r - 1.0]; # Right boundary
+c₂²(r) = [1.0 - 0.0*abs(r - 0.5), r-1]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -120,8 +120,8 @@ function 𝐊2(𝐪𝐫)
     # Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]    
     # Jinv₂ = [Jinv_vec_diag₂[1,1] Jinv_vec_diag₂[1,2]; Jinv_vec_diag₂[2,1] Jinv_vec_diag₂[2,2]]
     # Jinv = blockdiag(Jinv₁, Jinv₂)
-    sJ₁ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1]))^0 for qᵢ in LinRange(0,1,m)])
-    sJ₂ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1]))^0 for qᵢ in LinRange(0,1,m)]) 
+    sJ₁ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1]))^-1 for qᵢ in LinRange(0,1,m)])
+    sJ₂ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1]))^-1 for qᵢ in LinRange(0,1,m)]) 
 
     # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
@@ -136,18 +136,22 @@ function 𝐊2(𝐪𝐫)
     # Hq = sbp_q.norm
     Hr = sbp_r.norm
     𝐃 = blockdiag((I(2)⊗(sJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(sJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
+    𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
     𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
     BHᵀ, BT = get_marker_matrix(m)
 
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
     𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'
 
-    𝚯 = 𝐃₁⁻¹*BHᵀ*𝐃*𝐓r;
-    𝚯ᵀ = -𝐃₁⁻¹*𝐓rᵀ*𝐃*BHᵀ;
-    Ju = -𝐃₁⁻¹*𝐃*(BT);   
+    X = BHᵀ*𝐃*𝐓r;
+    Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
+
+    𝚯 = 𝐃₁⁻¹*X
+    𝚯ᵀ = -𝐃₁⁻¹*Xᵀ
+    Ju = -𝐃₁⁻¹*𝐃₂*BT;   
 
     h = cᵢ(1)[1]/(m-1)
-    ζ₀ = 40/h
+    ζ₀ = 100/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
@@ -199,7 +203,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [21,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
@@ -231,10 +235,11 @@ for (m,i) in zip(N, 1:length(N))
             for i=1:ntime
                 Fₙ = vcat(eltocols(vec(F.(𝐱𝐲₁, t))), eltocols(vec(F.(𝐱𝐲₂, t))))
                 Fₙ₊₁ = vcat(eltocols(vec(F.(𝐱𝐲₁, t+Δt))), eltocols(vec(F.(𝐱𝐲₂, t+Δt))))
-                gₙ = vcat(𝐠(t, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], [c₀¹, c₁¹, c₂¹, c₃¹]),
-                          𝐠(t, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], [c₀², c₁², c₂², c₃²]))
-                gₙ₊₁ = vcat(𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], [c₀¹, c₁¹, c₂¹, c₃¹]),
-                            𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], [c₀², c₁², c₂², c₃²]))
+                normals(Ω) = (r->Ω([0.0,r]), q->Ω([q,0.0]), r->Ω([1.0,r]), q->Ω([q,1.0]))
+                gₙ = vcat(𝐠(t, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
+                          𝐠(t, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
+                gₙ₊₁ = vcat(𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
+                            𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
 
                 rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
                 fargs = Δt, u₀, v₀, rhs
@@ -290,7 +295,7 @@ plt24 = plot(plt3, plt4, layout=(1,2), size=(800,400));
 plt9 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
 scatter!(plt9, h1, L²Error, markersize=4, label="");
 plot!(plt9, h1, h1.^4, label="O(h⁴)", lw=2);
-plt10_1 = scatter(Tuple.(𝐱𝐲₁), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
+plt10_1 = scatter(Tuple.(𝐱𝐲₁), size=(800,800), markersize=2, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
 plt10_2 = scatter!(plt10_1,Tuple.(𝐱𝐲₂), size=(800,800), markersize=2, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
 plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
 plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
@@ -302,5 +307,5 @@ savefig(plt24, "./Images/2-layer/vertical-disp.png")
 savefig(plt9, "./Images/2-layer/rate.png")
 savefig(plt10, "./Images/2-layer/domain.png") =#
 
-plt11 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="Approx. solution (v(x,y))", markersize=4, msw=0.1);
+plt11 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="ΔU", markersize=4, msw=0.1);
 scatter!(plt11, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4, msw=0.1);
