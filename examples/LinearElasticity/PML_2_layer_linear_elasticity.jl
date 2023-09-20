@@ -13,7 +13,7 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.12*exp(-5*4π*(q-0.5)^2)
-f(q) = 0.1*sin(π*q)
+f(q) = 0.0*sin(π*q)
 cᵢ(q) = [4.4π*q, 0.0π + 8.0π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary

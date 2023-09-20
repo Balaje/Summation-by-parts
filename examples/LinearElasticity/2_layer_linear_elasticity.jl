@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 0.1*sin(2π*q)
+f(q) = 0.2*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , r]; # Left boundary
@@ -17,15 +17,13 @@ c₃¹(q) = [q, 1.0]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 Ω₁(qr) = S(qr, domain₁)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [1.0, r-1]; # Right boundary
-c₃²(q) = c₁¹(q); # Top boundary. Also the interface
-c₂²(r) = [0.0, r-1]; # Left boundary
-c₁²(q) = [q, -1.0]; # Bottom boundary. 
-domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
-Ω₂(qr) = S(qr, domain₂)
-# function Ω₂(qr) 
-#   Ω₁(@SVector [qr[1], qr[2]-1.0])  
-# end
+# c₀²(r) = [1.0, r-1]; # Right boundary
+# c₃²(q) = c₁¹(1-q); # Top boundary. Also the interface
+# c₂²(r) = [0.0, r-1]; # Left boundary
+# c₁²(q) = [1-q, -1.0]; # Bottom boundary. 
+# domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
+# Ω₂(qr) = S(qr, domain₂)
+Ω₂(qr) = Ω₁(@SVector [qr[1], qr[2]-1.0])
 
 ## Define the material properties on the physical grid
 const E = 1.0;
@@ -122,6 +120,8 @@ function 𝐊2(𝐪𝐫)
     # Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]    
     # Jinv₂ = [Jinv_vec_diag₂[1,1] Jinv_vec_diag₂[1,2]; Jinv_vec_diag₂[2,1] Jinv_vec_diag₂[2,2]]
     # Jinv = blockdiag(Jinv₁, Jinv₂)
+    sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1])^0 for q in LinRange(0,1,m)])
+    sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1])^0 for q in LinRange(0,1,m)])
 
     # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
@@ -135,7 +135,7 @@ function 𝐊2(𝐪𝐫)
     Hr⁻¹ = (Hr)\I(n) |> sparse
     # Hq = sbp_q.norm
     Hr = sbp_r.norm
-    𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
+    𝐃 = blockdiag((I(2)⊗(sJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(sJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
     𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
     𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
     BHᵀ, BT = get_marker_matrix(m)
@@ -151,7 +151,7 @@ function 𝐊2(𝐪𝐫)
     Ju = -𝐃₁⁻¹*𝐃₂*BT;   
 
     h = cᵢ(1)[1]/(m-1)
-    ζ₀ = 100/h
+    ζ₀ = 200/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
