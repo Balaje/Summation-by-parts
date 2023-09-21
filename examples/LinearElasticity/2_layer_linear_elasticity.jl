@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 0.2*sin(2π*q)
+f(q) = 0.1*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , r]; # Left boundary
@@ -17,13 +17,13 @@ c₃¹(q) = [q, 1.0]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 Ω₁(qr) = S(qr, domain₁)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-# c₀²(r) = [1.0, r-1]; # Right boundary
-# c₃²(q) = c₁¹(1-q); # Top boundary. Also the interface
-# c₂²(r) = [0.0, r-1]; # Left boundary
-# c₁²(q) = [1-q, -1.0]; # Bottom boundary. 
-# domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
-# Ω₂(qr) = S(qr, domain₂)
-Ω₂(qr) = Ω₁(@SVector [qr[1], qr[2]-1.0])
+c₀²(r) = [0.0, r-1]; # Left boundary
+c₁²(q) = [q, -1.0]; # Bottom boundary. 
+c₂²(r) = [1.0, r-1]; # Right boundary
+c₃²(q) = c₁¹(q); # Top boundary. Also the interface 
+domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
+Ω₂(qr) = S(qr, domain₂)
+# Ω₂(qr) = Ω₁(@SVector [qr[1], qr[2]-1.0])
 
 ## Define the material properties on the physical grid
 const E = 1.0;
@@ -120,8 +120,8 @@ function 𝐊2(𝐪𝐫)
     # Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]    
     # Jinv₂ = [Jinv_vec_diag₂[1,1] Jinv_vec_diag₂[1,2]; Jinv_vec_diag₂[2,1] Jinv_vec_diag₂[2,2]]
     # Jinv = blockdiag(Jinv₁, Jinv₂)
-    sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1])^0 for q in LinRange(0,1,m)])
-    sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1])^0 for q in LinRange(0,1,m)])
+    sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1]) for q in LinRange(0,1,m)])
+    sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1]) for q in LinRange(0,1,m)])
 
     # Combine the operators
     𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
@@ -135,23 +135,25 @@ function 𝐊2(𝐪𝐫)
     Hr⁻¹ = (Hr)\I(n) |> sparse
     # Hq = sbp_q.norm
     Hr = sbp_r.norm
-    𝐃 = blockdiag((I(2)⊗(sJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(sJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
+    𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
     𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
     𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
-    BHᵀ, BT = get_marker_matrix(m)
+    BHᵀ, BT = get_marker_matrix(m, Ω₁, Ω₂)
 
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
     𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'
 
-    X = BHᵀ*𝐃*𝐓r;
-    Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
+    JJ = blockdiag(get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m))
+
+    X = JJ*BHᵀ*𝐃*𝐓r;
+    Xᵀ = 𝐓rᵀ*𝐃*BHᵀ*JJ;
 
     𝚯 = 𝐃₁⁻¹*X
     𝚯ᵀ = -𝐃₁⁻¹*Xᵀ
     Ju = -𝐃₁⁻¹*𝐃₂*BT;   
 
     h = cᵢ(1)[1]/(m-1)
-    ζ₀ = 200/h
+    ζ₀ = 400/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
@@ -163,16 +165,31 @@ function E1(i,j,m)
   X
 end
 
+function get_surf_J(JJ0,m)  
+  JJ = spdiagm(ones(2m^2))  
+  i,j,v = findnz(JJ0)
+  for k=1:2m
+    JJ[i[k], j[k]] = v[k]
+  end
+  JJ
+end
+
 """
 Function to get the marker matrix for implementing the jump conditions on the interface
 """
-function get_marker_matrix(m)
-  X₁ = I(2)⊗ I(m)⊗ E1(1,1,m)
-  X₂ = I(2)⊗ I(m)⊗ E1(m,m,m)  
-  Y₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
-  Y₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
+function get_marker_matrix(m, Ω₁, Ω₂)
+  sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1])^-1 for q in LinRange(0,1,m)])
+  sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1])^-1 for q in LinRange(0,1,m)])
+  X₁ = I(2)⊗ (sJ₁) ⊗ E1(1,1,m)
+  X₂ = I(2)⊗ (sJ₂) ⊗ E1(m,m,m)  
+  Y₁ = I(2) ⊗ (sJ₂) ⊗ E1(1,m,m)  
+  Y₂ = I(2) ⊗ (sJ₁) ⊗ E1(m,1,m)  
   mk1 = [-X₁  Y₁; -Y₂  X₂]
-  mk2 = [-X₁  Y₁; Y₂  -X₂]
+  W₁ = I(2) ⊗ I(m) ⊗ E1(1,1,m)
+  W₂ = I(2) ⊗ I(m) ⊗ E1(m,m,m)
+  Z₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
+  Z₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
+  mk2 = [-W₁  Z₁; Z₂  -W₂]
   mk1, mk2
 end
 
@@ -207,7 +224,7 @@ N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 1.0
+tf = 1e-3
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
@@ -244,7 +261,7 @@ for (m,i) in zip(N, 1:length(N))
                 rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
                 fargs = Δt, u₀, v₀, rhs
                 u₁,v₁ = CN(luM⁺, M⁻, massma2, fargs) # Function in "time-stepping.jl"
-                (i%100==0) && println("Done t = "*string(t))
+                (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(abs.(u₁))))
                 t = t+Δt
                 u₀ = u₁
                 v₀ = v₁
