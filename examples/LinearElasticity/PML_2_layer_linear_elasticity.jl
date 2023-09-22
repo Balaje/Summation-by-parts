@@ -14,16 +14,16 @@ Define the geometry of the two layers.
 # Define the parametrization for interface
 # f(q) = 0.12*exp(-5*4π*(q-0.5)^2)
 f(q) = 0.0*sin(π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 8.0π*f(q)];
+cᵢ(q) = [4.4π*q, 0.0π];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 + 0*f(r), 4.0π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π + 0*f(r), 4.0π*r]; # Right boundary
-c₃¹(q) = [4.4π*q, 0.0 + 0*f(q)]; # Top boundary
+c₂¹(r) = [4.4π, 4.0π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0 + 0*f(r), 4.0π*r - 4.0π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.0π + 0*f(q)]; # Bottom boundary. 
-c₂²(r) = [4.4π + 0*f(r), 4.0π*r - 4.0π]; # Right boundary
+c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
+c₁²(q) = [4.4π*q, -4.0π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4.0π*r - 4.0π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)

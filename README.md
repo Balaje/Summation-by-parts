@@ -362,6 +362,11 @@ julia> rate
 
 ~~The convergence rates seem to be optimal but it appears to reduce to 3.5. Not sure why this happens, maybe due to the choice in the penalty term for the interface conditions?~~ 
 
+The following figure shows the maximum error plotted as a function of time. The plot is similar to Figure 2b in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The authors there use a conservative fourth-order time stepping method, while here I use the second-order Crank Nicolson scheme.
+
+![](./Images/2-layer/Eg2/error-vs-time.png) |
+--- |
+
 #### Problem 2:
 
 This problem seems to be much well-behaved where the interface is a Gaussian that has a smooth tail: The boundary of the domain is parametrized by the following curves

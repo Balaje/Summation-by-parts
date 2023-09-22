@@ -7,19 +7,19 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 0.1*sin(2π*q)
+f(q) = 1 + 0.2*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 , r]; # Left boundary
+c₀¹(r) = [0.0 , 1+r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.0, r]; # Right boundary
-c₃¹(q) = [q, 1.0]; # Top boundary
+c₂¹(r) = [1.0, 1+r]; # Right boundary
+c₃¹(q) = [q, 2.0]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 Ω₁(qr) = S(qr, domain₁)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, r-1]; # Left boundary
-c₁²(q) = [q, -1.0]; # Bottom boundary. 
-c₂²(r) = [1.0, r-1]; # Right boundary
+c₀²(r) = [0.0, r]; # Left boundary
+c₁²(q) = [q, 0.0]; # Bottom boundary. 
+c₂²(r) = [1.0, r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface 
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 Ω₂(qr) = S(qr, domain₂)
@@ -143,7 +143,7 @@ function 𝐊2(𝐪𝐫)
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
     𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'
 
-    JJ = blockdiag(get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m))
+    JJ = blockdiag(get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m))    
 
     X = JJ*BHᵀ*𝐃*𝐓r;
     Xᵀ = 𝐓rᵀ*𝐃*BHᵀ*JJ;
@@ -220,14 +220,15 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [21,41,81,161]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 1e-3
+tf = 5.0
 ntime = ceil(Int, tf/Δt)
+max_err = zeros(Float64, ntime, length(N))
 
-for (m,i) in zip(N, 1:length(N))
+for (m,Ni) in zip(N, 1:length(N))
     let
         𝐪𝐫 = generate_2d_grid((m,m))
         global stima2 = 𝐊2(𝐪𝐫)
@@ -247,7 +248,7 @@ for (m,i) in zip(N, 1:length(N))
             u₀ = vcat(eltocols(vec(U.(𝐱𝐲₁,0.0))), eltocols(vec(U.(𝐱𝐲₂,0.0))))
             v₀ = vcat(eltocols(vec(Uₜ.(𝐱𝐲₁,0.0))), eltocols(vec(Uₜ.(𝐱𝐲₂,0.0))))
             global u₁ = zero(u₀)
-            global v₁ = zero(v₀)
+            global v₁ = zero(v₀)            
             t = 0.0
             for i=1:ntime
                 Fₙ = vcat(eltocols(vec(F.(𝐱𝐲₁, t))), eltocols(vec(F.(𝐱𝐲₂, t))))
@@ -265,6 +266,7 @@ for (m,i) in zip(N, 1:length(N))
                 t = t+Δt
                 u₀ = u₁
                 v₀ = v₁
+                max_err[i,Ni] = maximum(abs.(u₁ - vcat(eltocols(vec(U.(𝐱𝐲₁, t))), eltocols(vec(U.(𝐱𝐲₂, t))))))
             end
         end
 
@@ -272,8 +274,8 @@ for (m,i) in zip(N, 1:length(N))
         Hr = sbp_r.norm
         𝐇 = blockdiag((I(2) ⊗ Hq ⊗ Hr), (I(2) ⊗ Hq ⊗ Hr))
         e = u₁ - vcat(eltocols(vec(U.(𝐱𝐲₁, tf))), eltocols(vec(U.(𝐱𝐲₂, tf))))
-        L²Error[i] = sqrt(e'*𝐇*e)
-        println("Done N = "*string(m)*", L²Error = "*string(L²Error[i]))
+        L²Error[Ni] = sqrt(e'*𝐇*e)
+        println("Done N = "*string(m)*", L²Error = "*string(L²Error[Ni]))
     end
 end
 
@@ -329,3 +331,9 @@ scatter!(plt11, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), labe
 plt12 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Vap₁-Ve₁)), label="", title="ΔV", markersize=4, msw=0.1);
 scatter!(plt12, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Vap₂-Ve₂)), label="", markersize=4, msw=0.1);
 plt1112 = plot(plt11,plt12,layout=(1,2))
+
+plt14 = plot();
+for i=1:lastindex(h1)
+  t_arr = LinRange(0,tf,ntime)
+  plot!(plt14, t_arr, max_err[:,i], label="h="*string(h1[i]), yscale=:log10, lw=1.5, legend=:bottomright)
+end
