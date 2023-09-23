@@ -220,11 +220,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 1e-3
+tf = 5.0
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
 
