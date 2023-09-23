@@ -364,8 +364,8 @@ julia> rate
 
 The following figure shows the maximum error plotted as a function of time. The plot is similar to Figure 2b in [Duru and Virta, 2014](https://doi.org/10.1016/j.jcp.2014.08.046). The authors there use a conservative fourth-order time stepping method, while here I use the second-order Crank Nicolson scheme.
 
-![](./Images/2-layer/Eg2/error-vs-time.png) |
---- |
+![](./Images/2-layer/Eg2/error-vs-time.png) | ![](./Images/2-layer/Eg2/error-vs-time-1.png) |
+--- | --- |
 
 #### Problem 2:
 

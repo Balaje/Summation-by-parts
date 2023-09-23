@@ -150,10 +150,10 @@ function 𝐊2(𝐪𝐫)
 
     𝚯 = 𝐃₁⁻¹*X
     𝚯ᵀ = -𝐃₁⁻¹*Xᵀ
-    Ju = -𝐃₁⁻¹*𝐃₂*BT;   
+    Ju = -𝐃₁⁻¹*𝐃₂*JJ*BT;   
 
     h = cᵢ(1)[1]/(m-1)
-    ζ₀ = 400/h
+    ζ₀ = 40/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
     𝐏 - 𝐓 - 𝐓ᵢ
@@ -220,11 +220,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,41,81,161]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 Δt = 1e-3
-tf = 5.0
+tf = 1e-3
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
 
@@ -332,8 +332,8 @@ plt12 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Vap₁-Ve₁)), labe
 scatter!(plt12, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Vap₂-Ve₂)), label="", markersize=4, msw=0.1);
 plt1112 = plot(plt11,plt12,layout=(1,2))
 
-plt14 = plot();
-for i=1:lastindex(h1)
-  t_arr = LinRange(0,tf,ntime)
-  plot!(plt14, t_arr, max_err[:,i], label="h="*string(h1[i]), yscale=:log10, lw=1.5, legend=:bottomright)
-end
+# plt14 = plot();
+# for i=1:lastindex(h1)
+#   t_arr = LinRange(0,tf,ntime)
+#   plot!(plt14, t_arr, max_err[:,i], label="h="*string(h1[i]), yscale=:log10, lw=1.5, legend=:bottomright)
+# end
