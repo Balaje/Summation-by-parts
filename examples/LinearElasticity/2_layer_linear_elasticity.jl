@@ -223,9 +223,9 @@ end
 N = [41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
-Δt = 1e-3
-tf = 5.0
-ntime = ceil(Int, tf/Δt)
+const Δt = 1e-3
+const tf = 5.0
+const ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
 
 for (m,Ni) in zip(N, 1:length(N))

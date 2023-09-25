@@ -723,15 +723,15 @@ The PML model actually consists of a system of ten partial differential equation
 The computational domain we consider here is given by the parametrization:
 
 - Layer 1: 
-  - Left: $c_0(r) = [0, 2r+2]$
-  - Bottom: $c_1(q) = [2q, 2 + 2f(q)]$ (interface)
-  - Right: $c_2(r) = [2, 2r+2]$
-  - Top: $c_3(q) = [2q, 4]$
+  - Left: $c_0(r) = [0, 4\pi r]$
+  - Bottom: $c_1(q) = [4.4\pi q, f(q)]$ (interface)
+  - Right: $c_2(r) = [4.4\pi, 4\pi r]$
+  - Top: $c_3(q) = [4.4\pi q, 0.0]$
 - Layer 2:
-  - Left: $c_0(r) = [0, 2r]$
-  - Bottom: $c_1(q) = [2q, 0]$
-  - Right: $c_2(r) = [2, 2r]$
-  - Top: $c_3(q) = [2q, 2 + 2f(q)]$ (interface)
+  - Left: $c_0(r) = [0, 4\pi r - 4\pi]$
+  - Bottom: $c_1(q) = [4.4\pi q, -4\pi]$
+  - Right: $c_2(r) = [4.4\pi, 4\pi r - 4\pi]$
+  - Top: $c_3(q) = [4.4\pi q, f(q)]$ (interface)
 
 with the function $f(q) = 0$ for a flat interface and $f(q) = 0.12e^{-40(q-0.5)^2}$ for a Gaussian interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
 
@@ -753,97 +753,7 @@ $$
 \end{align}
 $$
 
-The plots of the PML damping function are shown below
-
-Flat Interface | Gaussian Interface |
---- | --- |
-![](./Images/PML/2-layer/uniform/pml-damping.png) | ![](./Images/PML/2-layer/gaussian/Tf0.1/pml-damping.png) |
-
-We solve the problem using the 4th order SBP-SAT method in space and the 4th order Runge Kutta scheme in the temporal direction. In both cases we take $\Delta t = 1\times 10^{-4}$ and solve till final time $T=0.1, 0.4$. The discrete solution computing using $(321 \times 321)$ points in the spatial axis is treated as the exact solution. For the grid refinement analysis, we use $N \times N$ grids with $N=21,41,81,161$ points in space and compute the error.
-
-
-#### Gaussian Interface
-
-Following are the solution plots for the displacements
-
-| Horizontal Displacements (T=0.1) | Vertical Displacements (T=0.1)|
---- | --- |
-| ![](./Images/PML/2-layer/gaussian/Tf0.1/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/Tf0.1/vert-disp.png) |
-
-Following are the convergence rates and the error
-
-```julia
-julia> L²Error
-4-element Vector{Float64}:
- 0.0049211600017672295
- 0.0004934010819621833
- 3.5103704259689214e-5
- 2.1270915133724984e-6
-julia> rate
-3-element Vector{Float64}:
- 3.3181656392112195
- 3.8130656976206225
- 4.04466926805857
-```
-
-which seem to be optimal. We run the same simulation till final time $T=0.4$:
-
-| Horizontal Displacements (T=0.4) | Vertical Displacements (T=0.4)|
---- | --- |
-| ![](./Images/PML/2-layer/gaussian/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/vert-disp.png) |
-
-The error and the convergence rates still seem to be optimal
-
-```julia
-julia> L²Error
-4-element Vector{Float64}:
- 0.01627819229530209
- 0.0017985110457154313
- 0.00015189755355752736
- 1.1119544023742606e-5
-julia> rate
-3-element Vector{Float64}:
- 3.178065571147892
- 3.565632480661451
- 3.771929100000528
-```
-
-which again seems optimal. Removing PML by setting $\sigma_p(\mathbf{x}) = 0$, we can see that the wave is undamped close to the right hand side boundary.
-A comparison with and without PML is shown in the figure below:
-
-| Without PML | With PML|
---- | --- |
-| ![](./Images/PML/2-layer/no-pml/horz-disp.png) | ![](./Images/PML/2-layer/gaussian/horz-disp.png) |
-
-#### Flat Interface
-
-Following are the solution plots for the displacements
-
-| Horizontal Displacements (T=0.4) | Vertical Displacements (T=0.4)|
---- | --- |
-| ![](./Images/PML/2-layer/uniform/horz-disp.png) | ![](./Images/PML/2-layer/uniform/vert-disp.png) |
-
-and the convergence rates, which seem optimal as well:
-
-```julia
-julia> L²Error
-4-element Vector{Float64}:
- 0.013033503224447334
- 0.001189430801677138
- 0.00011183015078714318
- 8.94053109243881e-6
-julia> rate
-3-element Vector{Float64}:
- 3.4538816657286917
- 3.410890227450973
- 3.644804864710969
-```
-
-Plotting the difference between the reference solution and the test solution, we see that the error is maximum near the PML:
-
-Error | PML Damping function
---- | --- |
-![](./Images/PML/2-layer/gaussian/error.png) | ![](./Images/PML/2-layer/gaussian/pml-damping.png) |
+We use the 4th order SBP/SAT method in space and the 4th order Runge Method in time.
 
 
 # References
