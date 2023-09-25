@@ -13,17 +13,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.0*sin(π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 4.0π*f(q)];
+f(q) = 0.1*sin(π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 4.0π*f(q)]/(4π);
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.0π*r]/(4π); # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4.0π*r]; # Right boundary
-c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
+c₂¹(r) = [4.4π, 4.0π*r]/(4π); # Right boundary
+c₃¹(q) = [4.4π*q, 0.0]/(4π); # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.0π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4.0π*r - 4.0π]; # Right boundary
+c₀²(r) = [0.0, 4.0π*r - 4.0π]/(4π); # Left boundary
+c₁²(q) = [4.4π*q, -4.0π]/(4π); # Bottom boundary. 
+c₂²(r) = [4.4π, 4.0π*r - 4.0π]/(4π); # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -55,9 +55,9 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const δ = 0.1*4π
-const Lₓ = 4π
-const σ₀ = 10*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1*4π/(4π)
+const Lₓ = 4π/(4π)
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -386,7 +386,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   JJ₃ = blockdiag(Id, get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), Id, Id, Id, 
                   Id, get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m), Id, Id, Id)      
   
-  ζ₀ = 100/h
+  ζ₀ = 10/h
   𝚯 = 𝐃₁⁻¹*𝐃*JJ₁*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂*JJ₂
   Ju = -𝐃₁⁻¹*𝐃*JJ₃*BT
@@ -431,7 +431,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔₁(x) = @SVector [exp(-(8π)*((x[1]-2.2π/(4π))^2 + (x[2]-2.2π/(4π))^2)), -exp(-(8π)*((x[1]-2.2π/(4π))^2 + (x[2]-2.2π/(4π))^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -440,7 +440,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔₂(x) = @SVector [exp(-(8π)*((x[1]-2.2π/(4π))^2 + (x[2]-2.2π/(4π))^2)), -exp(-(8π)*((x[1]-2.2π/(4π))^2 + (x[2]-2.2π/(4π))^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -486,18 +486,18 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 61
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
+const h = Lₓ/(𝐍-1)
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
-const h = Lₓ/(𝐍-1)
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 5
+τ₀ = 1
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = Δt
+const tf = 10.0
 const ntime = ceil(Int, tf/Δt)
 
 # Begin time loop
@@ -524,13 +524,13 @@ let
     xy₂ = vec(Ω₂.(𝐪𝐫));
     
     ## Plotting for getting GIFs
-    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
-    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
+    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
     scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="")
     scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     plt1 = plot(plt1₁, plt1₂, layout=(1,2))
@@ -607,18 +607,18 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
 scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=4, msw=0.1, size=(800,800))
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
-scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
 title!(plt2, "Vertical Displacement")
 
 plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,1.0])[2],Ω₁([0.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=8, msw=0.1, size=(800,800));
 title!(plt3, "PML Function")
 
