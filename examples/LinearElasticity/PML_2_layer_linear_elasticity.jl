@@ -13,17 +13,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.0*sin(π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 4.0π*f(q)];
+f(q) = 0.1*sin(π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4.0π*r]; # Right boundary
+c₂¹(r) = [4.4π, 4.4π*r]; # Right boundary
 c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.0π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4.0π*r - 4.0π]; # Right boundary
+c₀²(r) = [0.0, 4.4π*r - 4.4π]; # Left boundary
+c₁²(q) = [4.4π*q, -4.4π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4.4π*r - 4.4π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -244,12 +244,12 @@ function get_marker_matrix(m, Ω₁, Ω₂)
   mk3 = [-X₁   Z   Z   Z    Z    Y₁   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z  -X₁   Z    Z    Z   Z   Y₁  Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
          -Y₂   Z   Z   Z    Z    X₂   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z  -Y₂   Z    Z    Z   Z   X₂  Z;
+          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z];
 
   mk1, mk2, mk3
@@ -490,9 +490,9 @@ end
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
+const h = Lₓ/(𝐍-1)
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
-const h = Lₓ/(𝐍-1)
 
 cmax = sqrt(2^2+1^2)
 τ₀ = 5
