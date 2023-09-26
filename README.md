@@ -723,17 +723,17 @@ The PML model actually consists of a system of ten partial differential equation
 The computational domain we consider here is given by the parametrization:
 
 - Layer 1: 
-  - Left: $c_0(r) = [0, 4\pi r]$
-  - Bottom: $c_1(q) = [4.4\pi q, f(q)]$ (interface)
-  - Right: $c_2(r) = [4.4\pi, 4\pi r]$
-  - Top: $c_3(q) = [4.4\pi q, 0.0]$
+  - Left: $c_0(r) = [0, r]$
+  - Bottom: $c_1(q) = [1.1 q, f(q)]$ (interface)
+  - Right: $c_2(r) = [1.1, r]$
+  - Top: $c_3(q) = [1.1 q, 0.0]$
 - Layer 2:
-  - Left: $c_0(r) = [0, 4\pi r - 4\pi]$
-  - Bottom: $c_1(q) = [4.4\pi q, -4\pi]$
-  - Right: $c_2(r) = [4.4\pi, 4\pi r - 4\pi]$
-  - Top: $c_3(q) = [4.4\pi q, f(q)]$ (interface)
+  - Left: $c_0(r) = [0, r - 1.0]$
+  - Bottom: $c_1(q) = [1.1 q, - 1]$
+  - Right: $c_2(r) = [1.1, r - 1]$
+  - Top: $c_3(q) = [1.1 q, f(q)]$ (interface)
 
-with the function $f(q) = 0$ for a flat interface and $f(q) = 0.12e^{-40(q-0.5)^2}$ for a Gaussian interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
+with the function $f(q) = 0$ for a flat interface and $f(q) = 0.1\sin{2\pi q}$ for a general interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
 
 $$
 \begin{align}
@@ -744,16 +744,21 @@ $$
 \end{align}
 $$
 
-with $L_x = 0.8$. We consider the following initial condition for the displacement field:
+with $L_x = 1.0$. We consider the following initial condition for the displacement field:
 
 $$
 \begin{align}
-  \mathbf{u}_0^1(x,y) = [e^{-40((x-1)^2 + (y-3)^2)}, -e^{-40((x-1)^2 + (y-3)^2)}] \quad \text{Layer 1}\\
-  \mathbf{u}_0^2(x,y) = [e^{-40((x-1)^2 + (y-1)^2)}, -e^{-40((x-1)^2 + (y-1)^2)}] \quad \text{Layer 2}\\
+  \mathbf{u}_0^1(x,y) = [e^{-8\pi((x-0.55)^2 + (y-0.55)^2)}, -e^{-8\pi((x-0.55)^2 + (y-0.55)^2)}] \quad \text{Layer 1}\\
+  \mathbf{u}_0^2(x,y) = [e^{-8\pi((x-0.55)^2 + (y-0.55)^2)}, -e^{-8\pi((x-0.55)^2 + (y-0.55)^2)}] \quad \text{Layer 2}\\
 \end{align}
 $$
 
-We use the 4th order SBP/SAT method in space and the 4th order Runge Method in time.
+We use the 4th order SBP/SAT method in space and the 4th order Runge-Kutta scheme in time. We observe from the right-hand side in the figures below, with the PML damping activated, the waves that approach the boundary decays out. The scheme is also stable, which can be verified by computing the eigenvalues using a $21 \times 21$ grid. The real parts of the resulting stiffness matrix should be negative.
+
+NO PML | PML |
+--- | --- |
+![](./Images/PML/2-layer/GIFs/no-pml.gif) | ![](./Images/PML/2-layer/GIFs/pml.gif) |
+
 
 
 # References
