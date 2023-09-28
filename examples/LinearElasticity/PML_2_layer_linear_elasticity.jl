@@ -13,7 +13,7 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.1*sin(π*q)
+f(q) = 0.0*sin(π*q)
 cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
@@ -88,9 +88,10 @@ where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and th
 function t𝒫(Ω, qr)
   x = Ω(qr)
   invJ = J⁻¹(qr, Ω)
+  detJ = (det∘J)(qr, Ω)
   S = invJ ⊗ I(2)
   m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫(x)*S)
+  SMatrix{m,n,Float64}(S'*𝒫(x)*S)*detJ
 end 
 
 """
@@ -206,26 +207,20 @@ end
 """
 Redefine the marker matrix for the PML
 """
-function get_marker_matrix(m, Ω₁, Ω₂)
-  sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1])^-1 for q in LinRange(0,1,m)])
-  sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1])^-1 for q in LinRange(0,1,m)])
-  X₁ = I(2)⊗ (sJ₁) ⊗ E1(1,1,m)
-  X₂ = I(2)⊗ (sJ₂) ⊗ E1(m,m,m)  
-  Y₁ = I(2) ⊗ (sJ₂) ⊗ E1(1,m,m)  
-  Y₂ = I(2) ⊗ (sJ₁) ⊗ E1(m,1,m)    
+function get_marker_matrix(m)  
   W₁ = I(2) ⊗ I(m) ⊗ E1(1,1,m)
   W₂ = I(2) ⊗ I(m) ⊗ E1(m,m,m)
   Z₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
   Z₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m) 
-  Z = zero(X₁)
+  Z = zero(W₁)
   
   mk1 = [Z   Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        -X₁  Z   Z   Z    Z    Y₁  Z   Z   Z   Z; 
+        -W₁  Z   Z   Z    Z    Z₁  Z   Z   Z   Z; 
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;        
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        -Y₂  Z   Z   Z    Z    X₂  Z   Z   Z   Z;
+        -Z₂  Z   Z   Z    Z    W₂  Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
@@ -241,12 +236,12 @@ function get_marker_matrix(m, Ω₁, Ω₂)
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
         Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
 
-  mk3 = [-X₁   Z   Z   Z    Z    Y₁   Z   Z   Z   Z;
+  mk3 = [-W₁   Z   Z   Z    Z    Z₁   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-         -Y₂   Z   Z   Z    Z    X₂   Z   Z   Z   Z;
+         -Z₂   Z   Z   Z    Z    W₂   Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
           Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
@@ -257,22 +252,14 @@ end
 
 function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Obtain the properties of the first layer
-  detJ₁(x) = (det∘J)(x,Ω₁)
-  detJ𝒫₁(x) = detJ₁(x)*t𝒫(Ω₁, x)
-  detJ𝒫ᴾᴹᴸ₁(x) = detJ₁(x)*t𝒫ᴾᴹᴸ(Ω₁, x)
+  detJ₁(x) = (det∘J)(x,Ω₁)  
   P₁ = t𝒫.(Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
-  JP₁ = detJ𝒫₁.(𝐪𝐫) # Elasticity Bulk with det(J) multiplied
-  PML₁ =  t𝒫ᴾᴹᴸ.(Ω₁, 𝐪𝐫) # PML Bulk (For traction??)
-  JPML₁ =  detJ𝒫ᴾᴹᴸ₁.(𝐪𝐫) # PML Bulk with det(J) multiplied
+  PML₁ =  t𝒫ᴾᴹᴸ.(Ω₁, 𝐪𝐫) # PML Bulk  
 
   # Obtain the properties of the second layer
-  detJ₂(x) = (det∘J)(x,Ω₂)
-  detJ𝒫₂(x) = detJ₂(x)*t𝒫(Ω₂, x)
-  detJ𝒫ᴾᴹᴸ₂(x) = detJ₂(x)*t𝒫ᴾᴹᴸ(Ω₂, x)
+  detJ₂(x) = (det∘J)(x,Ω₂)  
   P₂ = t𝒫.(Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
-  JP₂ = detJ𝒫₂.(𝐪𝐫) # Elasticity Bulk with det(J) multiplied
-  PML₂ =  t𝒫ᴾᴹᴸ.(Ω₂, 𝐪𝐫) # PML Bulk (For traction??)
-  JPML₂ =  detJ𝒫ᴾᴹᴸ₂.(𝐪𝐫) # PML Bulk with det(J) multiplied
+  PML₂ =  t𝒫ᴾᴹᴸ.(Ω₂, 𝐪𝐫) # PML Bulk
   
   # Get the 2d operators
   m,n = size(𝐪𝐫)
@@ -283,13 +270,11 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
 
   # Jacobian and Surface Jacobian
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
-  detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))
-  sJ₁ = spdiagm([(J⁻¹s([qᵢ,0.0], Ω₁, [0,-1])) for qᵢ in LinRange(0,1,m)])
-  sJ₂ = spdiagm([(J⁻¹s([qᵢ,1.0], Ω₂, [0,1])) for qᵢ in LinRange(0,1,m)])
+  detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))    
   
   # Bulk stiffness matrix components on Layer 1
-  𝐏₁ = Pᴱ(Dᴱ(JP₁))  
-  𝐏ᴾᴹᴸ₁ = Pᴾᴹᴸ(Dᴾᴹᴸ(JPML₁))  
+  𝐏₁ = Pᴱ(Dᴱ(P₁))  
+  𝐏ᴾᴹᴸ₁ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₁))  
   xy₁ = Ω₁.(𝐪𝐫)  
   σ₁ = I(2) ⊗ spdiagm(vec(σₚ.(xy₁)))  
   ρσ₁ = I(2) ⊗ spdiagm(vec(ρ.(xy₁).*σₚ.(xy₁)))
@@ -300,8 +285,8 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   JD₂¹ = (I(2)⊗Jinv_vec_diag₁[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₁[2,2])*(I(2)⊗Dr)
 
   # Bulk stiffness matrix components on Layer 2
-  𝐏₂ = Pᴱ(Dᴱ(JP₂))  
-  𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Dᴾᴹᴸ(JPML₂))
+  𝐏₂ = Pᴱ(Dᴱ(P₂))  
+  𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₂))
   xy₂ = Ω₂.(𝐪𝐫)
   σ₂ = I(2) ⊗ spdiagm(vec(σₚ.(xy₂)))  
   ρσ₂ = I(2) ⊗ spdiagm(vec(ρ.(xy₂).*σₚ.(xy₂)))
@@ -369,7 +354,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐓𝐫₂ᵀ = [(𝐓r₂)'   Z     Z    (B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
-  BH, BT, BHᵀ = get_marker_matrix(m, Ω₁, Ω₂);
+  BH, BT, BHᵀ = get_marker_matrix(m);
   Hq⁻¹ = (sbp_q.norm\I(m)) |> sparse
   Hr⁻¹ = (sbp_r.norm\I(m)) |> sparse
   # Hq = sbp_q.norm
@@ -379,31 +364,16 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  JJ₁ = blockdiag(Id, get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), Id, Id, Id, 
-                  Id, get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m), Id, Id, Id)
-  JJ₂ = blockdiag(get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), Id, Id, get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), Id, 
-                  get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m), Id, Id, get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m), Id)      
-  JJ₃ = blockdiag(Id, get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), Id, Id, Id, 
-                  Id, get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m), Id, Id, Id)      
-  
-  ζ₀ = 10/h
-  𝚯 = 𝐃₁⁻¹*𝐃*JJ₁*BH*𝐓𝐫
-  𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂*JJ₂
-  Ju = -𝐃₁⁻¹*𝐃*JJ₃*BT
+  ζ₀ = 0/h
+  𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
+  𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
+  Ju = -𝐃₁⁻¹*𝐃*BT
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
   𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
     
-  Σ - 𝐓ₙ - 𝐓ᵢ
-end 
-
-function get_surf_J(JJ0,m)  
-  JJ = spdiagm(ones(2m^2))  
-  i,j,v = findnz(JJ0)
-  for k=1:2m
-    JJ[i[k], j[k]] = v[k]
-  end
-  JJ
+  Jbulk⁻¹ = blockdiag(Id, spdiagm(detJ1₁.^-1), Id, Id, Id, Id, spdiagm(detJ1₂.^-1), Id, Id, Id)
+  (Σ - (Jbulk⁻¹)*𝐓ₙ - (Jbulk⁻¹)*𝐓ᵢ)
 end
 
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
@@ -486,7 +456,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 61
+𝐍 = 21
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -497,7 +467,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = sqrt(2^2+1^2)
 τ₀ = 1
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 40.0
+const tf = Δt
 const ntime = ceil(Int, tf/Δt)
 
 # Begin time loop

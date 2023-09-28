@@ -68,9 +68,10 @@ Cauchy Stress tensor using the displacement field.
 function t𝒫(𝒮, qr)
     x = 𝒮(qr)
     invJ = J⁻¹(qr, 𝒮)
+    detJ = (det∘J)(qr, 𝒮)
     S = invJ ⊗ I(2)
     m,n = size(S)
-    SMatrix{m,n,Float64}(S'*𝒫(x)*S)
+    SMatrix{m,n,Float64}(S'*𝒫(x)*S)*detJ
 end
 
 function get_property_matrix_on_grid(Pqr)
@@ -84,20 +85,16 @@ end
 function 𝐊2(𝐪𝐫)
     # Get the bulk and the traction operator for the 1st layer
     detJ₁(x) = (det∘J)(x,Ω₁)
-    detJ₁𝒫(x) = detJ₁(x)*t𝒫(Ω₁, x)
     Pqr₁ = t𝒫.(Ω₁,𝐪𝐫) # Property matrix evaluated at grid points
-    JPqr₁ = detJ₁𝒫.(𝐪𝐫) # Property matrix * det(J)
-    𝐏₁ = Pᴱ(Dᴱ(JPqr₁)) # Elasticity bulk differential operator
+    𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
     𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
     𝐓q₁ = 𝐓₁.A
     𝐓r₁ = 𝐓₁.B
 
     # Get the bulk and the traction operator for the 2nd layer
-    detJ₂(x) = (det∘J)(x,Ω₂)
-    detJ₂𝒫(x) = detJ₂(x)*t𝒫(Ω₂, x)
+    detJ₂(x) = (det∘J)(x,Ω₂)    
     Pqr₂ = t𝒫.(Ω₂,𝐪𝐫) # Property matrix evaluated at grid points
-    JPqr₂ = detJ₂𝒫.(𝐪𝐫) # Property matrix * det(J)
-    𝐏₂ = Pᴱ(Dᴱ(JPqr₂)) # Elasticity bulk differential operator
+    𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
     𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
     𝐓q₂ = 𝐓₂.A
     𝐓r₂ = 𝐓₂.B
@@ -111,20 +108,11 @@ function 𝐊2(𝐪𝐫)
 
     # Determinants of the transformation
     detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
-    detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))    
+    detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫)) 
+    Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
 
-    # Jinv_vec₁ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₁))
-    # Jinv_vec_diag₁ = [spdiagm(vec(p)) for p in Jinv_vec₁] #[qx rx; qy ry]    
-    # Jinv₁ = [Jinv_vec_diag₁[1,1] Jinv_vec_diag₁[1,2]; Jinv_vec_diag₁[2,1] Jinv_vec_diag₁[2,2]]
-    # Jinv_vec₂ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₂))
-    # Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]    
-    # Jinv₂ = [Jinv_vec_diag₂[1,1] Jinv_vec_diag₂[1,2]; Jinv_vec_diag₂[2,1] Jinv_vec_diag₂[2,2]]
-    # Jinv = blockdiag(Jinv₁, Jinv₂)
-    sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1]) for q in LinRange(0,1,m)])
-    sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1]) for q in LinRange(0,1,m)])
-
-    # Combine the operators
-    𝐏 = blockdiag(spdiagm(detJ1₁.^-1)*𝐏₁, spdiagm(detJ1₂.^-1)*𝐏₂)
+    # Combine the operators    
+    𝐏 = blockdiag(𝐏₁, 𝐏₂)
     𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ)*(𝐓r₁),
                   -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))    
 
@@ -135,28 +123,25 @@ function 𝐊2(𝐪𝐫)
     Hr⁻¹ = (Hr)\I(n) |> sparse
     # Hq = sbp_q.norm
     Hr = sbp_r.norm
-    𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
-    𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct            
-    𝐃₁⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
-    BHᵀ, BT = get_marker_matrix(m, Ω₁, Ω₂)
+    𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
+    𝐃⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
+    BHᵀ, BT = get_marker_matrix(m)
 
     𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
-    𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'
+    𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'    
 
-    JJ = blockdiag(get_surf_J(I(2)⊗sJ₁⊗E1(1,1,m), m), get_surf_J(I(2)⊗sJ₂⊗E1(m,m,m), m))    
+    X = 𝐃*BHᵀ*𝐓r;
+    Xᵀ = 𝐓rᵀ*BHᵀ*𝐃;
 
-    X = JJ*BHᵀ*𝐃*𝐓r;
-    Xᵀ = 𝐓rᵀ*𝐃*BHᵀ*JJ;
-
-    𝚯 = 𝐃₁⁻¹*X
-    𝚯ᵀ = -𝐃₁⁻¹*Xᵀ
-    Ju = -𝐃₁⁻¹*𝐃₂*JJ*BT;   
+    𝚯 = 𝐃⁻¹*X
+    𝚯ᵀ = -𝐃⁻¹*Xᵀ
+    Ju = -𝐃⁻¹*𝐃*BT;   
 
     h = cᵢ(1)[1]/(m-1)
     ζ₀ = 40/h
     𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
-    𝐏 - 𝐓 - 𝐓ᵢ
+    Jbulk⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)
 end
 
 function E1(i,j,m)
@@ -165,30 +150,15 @@ function E1(i,j,m)
   X
 end
 
-function get_surf_J(JJ0,m)  
-  JJ = spdiagm(ones(2m^2))  
-  i,j,v = findnz(JJ0)
-  for k=1:2m
-    JJ[i[k], j[k]] = v[k]
-  end
-  JJ
-end
-
 """
 Function to get the marker matrix for implementing the jump conditions on the interface
 """
-function get_marker_matrix(m, Ω₁, Ω₂)
-  sJ₁ = spdiagm([J⁻¹s([q, 0.0], Ω₁, [0,-1])^-1 for q in LinRange(0,1,m)])
-  sJ₂ = spdiagm([J⁻¹s([q, 1.0], Ω₂, [0,1])^-1 for q in LinRange(0,1,m)])
-  X₁ = I(2)⊗ (sJ₁) ⊗ E1(1,1,m)
-  X₂ = I(2)⊗ (sJ₂) ⊗ E1(m,m,m)  
-  Y₁ = I(2) ⊗ (sJ₂) ⊗ E1(1,m,m)  
-  Y₂ = I(2) ⊗ (sJ₁) ⊗ E1(m,1,m)  
-  mk1 = [-X₁  Y₁; -Y₂  X₂]
+function get_marker_matrix(m)
   W₁ = I(2) ⊗ I(m) ⊗ E1(1,1,m)
   W₂ = I(2) ⊗ I(m) ⊗ E1(m,m,m)
   Z₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
   Z₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
+  mk1 = [-W₁  Z₁; -Z₂  W₂]
   mk2 = [-W₁  Z₁; Z₂  -W₂]
   mk1, mk2
 end
@@ -220,11 +190,11 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [41]
+N = [21,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-const tf = 5.0
+const tf = 1.0
 const ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
 
