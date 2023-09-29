@@ -13,17 +13,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.1*sin(π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
+f(q) = 0.1*sin(2π*q)
+cᵢ(q) = [4.8π*q, 0.0π + 4.0π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4.4π*r]; # Right boundary
-c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
+c₂¹(r) = [4.8π, 4.0π*r]; # Right boundary
+c₃¹(q) = [4.8π*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.4π*r - 4.4π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.4π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4.4π*r - 4.4π]; # Right boundary
+c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
+c₁²(q) = [4.8π*q, -4.0π]; # Bottom boundary. 
+c₂²(r) = [4.8π, 4.0π*r - 4.0π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -57,7 +57,7 @@ The PML damping
 """
 const δ = 0.1*4π
 const Lₓ = 4π
-const σ₀ = 10*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -180,10 +180,9 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   𝐱𝐲 = Ω.(𝐪𝐫)
 
   # Inverse Jacobian
-  Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
-  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
-  Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
-
+  # Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
+  # Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
+  # Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
   # Evaluate the functions on the physical grid
   # Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
   # Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
@@ -367,7 +366,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 10/h
+  ζ₀ = 200/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -468,7 +467,7 @@ stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 1
+τ₀ = 5
 const Δt = 0.2/(cmax*τ₀)*h
 const tf = Δt
 const ntime = ceil(Int, tf/Δt)
@@ -497,13 +496,13 @@ let
     xy₂ = vec(Ω₂.(𝐪𝐫));
     
     ## Plotting for getting GIFs
-    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
-    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
+    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
     scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
     scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     plt1 = plot(plt1₁, plt1₂, layout=(1,2))
