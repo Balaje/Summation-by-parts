@@ -13,17 +13,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.1*sin(2π*q)
-cᵢ(q) = [4.8π*q, 0.0π + 4.0π*f(q)];
+f(q) = 0.0*sin(2π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.8π, 4.0π*r]; # Right boundary
-c₃¹(q) = [4.8π*q, 0.0]; # Top boundary
+c₂¹(r) = [4.4π, 4.4π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
-c₁²(q) = [4.8π*q, -4.0π]; # Bottom boundary. 
-c₂²(r) = [4.8π, 4.0π*r - 4.0π]; # Right boundary
+c₀²(r) = [0.0, 4.4π*r - 4.4π]; # Left boundary
+c₁²(q) = [4.4π*q, -4.4π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4.4π*r - 4.4π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -180,14 +180,14 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   𝐱𝐲 = Ω.(𝐪𝐫)
 
   # Inverse Jacobian
-  # Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
-  # Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
-  # Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
+  Jinv_vec = get_property_matrix_on_grid(J.(𝐪𝐫, Ω))
+  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
+  Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
   # Evaluate the functions on the physical grid
-  # Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
-  # Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
-  Zx = I(2) ⊗ I(m) ⊗ I(m)
-  Zy = I(2) ⊗ I(m) ⊗ I(m)
+  Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
+  Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  # Zx = I(2) ⊗ I(m) ⊗ I(m)
+  # Zy = I(2) ⊗ I(m) ⊗ I(m)
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
   
   # PML part of the Traction operator
@@ -366,7 +366,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 200/h
+  ζ₀ = 0/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
