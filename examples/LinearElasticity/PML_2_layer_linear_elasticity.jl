@@ -13,7 +13,7 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.0*sin(π*q)
+f(q) = 0.1*sin(π*q)
 cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
@@ -57,7 +57,7 @@ The PML damping
 """
 const δ = 0.1*4π
 const Lₓ = 4π
-const σ₀ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ = 10*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -100,9 +100,10 @@ Transform the PML properties to the material grid
 function t𝒫ᴾᴹᴸ(Ω, qr)
   x = Ω(qr)
   invJ = J⁻¹(qr, Ω)
+  detJ = (det∘J)(qr, Ω)
   S = invJ ⊗ I(2)
   m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))
+  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))*detJ
 end 
 
 """
@@ -184,8 +185,10 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
 
   # Evaluate the functions on the physical grid
-  Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
-  Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  # Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
+  # Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  Zx = I(2) ⊗ I(m) ⊗ I(m)
+  Zy = I(2) ⊗ I(m) ⊗ I(m)
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
   
   # PML part of the Traction operator
@@ -325,16 +328,16 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
   
   # Get the overall traction operator on the outer boundaries of both Layer 1 and Layer 2
-  𝐓𝐪₀¹ = [-(I(2)⊗𝐇q₀)*𝐓q₁   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀¹
-  𝐓𝐪ₙ¹ = [(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹      
-  𝐓𝐫ₙ¹ = [(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹    
-  𝐓𝐪₀² = [-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²
-  𝐓𝐪ₙ² = [(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²  
-  𝐓𝐫₀² = [-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀² 
+  𝐓𝐪₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₁   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀¹)
+  𝐓𝐪ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹)
+  𝐓𝐫ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹)
+  𝐓𝐪₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²)
+  𝐓𝐪ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²)
+  𝐓𝐫₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²)
   
   # Interface (But not required. Will be multiplied by 0)
-  𝐓𝐫₀¹ = [-(I(2)⊗𝐇r₀)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀¹
-  𝐓𝐫ₙ² = [(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ²  
+  𝐓𝐫₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀¹)
+  𝐓𝐫ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ²)
 
   # Interface conditions: 
   zbT = spzeros(Float64, 2m^2, 10n^2)
@@ -345,13 +348,13 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   P_vec_diag₂ = [spdiagm(vec(p)) for p in P_vec₂]
   B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
-  𝐓𝐫₁ = [(𝐓r₁)   Z     Z    (B₁)     Z]  
-  𝐓𝐫₂ = [(𝐓r₂)   Z     Z    (B₂)     Z]    
+  𝐓𝐫₁ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)   Z     Z    (B₁)     Z]  
+  𝐓𝐫₂ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)   Z     Z    (B₂)     Z]    
   
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
-  𝐓𝐫₁ᵀ = [(𝐓r₁)'   Z     Z    (B₁)'   Z]  
-  𝐓𝐫₂ᵀ = [(𝐓r₂)'   Z     Z    (B₂)'   Z]  
+  𝐓𝐫₁ᵀ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)'   Z     Z    (B₁)'   Z]  
+  𝐓𝐫₂ᵀ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)'   Z     Z    (B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   
   BH, BT, BHᵀ = get_marker_matrix(m);
@@ -364,7 +367,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 0/h
+  ζ₀ = 10/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -372,8 +375,8 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
 
   𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
     
-  Jbulk⁻¹ = blockdiag(Id, spdiagm(detJ1₁.^-1), Id, Id, Id, Id, spdiagm(detJ1₂.^-1), Id, Id, Id)
-  (Σ - (Jbulk⁻¹)*𝐓ₙ - (Jbulk⁻¹)*𝐓ᵢ)
+  #Jbulk⁻¹ = blockdiag(Id, spdiagm(detJ1₁.^-1), Id, Id, Id, Id, spdiagm(detJ1₂.^-1), Id, Id, Id)
+  (Σ - 𝐓ₙ - 𝐓ᵢ)
 end
 
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
