@@ -6,6 +6,7 @@
 include("2d_elasticity_problem.jl");
 
 using SplitApplyCombine
+using Arpack
 
 """
 Define the geometry of the two layers. 
@@ -13,17 +14,17 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.0*sin(2π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 4.4π*f(q)];
+f(q) = 0.1*sin(8π*q)
+cᵢ(q) = [4.4π*q, 0.0π + 4.0π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.4π*r]; # Left boundary
+c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4.4π*r]; # Right boundary
+c₂¹(r) = [4.4π, 4.0π*r]; # Right boundary
 c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.4π*r - 4.4π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.4π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4.4π*r - 4.4π]; # Right boundary
+c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
+c₁²(q) = [4.4π*q, -4.0π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4.0π*r - 4.0π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -36,8 +37,20 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 """
 The Lamé parameters μ, λ
 """
-λ(x) = 2.0
-μ(x) = 1.0
+function λ(x)
+  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))
+    return 1.0
+  else
+    return 0.25
+  end
+end
+function μ(x)
+  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
+    return 1.0
+  else
+    return 0.25
+  end
+end
 
 """
 The density of the material
@@ -181,11 +194,10 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
 
   # Inverse Jacobian
   Jinv_vec = get_property_matrix_on_grid(J.(𝐪𝐫, Ω))
-  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]    
-  Jinv = [Jinv_vec_diag[1,1] Jinv_vec_diag[1,2]; Jinv_vec_diag[2,1] Jinv_vec_diag[2,2]]
+  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]      
   # Evaluate the functions on the physical grid
-  Zx = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
-  Zy = Jinv*blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
+  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
   # Zx = I(2) ⊗ I(m) ⊗ I(m)
   # Zy = I(2) ⊗ I(m) ⊗ I(m)
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
@@ -366,16 +378,15 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 0/h
+  ζ₀ = 40/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
 
   𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
-    
-  #Jbulk⁻¹ = blockdiag(Id, spdiagm(detJ1₁.^-1), Id, Id, Id, Id, spdiagm(detJ1₂.^-1), Id, Id, Id)
-  (Σ - 𝐓ₙ - 𝐓ᵢ)
+      
+  Σ - 𝐓ₙ - 𝐓ᵢ
 end
 
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
@@ -390,14 +401,32 @@ end
 # Begin time stepping  #
 #### #### #### #### ####
 """
-A quick implementation of the RK4 scheme
+A non-allocating implementation of the RK4 scheme
 """
-function RK4_1(M, X₀)  
-  k₁ = M*X₀
-  k₂ = M*(X₀ + (Δt/2)*k₁)
-  k₃ = M*(X₀ + (Δt/2)*k₂)
-  k₄ = M*(X₀ + (Δt)*k₃)
-  X₀ + (Δt/6)*(k₁ + k₂ + k₃ + k₄)
+function RK4_1!(M, sol)  
+  X₀, k₁, k₂, k₃, k₄, tmp = sol
+  # k1 step  
+  mul!(k₁, M, X₀)  
+  # k2 step    
+  for i=1:lastindex(k₂)
+    tmp[i] = (X₀[i] + (Δt/2)*k₁[i])  
+  end  
+  mul!(k₂, M, tmp)  
+  # k3 step
+  for i=1:lastindex(k₃)
+    tmp[i] = (X₀[i] + (Δt/2)*k₂[i])  
+  end
+  mul!(k₃, M, tmp)
+  # k4 step
+  for i=1:lastindex(k₄)
+    tmp[i] = (X₀[i] + (Δt)*k₃[i])  
+  end
+  mul!(k₄, M, tmp)
+  for i=1:lastindex(X₀)
+    X₀[i] = (X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i]))
+    tmp[i] = 0.0
+  end
+  X₀
 end
 
 """
@@ -419,46 +448,21 @@ Initial conditions (Layer 2)
 𝐐₂(x) = @SVector [0.0, 0.0]
 
 """
-Function to compute the L²-Error using the reference solution
-"""
-function compute_l2_error(sol, ref_sol, norm, mn)
-  m,n = mn 
-  m = Int64(m)
-  n = Int64(n)
-  ar = ceil(Int64, (n-1)/(m-1))    
-  sol_sq_1 = reshape(sol[1:m^2], (m,m))
-  sol_sq_2 = reshape(sol[m^2+1:2m^2], (m,m))
-  ref_sol_sq_1 = reshape(ref_sol[1:n^2], (n,n))
-  ref_sol_sq_2 = reshape(ref_sol[n^2+1:2n^2], (n,n))
-  err_1 = zero(sol_sq_1)  
-  err_2 = zero(sol_sq_2)  
-  for i=1:m, j=1:m
-    err_1[i,j] = sol_sq_1[i,j] - ref_sol_sq_1[(i-1)*ar+1, (j-1)*ar+1]
-    err_2[i,j] = sol_sq_2[i,j] - ref_sol_sq_2[(i-1)*ar+1, (j-1)*ar+1]
-  end  
-  err_1 = vec(err_1)
-  err_2 = vec(err_2)
-  err = vcat(err_1, err_2)  
-  sqrt(err'*norm*err)
-end
-
-"""
 Function to split the solution into the corresponding variables
 """
-function split_solution(X)
-  N = Int(sqrt(length(X)/10))
-  u1,u2 = X[1:N^2], X[N^2+1:2N^2];
-  r1,r2 = X[2N^2+1:3N^2], X[3N^2+1:4N^2];
-  v1,v2 = X[4N^2+1:5N^2], X[5N^2+1:6N^2];
-  w1,w2 = X[6N^2+1:7N^2], X[7N^2+1:8N^2];
-  q1,q2 = X[8N^2+1:9N^2], X[9N^2+1:10N^2];
+function split_solution(X, N)  
+  u1,u2 = @views X[1:N^2], @views X[N^2+1:2N^2];
+  r1,r2 = @views X[2N^2+1:3N^2], @views X[3N^2+1:4N^2];
+  v1,v2 = @views X[4N^2+1:5N^2], @views X[5N^2+1:6N^2];
+  w1,w2 = @views X[6N^2+1:7N^2], @views X[7N^2+1:8N^2];
+  q1,q2 = @views X[8N^2+1:9N^2], @views X[9N^2+1:10N^2];
   (u1,u2), (r1,r2), (v1, v2), (w1,w2), (q1,q2)
 end
 
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 81
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -467,132 +471,70 @@ stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 5
+τ₀ = 2.0
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = Δt
+const tf = 100.0
 const ntime = ceil(Int, tf/Δt)
+solmax = zeros(Float64, ntime)
 
-# Begin time loop
-let
-  t = 0.0
-  X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
-  X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
-  X₀ = vcat(X₀¹, X₀²)
-  # X₀ = Xref
-  global Xref = zero(X₀)
-  M = massma*stima
-  @gif for i=1:ntime
-    Xref = RK4_1(M, X₀)
-    X₀ = Xref
-    t += Δt    
-    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(abs.(Xref))))
-
-    𝒩 = [𝐍]
-    X₁ = Xref
-    u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
-    u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
-    𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
-    xy₁ = vec(Ω₁.(𝐪𝐫));
-    xy₂ = vec(Ω₂.(𝐪𝐫));
-    
-    ## Plotting for getting GIFs
-    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
-    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    plt1 = plot(plt1₁, plt1₂, layout=(1,2))
-  end every 10
-end 
-
-#=
-############################
-# Grid Refinement Analysis # 
-############################
-𝒩 = [21,41,81,161];
-L²Error = zeros(Float64,length(𝒩))
-for (N,i) ∈ zip(𝒩,1:lastindex(𝒩))
-  let 
-    𝐪𝐫 = generate_2d_grid((N,N));
-    𝐱𝐲₁ = Ω₁.(𝐪𝐫);
-    𝐱𝐲₂ = Ω₂.(𝐪𝐫);
-    stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
-    massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
-    # Begin time loop
-    let
-      t = 0.0      
-      X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
-      X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
-      X₀ = vcat(X₀¹, X₀²)
-      global X₁ = zero(X₀)
-      M = massma*stima
-      for i=1:ntime
-        X₁ = RK4_1(M, X₀)
-        X₀ = X₁
-        t += Δt    
-        # println("Done t = "*string(t))
-      end  
-    end  
-    # Compute the error with the reference solution
-    m, n = size(𝐪𝐫)
-    sbp_q = SBP_1_2_CONSTANT_0_1(m)
-    sbp_r = SBP_1_2_CONSTANT_0_1(n)
-    Hq = sbp_q.norm
-    Hr = sbp_r.norm
-    𝐇 = (I(2) ⊗ Hq ⊗ Hr)
-
-    # Split the solution to obtain the displacement vectors (u1, u2)
-    X_split₁ = split_solution(X₁[1:10m^2])    
-    X_split₂ = split_solution(X₁[10m^2+1:20m^2])
-    X_split_ref₁ = split_solution(Xref[1:10𝐍^2])
-    X_split_ref₂ = split_solution(Xref[10𝐍^2+1:20𝐍^2])    
-    u1₁, u2₁ = X_split₁[1] # Current refinement
-    u1₂, u2₂ = X_split₂[1] # Current refinement
-    u1ref₁,u2ref₁ = X_split_ref₁[1];
-    u1ref₂,u2ref₂ = X_split_ref₂[1];
-    sol₁ = vcat(u1₁, u2₁);   
-    sol_ref₁ = vcat(u1ref₁, u2ref₁)
-    sol₂ = vcat(u1₂, u2₂);   
-    sol_ref₂ = vcat(u1ref₂, u2ref₂)    
-    L²Error[i]  = sqrt(compute_l2_error(sol₁, sol_ref₁, 𝐇, (n,𝐍))^2 +
-                       compute_l2_error(sol₂, sol_ref₂, 𝐇, (n,𝐍))^2)       
-    println("Done N = "*string(N))
-  end
-end
-
-h = 1 ./(𝒩 .- 1);
-rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1]);
-@show L²Error
-@show rate
- =#
-
-𝒩 = [𝐍]
-X₁ = Xref
-u1₁,u2₁ = split_solution(X₁[1:10*𝒩[end]^2])[1];
-u1₂,u2₂ = split_solution(X₁[10*𝒩[end]^2+1:20*𝒩[end]^2])[1];
-𝐪𝐫 = generate_2d_grid((𝒩[end], 𝒩[end]));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
+
+M = massma*stima 
+iter = 1
+let  
+  t = iter*tf
+  # X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
+  # X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+  # X₀ = vcat(X₀¹, X₀²)  
+  X₀ = X₁
+  # Arrays to store the RK-variables
+  k₁ = zeros(Float64, length(X₀))
+  k₂ = zeros(Float64, length(X₀))
+  k₃ = zeros(Float64, length(X₀))
+  k₄ = zeros(Float64, length(X₀))
+  tmp = zeros(Float64, length(X₀))   
+  for i=1:ntime
+    sol = X₀, k₁, k₂, k₃, k₄, tmp
+    X₀ = RK4_1!(M,sol)    
+    t += Δt    
+    solmax[i] = maximum(abs.(X₀))
+    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
+    
+    ## Plotting to get GIFs
+    # u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
+    # u1₂,u2₂ = split_solution(view(X₀, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];              
+    # plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
+    # scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    # scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    # scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    # title!(plt1₁, "Time t="*string(round(t,digits=4)))
+    # plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    # scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    # scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    # scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    # plt1 = plot(plt1₁, plt1₂, layout=(1,2))
+  end
+  global X₁ = X₀  
+end 
+
+u1₁,u2₁ = split_solution(view(X₁, 1:10*𝐍^2), 𝐍)[1];
+u1₂,u2₂ = split_solution(view(X₁, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
+
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
-scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=4, msw=0.1, size=(800,800))
+scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
+scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="")
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
-scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))
+scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
+scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="")
 title!(plt2, "Vertical Displacement")
-
-plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=8, msw=0.1, size=(800,800));
+plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1, colorbar_exponentformat="power");
+scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
 title!(plt3, "PML Function")
-
-# plt4 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
-# plot!(plt4, h,  h.^4, label="O(h⁴)", lw=1, xlabel="h", ylabel="L² Error");
+plt4 = plot()
+plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎ ")
