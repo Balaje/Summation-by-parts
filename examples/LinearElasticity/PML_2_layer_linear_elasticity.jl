@@ -14,8 +14,8 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-pf = 7
-f(q) = 0.1*sin(pf*π*q)
+pf = 2
+f(q) = 0.0*sin(pf*π*q)
 cᵢ(q) = [1.1*q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, r]; # Left boundary
@@ -197,10 +197,10 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   Jinv_vec = get_property_matrix_on_grid(J.(𝐪𝐫, Ω))
   Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]      
   # Evaluate the functions on the physical grid
-  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
-  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
-  # Zx = I(2) ⊗ I(m) ⊗ I(m)
-  # Zy = I(2) ⊗ I(m) ⊗ I(m)
+  # Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
+  # Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
+  Zx = I(2) ⊗ I(m) ⊗ I(m)
+  Zy = I(2) ⊗ I(m) ⊗ I(m)
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
   
   # PML part of the Traction operator
@@ -379,7 +379,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 40/h
+  ζ₀ = 400/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -463,7 +463,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 61
+𝐍 = 201
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -472,7 +472,7 @@ stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 0.8
+τ₀ = 2.0
 const Δt = 0.2/(cmax*τ₀)*h
 const tf = 2Δt
 const ntime = ceil(Int, tf/Δt)
@@ -537,7 +537,10 @@ scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, marker
 scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1, colorbar_exponentformat="power");
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
 title!(plt3, "PML Function")
-# plt4 = plot()
-# plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = sin("*string(pf)*"πq), τ = 40/h", lw=2)
+plt4 = plot()
+plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = 0.0sin("*string(pf)*"πq), τ = 40/h", lw=2)
 # plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
 # savefig(plt5, "C:\\Users\\baka0042\\OneDrive - Umeå universitet\\Postdoc-Balaje\\PML_elastic_layered_media\\PML GIFs\\Steady-State\\eg6.pdf"); 
+
+vv,xx = Arpack.eigs(stima, nev=5, which=:LM, sigma=1);
+@show vv
