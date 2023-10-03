@@ -14,17 +14,18 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
-f(q) = 0.1*sin(8π*q)
-cᵢ(q) = [4.4π*q, 0.0π + 4.0π*f(q)];
+pf = 7
+f(q) = 0.1*sin(pf*π*q)
+cᵢ(q) = [1.1*q, f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4.0π*r]; # Left boundary
+c₀¹(r) = [0.0, r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4.0π*r]; # Right boundary
-c₃¹(q) = [4.4π*q, 0.0]; # Top boundary
+c₂¹(r) = [1.1, r]; # Right boundary
+c₃¹(q) = [1.1*q, 0.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4.0π*r - 4.0π]; # Left boundary
-c₁²(q) = [4.4π*q, -4.0π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4.0π*r - 4.0π]; # Right boundary
+c₀²(r) = [0.0, r - 1.0]; # Left boundary
+c₁²(q) = [1.1*q, -1.0]; # Bottom boundary. 
+c₂²(r) = [1.1, r - 1.0]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -68,9 +69,9 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const δ = 0.1*4π
-const Lₓ = 4π
-const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1
+const Lₓ = 1.0
+const σ₀ = 0.4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -432,7 +433,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-10*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-10*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔₁(x) = @SVector [exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -441,7 +442,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-10*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-10*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔₂(x) = @SVector [exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -462,7 +463,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 81
+𝐍 = 61
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -471,9 +472,9 @@ stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = sqrt(2^2+1^2)
-τ₀ = 2.0
+τ₀ = 0.8
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 100.0
+const tf = 2Δt
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -481,13 +482,13 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 
 M = massma*stima 
-iter = 1
+iter = 0
 let  
   t = iter*tf
-  # X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
-  # X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
-  # X₀ = vcat(X₀¹, X₀²)  
-  X₀ = X₁
+  X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
+  X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+  X₀ = vcat(X₀¹, X₀²)  
+  # X₀ = X₁
   # Arrays to store the RK-variables
   k₁ = zeros(Float64, length(X₀))
   k₂ = zeros(Float64, length(X₀))
@@ -499,7 +500,7 @@ let
     X₀ = RK4_1!(M,sol)    
     t += Δt    
     solmax[i] = maximum(abs.(X₀))
-    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
+    (i%1000==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
     
     ## Plotting to get GIFs
     # u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
@@ -524,17 +525,19 @@ u1₂,u2₂ = split_solution(view(X₁, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
 plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
-scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="")
+scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="", right_margin=20*Plots.mm)
 title!(plt1, "Horizontal Displacement")
 plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
-scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="")
+scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="", right_margin=20*Plots.mm)
 title!(plt2, "Vertical Displacement")
 plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1, colorbar_exponentformat="power");
-scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800));
+scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
 title!(plt3, "PML Function")
-plt4 = plot()
-plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎ ")
+# plt4 = plot()
+# plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = sin("*string(pf)*"πq), τ = 40/h", lw=2)
+# plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
+# savefig(plt5, "C:\\Users\\baka0042\\OneDrive - Umeå universitet\\Postdoc-Balaje\\PML_elastic_layered_media\\PML GIFs\\Steady-State\\eg6.pdf"); 
