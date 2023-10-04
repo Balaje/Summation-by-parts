@@ -15,17 +15,17 @@ Define the geometry of the two layers.
 # Define the parametrization for interface
 # f(q) = 0.3*exp(-40*(q-0.5)^2)
 pf = 2
-f(q) = 0.3*sin(pf*π*q)
-cᵢ(q) = [1.1*q, f(q)];
+f(q) = 0.0*sin(pf*π*q)
+cᵢ(q) = [4.4π*q, 4π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, r]; # Left boundary
+c₀¹(r) = [0.0, 4π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.1, r]; # Right boundary
-c₃¹(q) = [1.1*q, 0.0]; # Top boundary
+c₂¹(r) = [4.4π, 4π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 4π]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, r - 1.0]; # Left boundary
-c₁²(q) = [1.1*q, -1.0]; # Bottom boundary. 
-c₂²(r) = [1.1, r - 1.0]; # Right boundary
+c₀²(r) = [0.0, 4π*r - 4π]; # Left boundary
+c₁²(q) = [4.4π*q, -4π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4π*r - 4π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -40,23 +40,29 @@ The Lamé parameters μ, λ
 """
 function λ(x)
   if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))
-    return 1.0
+    return 4.8629
   else
-    return 0.25
+    return 26.9952
   end
 end
 function μ(x)
   if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
-    return 1.0
+    return 4.86
   else
-    return 0.25
+    return 27
   end
 end
 
 """
 The density of the material
 """
-ρ(x) = 1.0
+function ρ(x) 
+  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
+    return 1.5
+  else
+    return 3.0
+  end
+end 
 
 """
 Material properties coefficients of an anisotropic material
@@ -69,9 +75,9 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const δ = 0.1
-const Lₓ = 1.0
-const σ₀ = 0.4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1*4π
+const Lₓ = 4π
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 
 function σₚ(x)
@@ -197,10 +203,10 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   Jinv_vec = get_property_matrix_on_grid(J.(𝐪𝐫, Ω))
   Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]      
   # Evaluate the functions on the physical grid
-  # Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
-  # Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
-  Zx = I(2) ⊗ I(m) ⊗ I(m)
-  Zy = I(2) ⊗ I(m) ⊗ I(m)
+  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
+  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
+  # Zx = I(2) ⊗ I(m) ⊗ I(m)
+  # Zy = I(2) ⊗ I(m) ⊗ I(m)
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
   
   # PML part of the Traction operator
@@ -379,7 +385,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 40/h
+  ζ₀ = 100/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -433,7 +439,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
+𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -442,7 +448,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-100*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
+𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -471,10 +477,10 @@ const h = Lₓ/(𝐍-1)
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
-cmax = sqrt(2^2+1^2)
-τ₀ = 2.0
+cmax = 45.57
+τ₀ = 1.0
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 100.0
+const tf = 40.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -542,10 +548,9 @@ plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||
 # plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
 # savefig(plt5, "C:\\Users\\baka0042\\OneDrive - Umeå universitet\\Postdoc-Balaje\\PML_elastic_layered_media\\PML GIFs\\Steady-State\\eg6.pdf"); 
 
-vv,xx = Arpack.eigs(stima, nev=2, which=:LM, sigma=1e-3);
-# @show vv
-em1₁, em1₂ = split_solution(view(xx[:,1], 1:10*𝐍^2), 𝐍)[1];
-em2₁, em2₂ = split_solution(view(xx[:,1], 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
-plt6 = plot()
-plt6 = scatter(Tuple.(xy₁), zcolor=vec(real(em1₁)), colormap=:redsblues)
-scatter!(plt6, Tuple.(xy₂), zcolor=vec(real(em1₂)), colormap=:redsblues)
+# vv,xx = Arpack.eigs(stima, nev=2, which=:LM, sigma=0);
+# em1₁, em1₂ = split_solution(view(xx[:,1], 1:10*𝐍^2), 𝐍)[1];
+# em2₁, em2₂ = split_solution(view(xx[:,1], 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
+# plt6 = plot()
+# plt6 = scatter(Tuple.(xy₁), zcolor=vec(real(em1₁)), colormap=:redsblues)
+# scatter!(plt6, Tuple.(xy₂), zcolor=vec(real(em1₂)), colormap=:redsblues)
