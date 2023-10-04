@@ -13,9 +13,9 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-# f(q) = 0.0*exp(-10*4π*(q-0.5)^2)
+# f(q) = 0.3*exp(-40*(q-0.5)^2)
 pf = 2
-f(q) = 0.0*sin(pf*π*q)
+f(q) = 0.3*sin(pf*π*q)
 cᵢ(q) = [1.1*q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, r]; # Left boundary
@@ -379,7 +379,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
 
-  ζ₀ = 400/h
+  ζ₀ = 40/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -463,7 +463,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 201
+𝐍 = 101
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -474,7 +474,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = sqrt(2^2+1^2)
 τ₀ = 2.0
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 2Δt
+const tf = 100.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -538,9 +538,14 @@ scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
 title!(plt3, "PML Function")
 plt4 = plot()
-plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = 0.0sin("*string(pf)*"πq), τ = 40/h", lw=2)
+plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = 0.3sin("*string(pf)*"πq), τ = 40/h", lw=2)
 # plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
 # savefig(plt5, "C:\\Users\\baka0042\\OneDrive - Umeå universitet\\Postdoc-Balaje\\PML_elastic_layered_media\\PML GIFs\\Steady-State\\eg6.pdf"); 
 
-vv,xx = Arpack.eigs(stima, nev=5, which=:LM, sigma=1);
-@show vv
+vv,xx = Arpack.eigs(stima, nev=2, which=:LM, sigma=1e-3);
+# @show vv
+em1₁, em1₂ = split_solution(view(xx[:,1], 1:10*𝐍^2), 𝐍)[1];
+em2₁, em2₂ = split_solution(view(xx[:,1], 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
+plt6 = plot()
+plt6 = scatter(Tuple.(xy₁), zcolor=vec(real(em1₁)), colormap=:redsblues)
+scatter!(plt6, Tuple.(xy₂), zcolor=vec(real(em1₂)), colormap=:redsblues)
