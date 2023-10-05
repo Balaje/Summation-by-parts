@@ -13,9 +13,9 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-f(q) = 0.3*exp(-4*4.4π*(q-0.5)^2)
+# f(q) = 0.3*exp(-4*4.4π*(q-0.5)^2)
 pf = 2
-# f(q) = 0.0*sin(pf*π*q)
+f(q) = 0.1sin(pf*π*q)
 cᵢ(q) = [4.4π*q, 4π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, 4π*r]; # Left boundary
@@ -480,7 +480,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = 45.57
 τ₀ = 1.0
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 200.0
+const tf = 2Δt
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -488,13 +488,13 @@ xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
 
 M = massma*stima 
-iter = 1
+iter = 0
 let  
   t = iter*tf
-  # X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
-  # X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
-  # X₀ = vcat(X₀¹, X₀²)  
-  X₀ = X₁
+  X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
+  X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+  X₀ = vcat(X₀¹, X₀²)  
+  # X₀ = X₁
   # Arrays to store the RK-variables
   k₁ = zeros(Float64, length(X₀))
   k₂ = zeros(Float64, length(X₀))
