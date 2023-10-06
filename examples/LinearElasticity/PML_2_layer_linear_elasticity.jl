@@ -14,7 +14,7 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # f(q) = 0.3*exp(-4*4.4π*(q-0.5)^2)
-pf = 2
+pf = 1
 f(q) = 0.1sin(pf*π*q)
 cᵢ(q) = [4.4π*q, 4π*f(q)];
 # Define the rest of the boundary
@@ -469,7 +469,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 101
+𝐍 = 81
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 𝐱𝐲₁ = Ω₁.(𝐪𝐫);
 𝐱𝐲₂ = Ω₂.(𝐪𝐫);
@@ -478,9 +478,9 @@ stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = 45.57
-τ₀ = 1.0
+τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 2Δt
+const tf = 200.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -501,6 +501,7 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀))
   tmp = zeros(Float64, length(X₀))   
+  # @gif for i=1:ntime
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄, tmp
     X₀ = RK4_1!(M,sol)    
@@ -513,44 +514,39 @@ let
     # u1₂,u2₂ = split_solution(view(X₀, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];              
     # plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
     # scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    # scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    # scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    # scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    # scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     # title!(plt1₁, "Time t="*string(round(t,digits=4)))
     # plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
     # scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    # scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝒩[end])]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    # scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝒩[end])]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    # scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    # scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     # plt1 = plot(plt1₁, plt1₂, layout=(1,2))
   end
+  # end every 200
   global X₁ = X₀  
 end 
 
 u1₁,u2₁ = split_solution(view(X₁, 1:10*𝐍^2), 𝐍)[1];
 u1₂,u2₂ = split_solution(view(X₁, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
 
-plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+plt1 = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y", markersize=4, msw=0.01, label="");
+scatter!(plt1, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y", xlabel="x", markersize=4, msw=0.01, label="");
 scatter!(plt1, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
 scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="", right_margin=20*Plots.mm)
 title!(plt1, "Horizontal Displacement")
-plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
-scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
+plt2 = scatter(Tuple.(xy₁), zcolor=vec(u2₁), colormap=:turbo, ylabel="y", markersize=4, msw=0.1, label="");
+scatter!(plt2, Tuple.(xy₂), zcolor=vec(u2₂), colormap=:turbo, ylabel="y", xlabel="x", markersize=4, msw=0.1, label="");
 scatter!(plt2, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), markercolor=:blue, markersize=3, msw=0.1, label="");
 scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), markercolor=:green, markersize=2, msw=0.1, label="", right_margin=20*Plots.mm)
 title!(plt2, "Vertical Displacement")
-plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1, colorbar_exponentformat="power");
+plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, markersize=4, msw=0.01, label="", ylabel="y", xlabel="x");
+scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, markersize=4, msw=0.01, label="", ylabel="y", xlabel="x");
+scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:red, markersize=2, msw=0.1, colorbar_exponentformat="power");
 scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
 title!(plt3, "PML Function")
 plt4 = plot()
-plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎,  f(q) = 0.3sin("*string(pf)*"πq), τ = 40/h", lw=2)
-# plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
-# savefig(plt5, "C:\\Users\\baka0042\\OneDrive - Umeå universitet\\Postdoc-Balaje\\PML_elastic_layered_media\\PML GIFs\\Steady-State\\eg6.pdf"); 
-
-# vv,xx = Arpack.eigs(stima, nev=2, which=:LM, sigma=0);
-# em1₁, em1₂ = split_solution(view(xx[:,1], 1:10*𝐍^2), 𝐍)[1];
-# em2₁, em2₂ = split_solution(view(xx[:,1], 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];
-# plt6 = plot()
-# plt6 = scatter(Tuple.(xy₁), zcolor=vec(real(em1₁)), colormap=:redsblues)
-# scatter!(plt6, Tuple.(xy₂), zcolor=vec(real(em1₂)), colormap=:redsblues)
+plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎", lw=2, size=(800,800))
+xlabel!(plt4, "Time (t)")
+plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
+# savefig(plt4, "./Images/PML/2-layer/stab.png"); 

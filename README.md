@@ -724,16 +724,16 @@ The computational domain we consider here is given by the parametrization:
 
 - Layer 1: 
   - Left: $c_0(r) = [0, r]$
-  - Bottom: $c_1(q) = [1.1 q, f(q)]$ (interface)
-  - Right: $c_2(r) = [1.1, r]$
-  - Top: $c_3(q) = [1.1 q, 0.0]$
+  - Bottom: $c_1(q) = [4.4\pi q, 4\pi f(q)]$ (interface)
+  - Right: $c_2(r) = [4.4\pi, 4\pi r]$
+  - Top: $c_3(q) = [4.4\pi q, 0.0]$
 - Layer 2:
-  - Left: $c_0(r) = [0, r - 1.0]$
-  - Bottom: $c_1(q) = [1.1 q, - 1]$
-  - Right: $c_2(r) = [1.1, r - 1]$
-  - Top: $c_3(q) = [1.1 q, f(q)]$ (interface)
+  - Left: $c_0(r) = [0, 4\pi r - 4\pi]$
+  - Bottom: $c_1(q) = [4.4\pi 4\pi q, - 4\pi]$
+  - Right: $c_2(r) = [4.4\pi, 4\pi r - 4\pi]$
+  - Top: $c_3(q) = [4.4\pi q, 4\pi f(q)]$ (interface)
 
-with the function $f(q) = 0$ for a flat interface and $f(q) = 0.1\sin{2\pi q}$ for a general interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
+with the function $f(q) = 0$ for a flat interface and $f(q) = 0.1\sin{\pi q}$ for a curvilinear interface. This can be modified to obtain different interface profiles. We take the PML damping function of the form 
 
 $$
 \begin{align}
@@ -744,16 +744,31 @@ $$
 \end{align}
 $$
 
-with $L_x = 1.0$. We consider the following initial condition for the displacement field:
+with $L_x = 4\pi$. We consider the following initial condition for the displacement field:
 
 $$
 \begin{align}
-  \mathbf{u}_0^1(x,y) = [e^{-8\pi((x-0.55)^2 + (y-0.5)^2)}, -e^{-8\pi((x-0.55)^2 + (y-0.5)^2)}] \quad \text{Layer 1}\\
-  \mathbf{u}_0^2(x,y) = [e^{-8\pi((x-0.55)^2 + (y-0.5)^2)}, -e^{-8\pi((x-0.55)^2 + (y-0.5)^2)}] \quad \text{Layer 2}\\
+  \mathbf{u}_0^1(x,y) = [e^{-((x-2.2\pi)^2 + (y-2\pi)^2)}, -e^{-((x-2.2\pi)^2 + (y-2\pi)^2)}] \quad \text{Layer 1}\\
+  \mathbf{u}_0^2(x,y) = [e^{-((x-2.2\pi)^2 + (y-2\pi)^2)}, -e^{-((x-2.2\pi)^2 + (y-2\pi)^2)}] \quad \text{Layer 2}\\
 \end{align}
 $$
 
-We use the 4th order SBP/SAT method in space and the 4th order Runge-Kutta scheme in time. We now look at the stability of the method.
+We use the 4th order SBP/SAT method in space and the 4th order Runge-Kutta scheme in time. Following GIFs show the effect of the peerfectly matched layer as the wave reaches the boundary. The perfectly matched layer damps the wave as it reaches the boundary, whereas in the absence of PML, the wave reaches the boundary without damping.
+
+No Perfectly Matched Layer | Perfectly Matched Layer $(x \ge 4\pi)$
+--- | --- |
+![](./Images/PML/2-layer/GIFs/no-pml.gif) | ![](./Images/PML/2-layer/GIFs/pml.gif) |
+
+The solution reaches steady state and the method seems to be stable till final time $T=200$. The material properties are given in the code `examples/LinearElasticity/PML_2_layer_linear_elasticity.jl`.
+
+Solution at $T=0.0028$ | Solution at $T = 4.4149$ |
+--- | --- |
+![](./Images/PML/2-layer/000001.png) | ![](./Images/PML/2-layer/000009.png) |
+
+Solution at $T=199.6528$ | $\|\| U \|\|_{\infty}$ vs $t$ |
+--- | --- |
+![](./Images/PML/2-layer/000363.png) | ![](./Images/PML/2-layer/stab.png) |
+
 
 
 # References
