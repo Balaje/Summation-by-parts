@@ -755,20 +755,17 @@ $$
 
 and we set the initial conditions for the auxiliary variables to be equal to 0. We use the 4th order SBP/SAT method in space and the 4th order Runge-Kutta scheme in time. Following GIFs show the effect of the peerfectly matched layer as the wave reaches the boundary. The perfectly matched layer damps the wave as it reaches the boundary, whereas in the absence of PML, the wave reaches the boundary without damping.
 
-No Perfectly Matched Layer | Perfectly Matched Layer $(x \ge 4\pi)$
+No PML | With PML |
 --- | --- |
 ![](./Images/PML/2-layer/GIFs/no-pml.gif) | ![](./Images/PML/2-layer/GIFs/pml.gif) |
 
-The solution reaches steady state and the method seems to be stable till final time $T=200$. The material properties are given in the code `examples/LinearElasticity/PML_2_layer_linear_elasticity.jl`.
+The solution reaches steady state and the method seems to be stable till final time $T=200$. The material properties are given in `examples/LinearElasticity/PML_2_layer_linear_elasticity.jl`.
 
-Solution at $T=0.0028$ | Solution at $T = 4.4149$ |
---- | --- |
 ![](./Images/PML/2-layer/000001.png) | ![](./Images/PML/2-layer/000009.png) |
-
-Solution at $T=199.6528$ | $\|\| U \|\|_{\infty}$ vs $t$ |
 --- | --- |
-![](./Images/PML/2-layer/000363.png) | ![](./Images/PML/2-layer/stab.png) |
 
+![](./Images/PML/2-layer/000363.png) | ![](./Images/PML/2-layer/stab.png) |
+--- | --- |
 
 
 # References
