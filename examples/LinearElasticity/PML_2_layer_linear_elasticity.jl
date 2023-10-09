@@ -6,7 +6,7 @@
 include("2d_elasticity_problem.jl");
 
 using SplitApplyCombine
-using Arpack
+using LoopVectorization
 
 """
 Define the geometry of the two layers. 
@@ -233,40 +233,29 @@ function get_marker_matrix(m)
   W₂ = I(2) ⊗ I(m) ⊗ E1(m,m,m)
   Z₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
   Z₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m) 
-  Z = zero(W₁)
+  # Bulk zero matrices
+  Z_2_20 = spzeros(2m^2, 20m^2);
+  Z_2_8 = spzeros(2m^2, 8m^2);
+  Z_6_20 = spzeros(6m^2, 20m^2);
+
+  mk1 = [Z_2_20; 
+         [(-W₁) Z_2_8 (Z₁) Z_2_8]; 
+         Z_6_20; 
+         Z_2_20; 
+         [(-Z₂) Z_2_8 (W₂) Z_2_8]; 
+         Z_6_20]
+  mk2 = [Z_2_20; 
+         [(-W₁) Z_2_8 (Z₁) Z_2_8]; 
+         Z_6_20; 
+         Z_2_20; 
+         [(Z₂) Z_2_8 (-W₂) Z_2_8]; 
+         Z_6_20]
   
-  mk1 = [Z   Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        -W₁  Z   Z   Z    Z    Z₁  Z   Z   Z   Z; 
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;        
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        -Z₂  Z   Z   Z    Z    W₂  Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
-
-  mk2 = [Z   Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        -W₁  Z   Z   Z    Z    Z₁  Z   Z   Z   Z; 
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;                
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z₂   Z   Z   Z    Z   -W₂  Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z;
-        Z    Z   Z   Z    Z    Z   Z   Z   Z   Z];
-
-  mk3 = [-W₁   Z   Z   Z    Z    Z₁   Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-         -Z₂   Z   Z   Z    Z    W₂   Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z; 
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z;
-          Z    Z   Z   Z    Z    Z    Z   Z   Z   Z];
+  Z_8_20 = spzeros(8m^2, 20m^2)
+  mk3 = [[(-W₁)  Z_2_8   (Z₁)  Z_2_8];
+         Z_8_20;
+         [(-Z₂)  Z_2_8   (W₂)  Z_2_8];
+         Z_8_20]
 
   mk1, mk2, mk3
 end
@@ -411,27 +400,18 @@ end
 A non-allocating implementation of the RK4 scheme
 """
 function RK4_1!(M, sol)  
-  X₀, k₁, k₂, k₃, k₄, tmp = sol
+  X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
-  mul!(k₁, M, X₀)  
-  # k2 step    
-  for i=1:lastindex(k₂)
-    tmp[i] = (X₀[i] + (Δt/2)*k₁[i])  
-  end  
-  mul!(k₂, M, tmp)  
+  mul!(k₁, M, X₀);
+  # k2 step
+  mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
   # k3 step
-  for i=1:lastindex(k₃)
-    tmp[i] = (X₀[i] + (Δt/2)*k₂[i])  
-  end
-  mul!(k₃, M, tmp)
+  mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
   # k4 step
-  for i=1:lastindex(k₄)
-    tmp[i] = (X₀[i] + (Δt)*k₃[i])  
-  end
-  mul!(k₄, M, tmp)
-  for i=1:lastindex(X₀)
-    X₀[i] = (X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i]))
-    tmp[i] = 0.0
+  mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
+  # Final step
+  @turbo for i=1:lastindex(X₀)
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i])
   end
   X₀
 end
@@ -469,30 +449,27 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 81
+𝐍 = 21;
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
-𝐱𝐲₁ = Ω₁.(𝐪𝐫);
-𝐱𝐲₂ = Ω₂.(𝐪𝐫);
-const h = Lₓ/(𝐍-1)
+xy₁ = vec(Ω₁.(𝐪𝐫));
+xy₂ = vec(Ω₂.(𝐪𝐫));
+const h = Lₓ/(𝐍-1);
 stima = 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 
 cmax = 45.57
 τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 200.0
+const tf = 100.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
-xy₁ = vec(Ω₁.(𝐪𝐫));
-xy₂ = vec(Ω₂.(𝐪𝐫));
-
-M = massma*stima 
+M = massma*stima
 iter = 0
 let  
   t = iter*tf
-  X₀¹ = vcat(eltocols(vec(𝐔₁.(𝐱𝐲₁))), eltocols(vec(𝐑₁.(𝐱𝐲₁))), eltocols(vec(𝐕₁.(𝐱𝐲₁))), eltocols(vec(𝐖₁.(𝐱𝐲₁))), eltocols(vec(𝐐₁.(𝐱𝐲₁))));
-  X₀² = vcat(eltocols(vec(𝐔₂.(𝐱𝐲₂))), eltocols(vec(𝐑₂.(𝐱𝐲₂))), eltocols(vec(𝐕₂.(𝐱𝐲₂))), eltocols(vec(𝐖₂.(𝐱𝐲₂))), eltocols(vec(𝐐₂.(𝐱𝐲₂))));
+  X₀¹ = vcat(eltocols(vec(𝐔₁.(xy₁))), eltocols(vec(𝐑₁.(xy₁))), eltocols(vec(𝐕₁.(xy₁))), eltocols(vec(𝐖₁.(xy₁))), eltocols(vec(𝐐₁.(xy₁))));
+  X₀² = vcat(eltocols(vec(𝐔₂.(xy₂))), eltocols(vec(𝐑₂.(xy₂))), eltocols(vec(𝐕₂.(xy₂))), eltocols(vec(𝐖₂.(xy₂))), eltocols(vec(𝐐₂.(xy₂))));
   X₀ = vcat(X₀¹, X₀²)  
   # X₀ = X₁
   # Arrays to store the RK-variables
@@ -500,10 +477,10 @@ let
   k₂ = zeros(Float64, length(X₀))
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀))
-  tmp = zeros(Float64, length(X₀))   
+  
   # @gif for i=1:ntime
   for i=1:ntime
-    sol = X₀, k₁, k₂, k₃, k₄, tmp
+    sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M,sol)    
     t += Δt    
     solmax[i] = maximum(abs.(X₀))
