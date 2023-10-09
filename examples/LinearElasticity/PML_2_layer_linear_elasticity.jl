@@ -550,3 +550,20 @@ plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||
 xlabel!(plt4, "Time (t)")
 plt5 = plot(plt1, plt3, plt2, plt4, layout=(2,2));
 # savefig(plt4, "./Images/PML/2-layer/stab.png"); 
+
+#= 
+# Use this code to remove any repetition in time-axis while plotting
+plt7 = plot();
+X = (plt4.series_list[1].plotattributes[:x], plt4.series_list[2].plotattributes[:x], 
+     plt4.series_list[3].plotattributes[:x], plt4.series_list[5].plotattributes[:x], 
+     plt4.series_list[6].plotattributes[:x])
+Y = (plt4.series_list[1].plotattributes[:y], plt4.series_list[2].plotattributes[:y], 
+     plt4.series_list[3].plotattributes[:y], plt4.series_list[5].plotattributes[:y],
+     plt4.series_list[6].plotattributes[:y])
+for i=1:lastindex(X)
+  plot!(plt7, X[i], Y[i], yaxis=:log10, lw=2, size=(800,800), label="")
+end
+xlabel!(plt7, "Time (t)")
+ylabel!(plt7, "||U||₍∞₎")
+savefig(plt7, "./Images/PML/2-layer/stab.png");  
+=#
