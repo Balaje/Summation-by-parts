@@ -33,8 +33,8 @@ c₁₂(x) = λ(x)
 
 """
 The material property tensor in the physical coordinates
-  𝒫(x) = [A(x) C(x); 
-          C(x)' B(x)]
+𝒫(x) = [A(x) C(x); 
+        C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
 """
 𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
@@ -44,63 +44,49 @@ Cauchy Stress tensor using the displacement field.
 """
 σ(∇u,x) = 𝒫(x)*∇u
 
-## Transform the material properties to the reference grid
-function t𝒫(𝒮, qr)
-    x = 𝒮(qr)
-    invJ = J⁻¹(qr, 𝒮)
-    S = invJ ⊗ I(2)
-    m,n = size(S)
-    SMatrix{m,n,Float64}(S'*𝒫(x)*S)
-end
-
-# Extract the property matrices
-Aₜ(qr) = t𝒫(Ω,qr)[1:2, 1:2];
-Bₜ(qr) = t𝒫(Ω,qr)[3:4, 3:4];
-Cₜ(qr) = t𝒫(Ω,qr)[1:2, 3:4];
-
-# Stiffness matrix
+"""
+Function to generate the stiffness matrices
+"""
 function 𝐊(𝐪𝐫)
-    detJ(x) = (det∘J)(x,Ω)
-    detJ𝒫(x) = detJ(x)*t𝒫(Ω, x)
-    
-    Pqr = t𝒫.(Ω,𝐪𝐫) # Property matrix evaluated at grid points
-    JPqr = detJ𝒫.(𝐪𝐫) # Property matrix * det(J)
-    𝐏 = Pᴱ(Dᴱ(JPqr)) # Elasticity bulk differential operator
-    𝐓 = Tᴱ(Pqr) # Elasticity Traction operator
-    𝐓q = 𝐓.A
-    𝐓r = 𝐓.B
-
-    m, n = size(𝐪𝐫)
-    sbp_q = SBP_1_2_CONSTANT_0_1(m)
-    sbp_r = SBP_1_2_CONSTANT_0_1(n)
-    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
-    
-    𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
-
-    detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
-    spdiagm(detJ1.^-1)*𝐏 - (-(I(2) ⊗ 𝐇q₀)*(𝐓q) + (I(2) ⊗ 𝐇qₙ)*(𝐓q) - (I(2) ⊗ 𝐇r₀)*(𝐓r) + (I(2) ⊗ 𝐇rₙ)*(𝐓r))
+  detJ(x) = (det∘J)(x,Ω)    
+  
+  Pqr = P2R.(𝒫,Ω,𝐪𝐫) # Property matrix evaluated at grid points    
+  𝐏 = Pᴱ(Dᴱ(Pqr)) # Elasticity bulk differential operator
+  𝐓 = Tᴱ(Pqr) # Elasticity Traction operator
+  𝐓q = 𝐓.A
+  𝐓r = 𝐓.B
+  
+  m, n = size(𝐪𝐫)
+  sbp_q = SBP_1_2_CONSTANT_0_1(m)
+  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+  
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+  
+  detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
+  spdiagm(detJ1.^-1)*(𝐏 - (-(I(2) ⊗ 𝐇q₀)*(𝐓q) + (I(2) ⊗ 𝐇qₙ)*(𝐓q) - (I(2) ⊗ 𝐇r₀)*(𝐓r) + (I(2) ⊗ 𝐇rₙ)*(𝐓r)))
 end
 
 """
 Neumann boundary condition vector
 """
 function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm)
-    m,n= mn
-    q = LinRange(0,1,m); r = LinRange(0,1,n)
-    𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
-    
-    bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r])
-    bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q])
-    bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r])
-    bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])
-
-    E1(i,M) = diag(SBP.SBP_2d.E1(i,M))
-    bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
-    br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,n)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,n))
-    bqₙ = (E1(1,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[2,:]))
-    brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(m,n)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(m,n))
-
-    collect((I(2)⊗𝐇r₀)*br₀ + (I(2)⊗𝐇rₙ)*brₙ + (I(2)⊗𝐇q₀)*bq₀ + (I(2)⊗𝐇qₙ)*bqₙ)
+  m,n= mn
+  q = LinRange(0,1,m); r = LinRange(0,1,n)
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
+  
+  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])
+  
+  E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
+  bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
+  br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,n)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,n))
+  bqₙ = (E1(1,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[2,:]))
+  brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(m,n)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(m,n))
+  
+  collect((I(2)⊗𝐇r₀)*br₀ + (I(2)⊗𝐇rₙ)*brₙ + (I(2)⊗𝐇q₀)*bq₀ + (I(2)⊗𝐇qₙ)*bqₙ)
 end
 
 #################################
@@ -110,53 +96,53 @@ N = [21,31,41,51]
 h = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 0.5
-Δt = 1e-3
+const Δt = 1e-3
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
+  let
+    𝐪𝐫 = generate_2d_grid((m,m))
+    global stima = 𝐊(𝐪𝐫)
+    𝐱𝐲 = Ω.(𝐪𝐫)
+    ρᵢ = ρ.(𝐱𝐲)
+    massma = I(2) ⊗ spdiagm(vec(ρᵢ))
+    M⁺ = (massma - (Δt/2)^2*stima)
+    M⁻ = (massma + (Δt/2)^2*stima)
+    luM⁺ = factorize(M⁺)
+    
+    m, n = size(𝐪𝐫)
+    sbp_q = SBP_1_2_CONSTANT_0_1(m)
+    sbp_r = SBP_1_2_CONSTANT_0_1(n)
+    sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+    
     let
-        𝐪𝐫 = generate_2d_grid((m,m))
-        stima = 𝐊(𝐪𝐫)
-        𝐱𝐲 = Ω.(𝐪𝐫)
-        ρᵢ = ρ.(𝐱𝐲)
-        massma = I(2) ⊗ spdiagm(vec(ρᵢ))
-        M⁺ = (massma - (Δt/2)^2*stima)
-        M⁻ = (massma + (Δt/2)^2*stima)
-        luM⁺ = factorize(M⁺)
-
-        m, n = size(𝐪𝐫)
-        sbp_q = SBP_1_2_CONSTANT_0_1(m)
-        sbp_r = SBP_1_2_CONSTANT_0_1(n)
-        sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+      u₀ = eltocols(vec(U.(𝐱𝐲,0.0)))
+      v₀ = eltocols(vec(Uₜ.(𝐱𝐲,0.0)))
+      global u₁ = zero(u₀)
+      global v₁ = zero(v₀)
+      t = 0.0
+      for i=1:ntime
+        Fₙ = eltocols(vec(F.(𝐱𝐲, t)))
+        Fₙ₊₁ = eltocols(vec(F.(𝐱𝐲, t+Δt)))
+        gₙ = 𝐠(t, (m,n), sbp_2d.norm)
+        gₙ₊₁ = 𝐠(t+Δt, (m,n), sbp_2d.norm)
         
-        let
-            u₀ = eltocols(vec(U.(𝐱𝐲,0.0)))
-            v₀ = eltocols(vec(Uₜ.(𝐱𝐲,0.0)))
-            global u₁ = zero(u₀)
-            global v₁ = zero(v₀)
-            t = 0.0
-            for i=1:ntime
-                Fₙ = eltocols(vec(F.(𝐱𝐲, t)))
-                Fₙ₊₁ = eltocols(vec(F.(𝐱𝐲, t+Δt)))
-                gₙ = 𝐠(t, (m,n), sbp_2d.norm)
-                gₙ₊₁ = 𝐠(t+Δt, (m,n), sbp_2d.norm)
-
-                rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
-                fargs = Δt, u₀, v₀, rhs
-                u₁,v₁ = CN(luM⁺, M⁻, massma, fargs) # Function in "time-stepping.jl"
-                t = t+Δt
-                u₀ = u₁
-                v₀ = v₁
-            end
-        end
-
-        Hq = sbp_q.norm
-        Hr = sbp_r.norm
-        𝐇 = (I(2) ⊗ Hq ⊗ Hr)
-        e = u₁ - eltocols(vec(U.(𝐱𝐲, tf)))
-        L²Error[i] = sqrt(e'*𝐇*e)
-        println("Done N = "*string(m)*", L²Error = "*string(L²Error[i]))
+        rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
+        fargs = Δt, u₀, v₀, rhs
+        u₁,v₁ = CN(luM⁺, M⁻, massma, fargs) # Function in "time-stepping.jl"
+        t = t+Δt
+        u₀ = u₁
+        v₀ = v₁
+      end
     end
+    
+    Hq = sbp_q.norm
+    Hr = sbp_r.norm
+    𝐇 = (I(2) ⊗ Hq ⊗ Hr)
+    e = u₁ - eltocols(vec(U.(𝐱𝐲, tf)))
+    L²Error[i] = sqrt(e'*𝐇*e)
+    println("Done N = "*string(m)*", L²Error = "*string(L²Error[i]))
+  end
 end
 
 rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
@@ -164,7 +150,7 @@ rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
 @show rate
 
 function get_sol_vector_from_raw_vector(sol, m, n)
-    (reshape(sol[1:m^2], (m,m)), reshape(sol[1:n^2], (n,n)))
+  (reshape(sol[1:m^2], (m,m)), reshape(sol[1:n^2], (n,n)))
 end
 
 𝐪𝐫 = generate_2d_grid((N[end],N[end]));

@@ -15,7 +15,7 @@ Define the geometry of the two layers.
 # Define the parametrization for interface
 # f(q) = 0.3*exp(-4*4.4π*(q-0.5)^2)
 pf = 1
-f(q) = 0.1sin(pf*π*q)
+f(q) = 0.1*sin(pf*π*q)
 cᵢ(q) = [4.4π*q, 4π*f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0, 4π*r]; # Left boundary
@@ -105,57 +105,30 @@ where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and th
 """
 𝒫ᴾᴹᴸ(x) = @SMatrix [-σₚ(x)*c₁₁(x) 0 0 0; 0 -σₚ(x)*c₃₃(x) 0 0; 0 0 σₚ(x)*c₃₃(x) 0; 0 0 0 σₚ(x)*c₂₂(x)];
 
-function t𝒫(Ω, qr)
-  x = Ω(qr)
-  invJ = J⁻¹(qr, Ω)
-  detJ = (det∘J)(qr, Ω)
-  S = invJ ⊗ I(2)
-  m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫(x)*S)*detJ
-end 
-
 """
 Transform the PML properties to the material grid
 """
-function t𝒫ᴾᴹᴸ(Ω, qr)
+function P2Rᴾᴹᴸ(𝒫ᴾᴹᴸ, Ω, qr)
   x = Ω(qr)
   invJ = J⁻¹(qr, Ω)
-  detJ = (det∘J)(qr, Ω)
   S = invJ ⊗ I(2)
   m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))*detJ
+  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))
 end 
 
 """
-Function to get the property tensors on the grid
-Input a Matrix or Vector of Tensors (in turn a matrix) evaluated on the grid points.
-Pqr::Matrix{SMatrix{m,n,Float64}} = [P(x₁₁) P(x₁₂) ... P(x₁ₙ)
-                                     P(x₂₁) P(x₂₂) ... P(x₂ₙ)
-                                                   ...
-                                     P(xₙ₁) P(xₙ₂) ... P(xₙₙ)]
-where P(x) = [P₁₁(x) P₁₂(x)
-              P₂₁(x) P₂₂(x)]
-Returns a matrix of matrix with the following form
-result = [ [P₁₁(x₁₁) ... P₁₁(x₁ₙ)        [P₁₂(x₁₁) ... P₁₂(x₁ₙ)
-                     ...                          ...
-            P₁₁(xₙ₁) ... P₁₁(xₙₙ)],         P₁₂(xₙ₁) ... P₁₂(x₁ₙ)];              
-           [P₂₁(x₁₁) ... P₂₁(x₁ₙ)        [P₂₂(x₁₁) ... P₂₂(x₁ₙ)
-                     ...                          ...
-            P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
-         ]
+SBP operator to approximate the PML part: Contains two parts
+1) Contains a 4×4 matrix of sparse matrices representing the individual derivatives of the PML part
+    (-) 𝛛/𝛛𝐪(𝐀 ) : 4 sparse matrices
+    (-) 𝛛/𝛛𝐪(𝟎 ) : 4 sparse matrices
+    (-) 𝛛/𝛛𝐫(𝟎 ) : 4 sparse matrices 
+    (-) 𝛛/𝛛𝐫(𝐁 ) : 4 sparse matrices
+2) Pᴾᴹᴸ(Dᴾᴹᴸ(Pqr)) ≈ 𝛛/𝛛𝐪(𝐀 ) +  𝛛/𝛛𝐫(𝐁 )
+    (-) Asssemble the PML matrices to obtain the bulk PML difference operator
 """
-function get_property_matrix_on_grid(Pqr)
-  m,n = size(Pqr[1])
-  Ptuple = Tuple.(Pqr)
-  P_page = reinterpret(reshape, Float64, Ptuple)
-  dim = length(size(P_page))
-  reshape(splitdimsview(P_page, dim-2), (m,n))
+struct Dᴾᴹᴸ
+  A::Matrix{SparseMatrixCSC{Float64, Int64}}
 end
-
-"""
-SBP operator to approximate the PML part. 
-Contains a matrix of sparse matrices representing the individual derivatives of the PML part
-"""
 function Dᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   P_vec = get_property_matrix_on_grid(Pqr)
   P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
@@ -169,12 +142,7 @@ function Dᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   res = [D₁[i,j]*P_vec_diag[i,j] for i=1:4, j=1:4]
   res
 end
-
-"""
-Assemble the PML contribution in the stiffness matrix
-"""
 function Pᴾᴹᴸ(D::Matrix{SparseMatrixCSC{Float64, Int64}})
-  # v, w are included in the construction
   [D[1,1] D[1,2] D[1,3] D[1,4]; 
   D[2,1] D[2,2] D[2,3] D[2,4]] + 
   [D[3,1] D[3,2] D[3,3] D[3,4]; 
@@ -182,33 +150,31 @@ function Pᴾᴹᴸ(D::Matrix{SparseMatrixCSC{Float64, Int64}})
 end
 
 """
-Function to obtain the PML contribution to the traction on the boundary
+Function to obtain the PML contribution to the traction on the boundary:
+Tᴾᴹᴸ(Pqr, Zxy, σₚ, Ω, 𝐪𝐫)
+1) Pqr: PML Material tensor evaluated at the grid points
+2) Zxy: Impedance matrices evaluated at the grid points
+3) σₚ: PML damping function
+4) Ω: Physical to Reference map
+5) 𝐪𝐫: Reference coordinates
 """
-function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
+function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Zxy::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}},
+              σₚ::Function, Ω::Function, 𝐪𝐫::Matrix{SVector{2, Float64}})
   P_vec = get_property_matrix_on_grid(Pqr)
   P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
   m, n = size(Pqr)
   Z = spzeros(Float64, 2m^2, 2n^2)  
-  
   # Get the trace norms
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
-  
   # Get the physical coordinates
-  𝐱𝐲 = Ω.(𝐪𝐫)
-
-  # Inverse Jacobian
-  Jinv_vec = get_property_matrix_on_grid(J.(𝐪𝐫, Ω))
-  Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]      
-  # Evaluate the functions on the physical grid
-  Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲))))*Jinv_vec_diag[1,1], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[1,1])
-  Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲))))*Jinv_vec_diag[2,2], spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲))))*Jinv_vec_diag[2,2])  
-  # Zx = I(2) ⊗ I(m) ⊗ I(m)
-  # Zy = I(2) ⊗ I(m) ⊗ I(m)
-  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))  
-  
+  Zx, Zy = Zxy
+  𝐱𝐲 = Ω.(𝐪𝐫)    
+  # Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
+  # Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
+  σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))
   # PML part of the Traction operator
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
   B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
@@ -218,13 +184,6 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐪𝐫)
   Trₙ = [(I(2)⊗𝐇rₙ)*σ*Zy     (I(2)⊗𝐇rₙ)*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy] 
   Tq₀, Tqₙ, Tr₀, Trₙ
 end
-
-function E1(i,j,m)
-  X = spzeros(Float64,m,m)
-  X[i,j] = 1.0
-  X
-end
-
 """
 Redefine the marker matrix for the PML
 """
@@ -263,25 +222,21 @@ end
 function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Obtain the properties of the first layer
   detJ₁(x) = (det∘J)(x,Ω₁)  
-  P₁ = t𝒫.(Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₁ =  t𝒫ᴾᴹᴸ.(Ω₁, 𝐪𝐫) # PML Bulk  
-
+  P₁ = P2R.(𝒫, Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
+  PML₁ =  P2Rᴾᴹᴸ.(𝒫, Ω₁, 𝐪𝐫) # PML Bulk  
   # Obtain the properties of the second layer
   detJ₂(x) = (det∘J)(x,Ω₂)  
-  P₂ = t𝒫.(Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₂ =  t𝒫ᴾᴹᴸ.(Ω₂, 𝐪𝐫) # PML Bulk
-  
+  P₂ = P2R.(𝒫, Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
+  PML₂ =  P2Rᴾᴹᴸ.(𝒫, Ω₂, 𝐪𝐫) # PML Bulk  
   # Get the 2d operators
   m,n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
   Dq, Dr = sbp_2d.D1
-
   # Jacobian and Surface Jacobian
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫))    
-  
   # Bulk stiffness matrix components on Layer 1
   𝐏₁ = Pᴱ(Dᴱ(P₁))  
   𝐏ᴾᴹᴸ₁ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₁))  
@@ -293,7 +248,6 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   Jinv_vec_diag₁ = [spdiagm(vec(p)) for p in Jinv_vec₁] #[qx rx; qy ry]
   JD₁¹ = (I(2)⊗Jinv_vec_diag₁[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₁[1,2])*(I(2)⊗Dr)
   JD₂¹ = (I(2)⊗Jinv_vec_diag₁[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₁[2,2])*(I(2)⊗Dr)
-
   # Bulk stiffness matrix components on Layer 2
   𝐏₂ = Pᴱ(Dᴱ(P₂))  
   𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₂))
@@ -305,10 +259,8 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]
   JD₁² = (I(2)⊗Jinv_vec_diag₂[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₂[1,2])*(I(2)⊗Dr) # x-Derivative operator in physical domain
   JD₂² = (I(2)⊗Jinv_vec_diag₂[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₂[2,2])*(I(2)⊗Dr) # y-Derivative operator in physical domain
-
   Id = sparse(I(2)⊗I(m)⊗I(n))
   Z = zero(Id)  
-  
   # Assemble the bulk stiffness matrix
   Σ₁ = [   Z      Id       Z       Z       Z;
       (spdiagm(detJ1₁.^-1)*𝐏₁+ρσα₁)  -ρσ₁     (spdiagm(detJ1₁.^-1)*𝐏ᴾᴹᴸ₁)        -ρσα₁;
@@ -320,20 +272,21 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
       JD₁²    Z    -(α*Id+σ₂)   Z       Z;
       JD₂²    Z       Z      -α*Id    Z;
       α*Id   Z       Z       Z     -α*Id ]
-  Σ = blockdiag(Σ₁, Σ₂)
-  
+  Σ = blockdiag(Σ₁, Σ₂)  
   # Get the traction operator of the elasticity and PML parts on Layer 1
   𝐓₁ = Tᴱ(P₁) 
   𝐓q₁, 𝐓r₁ = 𝐓₁.A, 𝐓₁.B  
-  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, Ω₁, 𝐪𝐫)
+  Zx₁ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₁).*c₁₁.(xy₁)))), spdiagm(vec(sqrt.(ρ.(xy₁).*c₃₃.(xy₁)))))
+  Zy₁ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₁).*c₃₃.(xy₁)))), spdiagm(vec(sqrt.(ρ.(xy₁).*c₂₂.(xy₁)))))  
+  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, (Zx₁, Zy₁), σₚ, Ω₁, 𝐪𝐫)
   # Get the traction operator of the elasticity and PML parts on Layer 2
   𝐓₂ = Tᴱ(P₂) 
   𝐓q₂, 𝐓r₂ = 𝐓₂.A, 𝐓₂.B  
-  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, Ω₂, 𝐪𝐫)
-  
+  Zx₂ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₂).*c₁₁.(xy₂)))), spdiagm(vec(sqrt.(ρ.(xy₂).*c₃₃.(xy₂)))))
+  Zy₂ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₂).*c₃₃.(xy₂)))), spdiagm(vec(sqrt.(ρ.(xy₂).*c₂₂.(xy₂)))))  
+  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, (Zx₂, Zy₂), σₚ, Ω₂, 𝐪𝐫)
   # Norm matrices
-  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
-  
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm  
   # Get the overall traction operator on the outer boundaries of both Layer 1 and Layer 2
   𝐓𝐪₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₁   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀¹)
   𝐓𝐪ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹)
@@ -341,11 +294,9 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐓𝐪₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²)
   𝐓𝐪ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²)
   𝐓𝐫₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²)
-  
   # Interface (But not required. Will be multiplied by 0)
   𝐓𝐫₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀¹)
   𝐓𝐫ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ²)
-
   # Interface conditions: 
   zbT = spzeros(Float64, 2m^2, 10n^2)
   zbB = spzeros(Float64, 6m^2, 10n^2)
@@ -357,13 +308,11 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
   𝐓𝐫₁ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)   Z     Z    (B₁)     Z]  
   𝐓𝐫₂ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)   Z     Z    (B₂)     Z]    
-  
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
   𝐓𝐫₁ᵀ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)'   Z     Z    (B₁)'   Z]  
   𝐓𝐫₂ᵀ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)'   Z     Z    (B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
-  
   BH, BT, BHᵀ = get_marker_matrix(m);
   Hq⁻¹ = (sbp_q.norm\I(m)) |> sparse
   Hr⁻¹ = (sbp_r.norm\I(m)) |> sparse
@@ -373,15 +322,12 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐃 = blockdiag((I(10)⊗(Hr)⊗ I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
   𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
                  (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
-
-  ζ₀ = 100/h
+  ζ₀ = 200/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
   Ju = -𝐃₁⁻¹*𝐃*BT
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
-
-  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])
-      
+  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])      
   Σ - 𝐓ₙ - 𝐓ᵢ
 end
 
@@ -449,7 +395,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21;
+𝐍 = 21
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
@@ -460,7 +406,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = 45.57
 τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 100.0
+const tf = 10.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
