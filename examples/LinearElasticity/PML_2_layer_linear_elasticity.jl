@@ -223,11 +223,11 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Obtain the properties of the first layer
   detJ₁(x) = (det∘J)(x,Ω₁)  
   P₁ = P2R.(𝒫, Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₁ =  P2Rᴾᴹᴸ.(𝒫, Ω₁, 𝐪𝐫) # PML Bulk  
+  PML₁ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ, Ω₁, 𝐪𝐫) # PML Bulk  
   # Obtain the properties of the second layer
   detJ₂(x) = (det∘J)(x,Ω₂)  
   P₂ = P2R.(𝒫, Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₂ =  P2Rᴾᴹᴸ.(𝒫, Ω₂, 𝐪𝐫) # PML Bulk  
+  PML₂ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ, Ω₂, 𝐪𝐫) # PML Bulk  
   # Get the 2d operators
   m,n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -395,7 +395,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 21
+𝐍 = 101
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
@@ -406,7 +406,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = 45.57
 τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 10.0
+const tf = 1000.0
 const ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -424,8 +424,8 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀))
   
-  # @gif for i=1:ntime
-  for i=1:ntime
+  @gif for i=1:ntime
+  # for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M,sol)    
     t += Δt    
@@ -433,20 +433,20 @@ let
     (i%1000==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
     
     ## Plotting to get GIFs
-    # u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
-    # u1₂,u2₂ = split_solution(view(X₀, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];              
-    # plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
-    # scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    # scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    # scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    # title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    # plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(Ω₁.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    # scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(Ω₂.(𝐪𝐫))), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    # scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    # scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    # plt1 = plot(plt1₁, plt1₂, layout=(1,2))
-  end
-  # end every 200
+    u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
+    u1₂,u2₂ = split_solution(view(X₀, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];              
+    plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
+    scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    title!(plt1₁, "Time t="*string(round(t,digits=4)))
+    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(xy₁)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(xy₂)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
+    scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
+    scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
+    plt1 = plot(plt1₁, plt1₂, layout=(1,2))
+  # end
+  end every 200
   global X₁ = X₀  
 end 
 

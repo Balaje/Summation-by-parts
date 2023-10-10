@@ -93,7 +93,7 @@ end
 # Now begin solving the problem #
 #################################
 N = [21,31,41,51]
-h = 1 ./(N .- 1)
+h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 0.5
 const Δt = 1e-3
@@ -145,7 +145,7 @@ for (m,i) in zip(N, 1:length(N))
   end
 end
 
-rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h[2:end]./h[1:end-1])
+rate = log.(L²Error[2:end]./L²Error[1:end-1])./log.(h1[2:end]./h1[1:end-1])
 @show L²Error
 @show rate
 
@@ -165,8 +165,8 @@ plt4 = contourf(q, r, Ve, title="v₁ Exact");
 plt12 = plot(plt1, plt2, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
 plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
 
-plt5 = plot(h, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
-plot!(plt5, h, h.^4, label="O(h⁴)", lw=1);
+plt5 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
+plot!(plt5, h1, h1.^4, label="O(h⁴)", lw=1);
 plt6_1 = scatter(Tuple.(𝐱𝐲 |> vec), size=(700,800), markersize=0.5, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Physical Domain")
 plt6_2 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=0.5);
 plt6 = plot(plt6_1, plt6_2, layout=(1,2));
