@@ -32,9 +32,9 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 Ω₁(qr) = S(qr, domain₁)
 Ω₂(qr) = S(qr, domain₂)
 
-##############################################
-# We use the same properties for both layers #
-##############################################
+###############################################
+# We use different properties for both layers #
+###############################################
 """
 The Lamé parameters μ, λ
 """

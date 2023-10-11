@@ -1,6 +1,6 @@
 module SBP_1d
 
-export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1
+export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1, INTERPOLATION_4
 
 using SparseArrays
 using LinearAlgebra
@@ -203,4 +203,52 @@ using UnicodePlots
 Base.show(io::IO, a::SBP_1_2_CONSTANT_0_1) = Base.show(io, (UnicodePlots.spy(a.norm, title="Norm"), UnicodePlots.spy(a.D1, title="∂/∂x"), UnicodePlots.spy(a.D2[1], title="∂²/∂x²")))
 Base.show(io::IO, a::SBP_2_VARIABLE_0_1) = Base.show(io, (UnicodePlots.spy(a.norm, title="Norm"), UnicodePlots.spy(a.D2,title="∂/∂x(A*∂/∂x)")))
 
+"""
+Interpolation operators to implement non-conforming interfaces
+4th order accurate (diagonal norm)
+"""
+function INTERPOLATION_4(N_C::Int64)
+  N_F = 2*N_C-1
+  # Coarse to fine 
+  I1 = zeros(Float64, N_F, N_C)
+  t1 = [2047/2176   129/1088    -129/2176   0   0   0   0   0;
+        429/944     279/472     -43/944     0   0   0   0   0;
+        111/2752    4913/5504   3/32    -147/5504   0   0   0   0;
+        -103/784    549/784     387/784   -1/16   0   0   0   0;
+        -335/3072   205/768   2365/3072 49/512  -3/128  0   0   0;
+        -9/256   5/256  129/256   147/256   -1/16   0   0   0;
+        5/192   -59/1024  43/512  2695/3072 3/32   -3/128 0   0;
+        23/768  -37/768   -43/768   147/256   9/16  -1/16 0  0;
+        13/2048 -11/1024 -43/2048 49/512  55/64 3/32 -3/128   0;
+        -1/384  1/256   0   -49/768   9/16  9/16  -1/16   0;
+        -1/1024 3/2048  0   -49/2048  3/32  55/64  3/32 -3/128]
+  t2 = [-3/128  3/32    55/64   3/32    -3/128];
+  t3 = [-1/16   9/16    9/16    -1/16];
+  I1[1:11,1:8] = t1;
+  I1[N_F-10:N_F,N_C-7:N_C] = reverse(reverse(t1, dims=1), dims=2);
+  I1[12,5:8] = t3;
+  for i=13:2:N_F-12
+    j = Int64((i-1)/2);
+    I1[i,j-1:j+3] = t2;
+    I1[i+1,j:j+3] = t3;
+  end
+
+  # Fine to coarse
+  I2 = zeros(Float64, N_C, N_F);
+  t1 = [2047/4352  429/544  111/2176  -103/544 -335/2176 -27/544 5/136 23/544  39/4352 -1/272 -3/2176;
+      129/7552   279/944  4913/15104 549/1888 205/1888 15/1888 -3/128 -37/1888 -33/7552 3/1888 9/15104 ];
+  t2 = [-3/256 -1/32 3/64 9/32 55/128 9/32 3/64 -1/32 -3/256];
+  I2[1:2,1:11] = t1;
+  I2[N_C-1:N_C,N_F-10:N_F] = reverse(reverse(t1, dims=1), dims=2);
+
+  for i=3:N_C-2
+    j = 2*(i-3)+1;
+    I2[i,j:j+8] = t2;
+  end
+  I1 = sparse(I1);
+  I2 = sparse(I2);
+  (I1,I2)
 end
+
+end
+
