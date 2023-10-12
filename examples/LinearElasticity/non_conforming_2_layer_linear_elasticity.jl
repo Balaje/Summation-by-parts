@@ -157,7 +157,7 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'    
   
   X = 𝐃*BHᵀ*𝐓r;
-  Xᵀ = 𝐃*𝐓rᵀ*BHᵀ;
+  Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
   
   𝚯 = 𝐃⁻¹*X
   𝚯ᵀ = -𝐃⁻¹*Xᵀ
@@ -258,10 +258,3 @@ for (m,Ni) in zip(N, 1:length(N))
     println("Done N = "*string(m)*", L²Error = "*string(L²Error[Ni]))
   end
 end
-
-plt10_1 = scatter(Tuple.(xy₁ |> vec), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
-plt10_2 = scatter!(plt10_1,Tuple.(xy₂ |> vec), size=(800,800), markersize=2, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
-plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
-plt10_3 = scatter(Tuple.(𝐪𝐫₁ |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
-plt10_4 = scatter(Tuple.(𝐪𝐫₂ |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
-plt10 = plot(plt10_1, plt10_3, plt10_2, plt10_4, layout=(2,2));
