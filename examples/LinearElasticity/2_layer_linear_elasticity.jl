@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.2*sin(2π*q)
+f(q) = 1 + 0.0*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , 1+r]; # Left boundary
@@ -25,47 +25,70 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 Ω₂(qr) = S(qr, domain₂)
 
 ## Define the material properties on the physical grid
-const E = 1.0;
-const ν = 0.33;
-
 """
 The Lamé parameters μ, λ
 """
-# μ(x) = E/(2*(1+ν))
-# λ(x) = E*ν/((1+ν)*(1-2ν))
-λ(x) = 2.0
-μ(x) = 1.0
-
-"""
-The density of the material
-"""
-ρ(x) = 1.0
+λ¹(x) = 2.0
+μ¹(x) = 1.0
+λ²(x) = 2.0
+μ²(x) = 1.0
 
 """
 Material properties coefficients of an anisotropic material
 """
-c₁₁(x) = 2*μ(x)+λ(x)
-c₂₂(x) = 2*μ(x)+λ(x)
-c₃₃(x) = μ(x)
-c₁₂(x) = λ(x)
+c₁₁¹(x) = 2*μ¹(x)+λ¹(x)
+c₂₂¹(x) = 2*μ¹(x)+λ¹(x)
+c₃₃¹(x) = μ¹(x)
+c₁₂¹(x) = λ¹(x)
+
+c₁₁²(x) = 2*μ²(x)+λ²(x)
+c₂₂²(x) = 2*μ²(x)+λ²(x)
+c₃₃²(x) = μ²(x)
+c₁₂²(x) = λ²(x)
 
 """
 The material property tensor in the physical coordinates
-𝒫(x) = [A(x) C(x); 
-C(x)' B(x)]
+  𝒫(x) = [A(x) C(x); 
+          C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
 """
-𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
+𝒫¹(x) = @SMatrix [c₁₁¹(x) 0 0 c₁₂¹(x); 0 c₃₃¹(x) c₃₃¹(x) 0; 0 c₃₃¹(x) c₃₃¹(x) 0; c₁₂¹(x) 0 0 c₂₂¹(x)];
+𝒫²(x) = @SMatrix [c₁₁²(x) 0 0 c₁₂²(x); 0 c₃₃²(x) c₃₃²(x) 0; 0 c₃₃²(x) c₃₃²(x) 0; c₁₂²(x) 0 0 c₂₂²(x)];
 
 """
 Cauchy Stress tensor using the displacement field.
 """
-σ(∇u,x) = 𝒫(x)*∇u
+σ¹(∇u,x) = 𝒫¹(x)*∇u
+σ²(∇u,x) = 𝒫²(x)*∇u
 
+"""
+Density function 
+"""
+ρ¹(x) = 1.0
+ρ²(x) = 0.5
+
+"""
+The material property tensor in the physical coordinates
+  𝒫(x) = [A(x) C(x); 
+          C(x)' B(x)]
+where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
+"""
+𝒫¹(x) = @SMatrix [c₁₁¹(x) 0 0 c₁₂¹(x); 0 c₃₃¹(x) c₃₃¹(x) 0; 0 c₃₃¹(x) c₃₃¹(x) 0; c₁₂¹(x) 0 0 c₂₂¹(x)];
+𝒫²(x) = @SMatrix [c₁₁²(x) 0 0 c₁₂²(x); 0 c₃₃²(x) c₃₃²(x) 0; 0 c₃₃²(x) c₃₃²(x) 0; c₁₂²(x) 0 0 c₂₂²(x)];
+
+"""
+Cauchy Stress tensor using the displacement field.
+"""
+σ¹(∇u,x) = 𝒫¹(x)*∇u
+σ²(∇u,x) = 𝒫²(x)*∇u
+
+"""
+Stiffness matrix function
+"""
 function 𝐊2(𝐪𝐫)
   # Get the bulk and the traction operator for the 1st layer
   detJ₁(x) = (det∘J)(x, Ω₁)
-  Pqr₁ = P2R.(𝒫, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
+  Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
   𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
   𝐓q₁ = 𝐓₁.A
@@ -73,7 +96,7 @@ function 𝐊2(𝐪𝐫)
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
-  Pqr₂ = P2R.(𝒫, Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
+  Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
   𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
   𝐓q₂ = 𝐓₂.A
@@ -111,7 +134,7 @@ function 𝐊2(𝐪𝐫)
   𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'    
   
   X = 𝐃*BHᵀ*𝐓r;
-  Xᵀ = 𝐓rᵀ*BHᵀ*𝐃;
+  Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
   
   𝚯 = 𝐃⁻¹*X
   𝚯ᵀ = -𝐃⁻¹*Xᵀ
@@ -140,17 +163,17 @@ end
 """
 Neumann boundary condition vector
 """
-function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C)
+function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C, σ)
   m,n= mn
   q = LinRange(0,1,m); r = LinRange(0,1,n)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
   P1, P2, P3, P4 = P
   c₀, c₁, c₂, c₃ = C
     
-  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, P1) for rᵢ in r])
-  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, P2) for qᵢ in q])
-  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, P3) for rᵢ in r])
-  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, P4) for qᵢ in q])
+  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])
     
   E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
   bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
@@ -164,12 +187,12 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,41]
+N = [41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-const tf = 1.0
-const ntime = ceil(Int, tf/Δt)
+tf = 1.0
+ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
   
 for (m,Ni) in zip(N, 1:length(N))
@@ -178,7 +201,7 @@ for (m,Ni) in zip(N, 1:length(N))
     global stima2 = 𝐊2(𝐪𝐫)
     𝐱𝐲₁ = Ω₁.(𝐪𝐫)
     𝐱𝐲₂ = Ω₂.(𝐪𝐫)        
-    massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ.(𝐱𝐲₂)))))
+    massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ².(𝐱𝐲₂)))))
     M⁺ = (massma2 - (Δt/2)^2*stima2)
     M⁻ = (massma2 + (Δt/2)^2*stima2)
     luM⁺ = factorize(M⁺)
@@ -195,13 +218,13 @@ for (m,Ni) in zip(N, 1:length(N))
       global v₁ = zero(v₀)            
       t = 0.0
       for i=1:ntime
-        Fₙ = vcat(eltocols(vec(F.(𝐱𝐲₁, t))), eltocols(vec(F.(𝐱𝐲₂, t))))
-        Fₙ₊₁ = vcat(eltocols(vec(F.(𝐱𝐲₁, t+Δt))), eltocols(vec(F.(𝐱𝐲₂, t+Δt))))
+        Fₙ = vcat(eltocols(vec(F.(𝐱𝐲₁, t, σ¹, ρ¹))), eltocols(vec(F.(𝐱𝐲₂, t, σ², ρ²))))
+        Fₙ₊₁ = vcat(eltocols(vec(F.(𝐱𝐲₁, t+Δt, σ¹, ρ¹))), eltocols(vec(F.(𝐱𝐲₂, t+Δt, σ², ρ²))))
         normals(Ω) = (r->Ω([0.0,r]), q->Ω([q,0.0]), r->Ω([1.0,r]), q->Ω([q,1.0]))
-        gₙ = vcat(𝐠(t, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
-        𝐠(t, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
-        gₙ₊₁ = vcat(𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
-        𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
+        gₙ = vcat(𝐠(t, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁), σ¹),
+                 𝐠(t, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂), σ²))
+        gₙ₊₁ = vcat(𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁), σ¹),
+                   𝐠(t+Δt, (m,n), sbp_2d.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂), σ²))
           
         rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
         fargs = Δt, u₀, v₀, rhs
@@ -252,17 +275,18 @@ plt4 = scatter(Tuple.(𝐱𝐲₁), zcolor=vec(Ve₁), label="", title="Exact so
 scatter!(plt4, Tuple.(𝐱𝐲₂), zcolor=vec(Ve₂), label="", markersize=4, msw=0.1);
   
 # Plot the exact solution and the approximate solution together.
-plt13 = plot(plt1, plt2, layout=(1,2), size=(800,400));
-plt24 = plot(plt3, plt4, layout=(1,2), size=(800,400));
+plt1_3 = plot(plt1, plt2, layout=(1,2), size=(800,400));
+plt2_4 = plot(plt3, plt4, layout=(1,2), size=(800,400));
   
-plt9 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
-scatter!(plt9, h1, L²Error, markersize=4, label="");
-plot!(plt9, h1, h1.^4, label="O(h⁴)", lw=2);
-plt10_1 = scatter(Tuple.(𝐱𝐲₁), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
-plt10_2 = scatter!(plt10_1,Tuple.(𝐱𝐲₂), size=(800,800), markersize=2, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
-plt10_12 = plot(plt10_1, plt10_2, layout=(2,1))
-plt10_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
-plt10 = plot(plt10_12, plt10_3, layout=(1,2));
+plt5 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2, size=(800,800));
+scatter!(plt5, h1, L²Error, markersize=4, label="");
+plot!(plt5, h1, h1.^4, label="O(h⁴)", lw=2);
+
+plt6_1 = scatter(Tuple.(𝐱𝐲₁), size=(800,800), markersize=4, xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 1", msw=0.1)
+plt6_2 = scatter(Tuple.(𝐱𝐲₂), size=(800,800), markersize=2, markercolor="red", xlabel="x = x(q,r)", ylabel="y = y(q,r)", label="Layer 2", msw=0.1)
+plt6_1_2 = plot(plt6_1, plt6_2, layout=(2,1))
+plt6_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
+plt6 = plot(plt6_1_2, plt6_3, layout=(1,2));
   
 #= # Run these from the Project folder
 savefig(plt13, "./Images/2-layer/horizontal-disp.png")
@@ -270,12 +294,12 @@ savefig(plt24, "./Images/2-layer/vertical-disp.png")
 savefig(plt9, "./Images/2-layer/rate.png")
 savefig(plt10, "./Images/2-layer/domain.png") =#
   
-plt11 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="ΔU", markersize=4, msw=0.1);
-scatter!(plt11, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4, msw=0.1);
-plt12 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Vap₁-Ve₁)), label="", title="ΔV", markersize=4, msw=0.1);
-scatter!(plt12, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Vap₂-Ve₂)), label="", markersize=4, msw=0.1);
-plt1112 = plot(plt11,plt12,layout=(1,2))
-  
+plt7 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="ΔU", markersize=4, msw=0.1);
+scatter!(plt7, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4, msw=0.1);
+plt8 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Vap₁-Ve₁)), label="", title="ΔV", markersize=4, msw=0.1);
+scatter!(plt8, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Vap₂-Ve₂)), label="", markersize=4, msw=0.1);
+plt7_8 = plot(plt7, plt8, layout=(1,2))
+
 # plt14 = plot();
 # for i=1:lastindex(h1)
 #   t_arr = LinRange(0,tf,ntime)

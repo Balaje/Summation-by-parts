@@ -41,38 +41,29 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 """
 The Lamé parameters μ, λ
 """
-function λ(x)
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))
-    return 2.0
-  else
-    return 2.0
-  end
-end
-function μ(x)
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
-    return 1.0
-  else
-    return 1.0
-  end
-end
-"""
-The density of the material, ρ
-"""
-function ρ(x) 
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
-    return 1.0
-  else
-    return 1.0
-  end
-end 
+λ¹(x) = 2.0
+μ¹(x) = 1.0
+λ²(x) = 2.0
+μ²(x) = 1.0
 
 """
 Material properties coefficients of an anisotropic material
 """
-c₁₁(x) = 2*μ(x)+λ(x)
-c₂₂(x) = 2*μ(x)+λ(x)
-c₃₃(x) = μ(x)
-c₁₂(x) = λ(x)
+c₁₁¹(x) = 2*μ¹(x)+λ¹(x)
+c₂₂¹(x) = 2*μ¹(x)+λ¹(x)
+c₃₃¹(x) = μ¹(x)
+c₁₂¹(x) = λ¹(x)
+
+c₁₁²(x) = 2*μ²(x)+λ²(x)
+c₂₂²(x) = 2*μ²(x)+λ²(x)
+c₃₃²(x) = μ²(x)
+c₁₂²(x) = λ²(x)
+
+"""
+Density function 
+"""
+ρ¹(x) = 1.0
+ρ²(x) = 0.5
 
 """
 The material property tensor in the physical coordinates
@@ -80,18 +71,20 @@ The material property tensor in the physical coordinates
           C(x)' B(x)]
 where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
 """
-𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
+𝒫¹(x) = @SMatrix [c₁₁¹(x) 0 0 c₁₂¹(x); 0 c₃₃¹(x) c₃₃¹(x) 0; 0 c₃₃¹(x) c₃₃¹(x) 0; c₁₂¹(x) 0 0 c₂₂¹(x)];
+𝒫²(x) = @SMatrix [c₁₁²(x) 0 0 c₁₂²(x); 0 c₃₃²(x) c₃₃²(x) 0; 0 c₃₃²(x) c₃₃²(x) 0; c₁₂²(x) 0 0 c₂₂²(x)];
 
 """
 Cauchy Stress tensor using the displacement field.
 """
-σ(∇u,x) = 𝒫(x)*∇u
+σ¹(∇u,x) = 𝒫¹(x)*∇u
+σ²(∇u,x) = 𝒫²(x)*∇u
 
 """
 Function to get the marker matrix for implementing the jump conditions on the interface.
 The resulting matrix uses an interpolation operator used in SBP techniques.
 """
-function get_marker_matrix(N_C::Int64)
+function get_marker_matrix(N_C)
   C2F, F2C = INTERPOLATION_4(N_C)
   N_F = 2*N_C-1
   
@@ -110,16 +103,20 @@ function get_marker_matrix(N_C::Int64)
   mk1, mk2
 end
 
+
+"""
+Stiffness matrix function for non-conforming interface
+"""
 function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   detJ₁(x) = (det∘J)(x, Ω₁)
-  Pqr₁ = P2R.(𝒫, Ω₁, 𝐪𝐫₁) # Property matrix evaluated at grid points
+  Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫₁) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
   𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
   𝐓q₁ = 𝐓₁.A
   𝐓r₁ = 𝐓₁.B
   # Second layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
-  Pqr₂ = P2R.(𝒫, Ω₂, 𝐪𝐫₂) # Property matrix evaluated at grid points
+  Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫₂) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
   𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
   𝐓q₂ = 𝐓₂.A
@@ -173,16 +170,16 @@ end
 """
 Neumann boundary condition vector
 """
-function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C)
+function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C, σ)
   m,n= mn
   q = LinRange(0,1,m); r = LinRange(0,1,n) # Reference coordinate axes
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm # The inverse of the norm matrices
   P1, P2, P3, P4 = P # A parameter to indicate the nature of the boundary; 0: Interface, 1: CW, -1: CCW
   c₀, c₁, c₂, c₃ = C # The parametric representation of the boundary
-  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, P1) for rᵢ in r])
-  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, P2) for qᵢ in q])
-  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, P3) for rᵢ in r])
-  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, P4) for qᵢ in q])    
+  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])    
   E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
   bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
   br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,n)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,n))
@@ -195,11 +192,11 @@ end
 #############################
 # Begin solving the problem #
 #############################
-N = [21,41]
+N = [21,31,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-tf = 0.5
+tf = 8.0
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
   
@@ -212,7 +209,7 @@ for (m,Ni) in zip(N, 1:length(N))
     global stima2 = 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂);     
     u₀ = vcat(eltocols(vec(U.(xy₁,0.0))), eltocols(vec(U.(xy₂,0.0)))) # Function in "2d_elasticity_problem.jl"
     v₀ = vcat(eltocols(vec(Uₜ.(xy₁,0.0))), eltocols(vec(Uₜ.(xy₂,0.0)))) # Function in "2d_elasticity_problem.jl"        
-    massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ.(xy₁)))), (I(2)⊗spdiagm(vec(ρ.(xy₂)))))
+    massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(xy₁)))), (I(2)⊗spdiagm(vec(ρ².(xy₂)))))
     M⁺ = (massma2 - (Δt/2)^2*stima2)
     M⁻ = (massma2 + (Δt/2)^2*stima2)
     luM⁺ = factorize(M⁺)
@@ -231,13 +228,13 @@ for (m,Ni) in zip(N, 1:length(N))
       global v₁ = zero(v₀)            
       t = 0.0
       for i=1:ntime
-        Fₙ = vcat(eltocols(vec(F.(xy₁, t))), eltocols(vec(F.(xy₂, t))))
-        Fₙ₊₁ = vcat(eltocols(vec(F.(xy₁, t+Δt))), eltocols(vec(F.(xy₂, t+Δt))))
+        Fₙ = vcat(eltocols(vec(F.(xy₁, t, σ¹, ρ¹))), eltocols(vec(F.(xy₂, t, σ², ρ²))))
+        Fₙ₊₁ = vcat(eltocols(vec(F.(xy₁, t+Δt, σ¹, ρ¹))), eltocols(vec(F.(xy₂, t+Δt, σ², ρ²))))
         normals(Ω) = (r->Ω([0.0,r]), q->Ω([q,0.0]), r->Ω([1.0,r]), q->Ω([q,1.0]))
-        gₙ = vcat(𝐠(t, (m₁,n₁), sbp_2d₁.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
-                 𝐠(t, (m₂,n₂), sbp_2d₂.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
-        gₙ₊₁ = vcat(𝐠(t+Δt, (m₁,n₁), sbp_2d₁.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁)),
-                  𝐠(t+Δt, (m₂,n₂), sbp_2d₂.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂)))
+        gₙ = vcat(𝐠(t, (m₁,n₁), sbp_2d₁.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁), σ¹),
+                 𝐠(t, (m₂,n₂), sbp_2d₂.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂), σ²))
+        gₙ₊₁ = vcat(𝐠(t+Δt, (m₁,n₁), sbp_2d₁.norm, Ω₁, [1, 0, -1, 1], normals(Ω₁), σ¹),
+                  𝐠(t+Δt, (m₂,n₂), sbp_2d₂.norm, Ω₂, [1, -1, -1, 0], normals(Ω₂), σ²))
           
         rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
         fargs = Δt, u₀, v₀, rhs
@@ -257,4 +254,31 @@ for (m,Ni) in zip(N, 1:length(N))
     L²Error[Ni] = sqrt(e'*𝐇*e)
     println("Done N = "*string(m)*", L²Error = "*string(L²Error[Ni]))
   end
+end
+
+function get_sol_vector_from_raw_vector(sol, mn₁, mn₂)
+  m₁, n₁ = mn₁
+  m₂, n₂ = mn₂
+  (reshape(sol[1:m₁^2], (m₁, m₁)), 
+   reshape(sol[m₁^2+1:m₁^2+n₁^2], (n₁,n₁)),
+   reshape(sol[m₁^2+n₁^2+1:m₁^2+n₁^2+m₂^2], (m₂,m₂)), 
+   reshape(sol[m₁^2+n₁^2+m₂^2+1:m₁^2+n₁^2+m₂^2+n₂^2], (n₂,n₂)))
+end
+
+𝐪𝐫₁ = generate_2d_grid((N[end],N[end])); # Coarser grid
+𝐪𝐫₂ = generate_2d_grid((2*N[end]-1,2*N[end]-1)); # Finer grid
+xy₁ = Ω₁.(𝐪𝐫₁);
+xy₂ = Ω₂.(𝐪𝐫₂);
+Uap₁, Vap₁, Uap₂, Vap₂ = get_sol_vector_from_raw_vector(u₁, (N[end],N[end]), (2*N[end]-1, 2*N[end]-1));
+
+plt1 = scatter(Tuple.(xy₁ |> vec), zcolor=vec(Uap₁), label="", title="Approx. solution (u(x,y))", markersize=4, msw=0.1);
+scatter!(plt1, Tuple.(xy₂ |> vec), zcolor=vec(Uap₂), label="", markersize=4, msw=0.1);
+plt3 = scatter(Tuple.(xy₁ |> vec), zcolor=vec(Vap₁), label="", title="Approx. solution (v(x,y))", markersize=4, msw=0.1);
+scatter!(plt3, Tuple.(xy₂ |> vec), zcolor=vec(Vap₂), label="", markersize=4, msw=0.1);
+plt1_3 = plot(plt1, plt3, layout=(1,2), size=(800,800))
+
+plt4 = plot();
+for i=1:lastindex(h1)
+  t_arr = LinRange(0,tf,ntime)
+  plot!(plt4, t_arr, max_err[:,i], label="h="*string(h1[i]), yscale=:log10, lw=1.5, legend=:bottomright)
 end

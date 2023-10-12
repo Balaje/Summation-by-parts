@@ -62,7 +62,7 @@ Uₜ₀(x) = Uₜ(x,0);
 Right hand side function 
   f(x,t) = Uₜₜ(x,t) - ∇⋅(σ(U))(x,t)
 """
-function F(x,t) 
+function F(x,t,σ,ρ) 
   V(x) = U(x,t)
   𝛔(y) = σ(∇(V, y),y);  
   ρ(x)*Uₜₜ(x,t) - div(𝛔, x);
@@ -76,7 +76,7 @@ Non-zero traction at the boundary
   o: Orientation of the normal
   = σ(c₀(u),t) ⋅ n(c₀)
 """
-function g(t,c,u,o)
+function g(t,c,u,σ,o)
   V(x) = U(x,t)
   𝛔(y) = σ(∇(V, y),y);  
   x = c(u)

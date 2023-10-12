@@ -38,39 +38,43 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 """
 The Lamé parameters μ, λ
 """
-function λ(x)
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))
-    return 4.8629
-  else
-    return 26.9952
-  end
-end
-function μ(x)
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
-    return 4.86
-  else
-    return 27
-  end
-end
-
-"""
-The density of the material
-"""
-function ρ(x) 
-  if((x[2] ≈ cᵢ(x[1])[2]) || (x[2] > cᵢ(x[1])[2]))  
-    return 1.5
-  else
-    return 3.0
-  end
-end 
+λ¹(x) = 4.8629
+μ¹(x) = 4.86
+λ²(x) = 26.9952
+μ²(x) = 27.0
 
 """
 Material properties coefficients of an anisotropic material
 """
-c₁₁(x) = 2*μ(x)+λ(x)
-c₂₂(x) = 2*μ(x)+λ(x)
-c₃₃(x) = μ(x)
-c₁₂(x) = λ(x)
+c₁₁¹(x) = 2*μ¹(x)+λ¹(x)
+c₂₂¹(x) = 2*μ¹(x)+λ¹(x)
+c₃₃¹(x) = μ¹(x)
+c₁₂¹(x) = λ¹(x)
+c₁₁²(x) = 2*μ²(x)+λ²(x)
+c₂₂²(x) = 2*μ²(x)+λ²(x)
+c₃₃²(x) = μ²(x)
+c₁₂²(x) = λ²(x)
+
+"""
+Density of the material
+"""
+ρ¹(x) = 1.5
+ρ²(x) = 3.0
+
+"""
+The material property tensor in the physical coordinates
+  𝒫(x) = [A(x) C(x); 
+          C(x)' B(x)]
+where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
+"""
+𝒫¹(x) = @SMatrix [c₁₁¹(x) 0 0 c₁₂¹(x); 0 c₃₃¹(x) c₃₃¹(x) 0; 0 c₃₃¹(x) c₃₃¹(x) 0; c₁₂¹(x) 0 0 c₂₂¹(x)];
+𝒫²(x) = @SMatrix [c₁₁²(x) 0 0 c₁₂²(x); 0 c₃₃²(x) c₃₃²(x) 0; 0 c₃₃²(x) c₃₃²(x) 0; c₁₂²(x) 0 0 c₂₂²(x)];
+
+"""
+Cauchy Stress tensor using the displacement field.
+"""
+σ¹(∇u,x) = 𝒫¹(x)*∇u
+σ²(∇u,x) = 𝒫²(x)*∇u
 
 """
 The PML damping
@@ -79,7 +83,6 @@ const δ = 0.1*4π
 const Lₓ = 4π
 const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
-
 function σₚ(x)
   if((x[1] ≈ Lₓ) || (x[1] > Lₓ))
     return σ₀*((x[1] - Lₓ)/δ)^3  
@@ -89,21 +92,13 @@ function σₚ(x)
 end
 
 """
-The material property tensor in the physical coordinates
-  𝒫(x) = [A(x) C(x); 
-          C(x)' B(x)]
-where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
-"""
-𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
-
-
-"""
 The material property tensor with the PML is given as follows:
   𝒫ᴾᴹᴸ(x) = [-σₚ(x)*A(x)      0; 
                  0         σₚ(x)*B(x)]
 where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and the damping parameter in the physical domain
 """
-𝒫ᴾᴹᴸ(x) = @SMatrix [-σₚ(x)*c₁₁(x) 0 0 0; 0 -σₚ(x)*c₃₃(x) 0 0; 0 0 σₚ(x)*c₃₃(x) 0; 0 0 0 σₚ(x)*c₂₂(x)];
+𝒫ᴾᴹᴸ₁(x) = @SMatrix [-σₚ(x)*c₁₁¹(x) 0 0 0; 0 -σₚ(x)*c₃₃¹(x) 0 0; 0 0 σₚ(x)*c₃₃¹(x) 0; 0 0 0 σₚ(x)*c₂₂¹(x)];
+𝒫ᴾᴹᴸ₂(x) = @SMatrix [-σₚ(x)*c₁₁²(x) 0 0 0; 0 -σₚ(x)*c₃₃²(x) 0 0; 0 0 σₚ(x)*c₃₃²(x) 0; 0 0 0 σₚ(x)*c₂₂²(x)];
 
 """
 Transform the PML properties to the material grid
@@ -222,12 +217,12 @@ end
 function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Obtain the properties of the first layer
   detJ₁(x) = (det∘J)(x,Ω₁)  
-  P₁ = P2R.(𝒫, Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₁ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ, Ω₁, 𝐪𝐫) # PML Bulk  
+  P₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Elasticity Bulk (For traction)
+  PML₁ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ₁, Ω₁, 𝐪𝐫) # PML Bulk  
   # Obtain the properties of the second layer
   detJ₂(x) = (det∘J)(x,Ω₂)  
-  P₂ = P2R.(𝒫, Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
-  PML₂ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ, Ω₂, 𝐪𝐫) # PML Bulk  
+  P₂ = P2R.(𝒫¹, Ω₂, 𝐪𝐫) # Elasticity Bulk (For traction)
+  PML₂ =  P2Rᴾᴹᴸ.(𝒫ᴾᴹᴸ₁, Ω₂, 𝐪𝐫) # PML Bulk  
   # Get the 2d operators
   m,n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -242,7 +237,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐏ᴾᴹᴸ₁ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₁))  
   xy₁ = Ω₁.(𝐪𝐫)  
   σ₁ = I(2) ⊗ spdiagm(vec(σₚ.(xy₁)))  
-  ρσ₁ = I(2) ⊗ spdiagm(vec(ρ.(xy₁).*σₚ.(xy₁)))
+  ρσ₁ = I(2) ⊗ spdiagm(vec(ρ¹.(xy₁).*σₚ.(xy₁)))
   ρσα₁ = α*ρσ₁
   Jinv_vec₁ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₁))
   Jinv_vec_diag₁ = [spdiagm(vec(p)) for p in Jinv_vec₁] #[qx rx; qy ry]
@@ -253,7 +248,7 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₂))
   xy₂ = Ω₂.(𝐪𝐫)
   σ₂ = I(2) ⊗ spdiagm(vec(σₚ.(xy₂)))  
-  ρσ₂ = I(2) ⊗ spdiagm(vec(ρ.(xy₂).*σₚ.(xy₂)))
+  ρσ₂ = I(2) ⊗ spdiagm(vec(ρ².(xy₂).*σₚ.(xy₂)))
   ρσα₂ = α*ρσ₂
   Jinv_vec₂ = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω₂))
   Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]
@@ -276,14 +271,14 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫, Ω₁, Ω₂)
   # Get the traction operator of the elasticity and PML parts on Layer 1
   𝐓₁ = Tᴱ(P₁) 
   𝐓q₁, 𝐓r₁ = 𝐓₁.A, 𝐓₁.B  
-  Zx₁ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₁).*c₁₁.(xy₁)))), spdiagm(vec(sqrt.(ρ.(xy₁).*c₃₃.(xy₁)))))
-  Zy₁ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₁).*c₃₃.(xy₁)))), spdiagm(vec(sqrt.(ρ.(xy₁).*c₂₂.(xy₁)))))  
+  Zx₁ = blockdiag(spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₁₁¹.(xy₁)))), spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₃₃¹.(xy₁)))))
+  Zy₁ = blockdiag(spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₃₃¹.(xy₁)))), spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₂₂¹.(xy₁)))))  
   𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, (Zx₁, Zy₁), σₚ, Ω₁, 𝐪𝐫)
   # Get the traction operator of the elasticity and PML parts on Layer 2
   𝐓₂ = Tᴱ(P₂) 
   𝐓q₂, 𝐓r₂ = 𝐓₂.A, 𝐓₂.B  
-  Zx₂ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₂).*c₁₁.(xy₂)))), spdiagm(vec(sqrt.(ρ.(xy₂).*c₃₃.(xy₂)))))
-  Zy₂ = blockdiag(spdiagm(vec(sqrt.(ρ.(xy₂).*c₃₃.(xy₂)))), spdiagm(vec(sqrt.(ρ.(xy₂).*c₂₂.(xy₂)))))  
+  Zx₂ = blockdiag(spdiagm(vec(sqrt.(ρ².(xy₂).*c₁₁².(xy₂)))), spdiagm(vec(sqrt.(ρ².(xy₂).*c₃₃².(xy₂)))))
+  Zy₂ = blockdiag(spdiagm(vec(sqrt.(ρ².(xy₂).*c₃₃².(xy₂)))), spdiagm(vec(sqrt.(ρ².(xy₂).*c₂₂².(xy₂)))))  
   𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, (Zx₂, Zy₂), σₚ, Ω₂, 𝐪𝐫)
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm  
@@ -334,8 +329,8 @@ end
 function 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂)
   m, n = size(𝐪𝐫)
   Id = sparse(I(2)⊗I(m)⊗I(n))
-  ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ.(Ω₁.(𝐪𝐫))))
-  ρᵥ² = I(2)⊗spdiagm(vec(1 ./ρ.(Ω₂.(𝐪𝐫))))
+  ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ¹.(Ω₁.(𝐪𝐫))))
+  ρᵥ² = I(2)⊗spdiagm(vec(1 ./ρ².(Ω₂.(𝐪𝐫))))
   blockdiag(blockdiag(Id, ρᵥ¹, Id, Id, Id), blockdiag(Id, ρᵥ², Id, Id, Id))
 end 
 
@@ -395,7 +390,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 101
+𝐍 = 21
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
@@ -406,8 +401,8 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫, Ω₁, Ω₂);
 cmax = 45.57
 τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-const tf = 1000.0
-const ntime = ceil(Int, tf/Δt)
+tf = 1000.0
+ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
 M = massma*stima

@@ -767,6 +767,37 @@ The solution reaches steady state and the method seems to be stable till final t
 ![](./Images/PML/2-layer/000363.png) | ![](./Images/PML/2-layer/stab.png) |
 --- | --- |
 
+## Non-conforming interfaces
+
+In many layered-media applications, it may be useful to use different grid sizes for the layers. The SBP-SAT method can be extended to such cases using a suitable interpolation operator on the interface. The interface operator needs to be sufficiently accurate while preserving the stability properties of the discrete scheme. The code is given in `./examples/LinearElasticity/non_conforming_2_layer_linear_elasticity.jl`. Following figures show the 2-layer case with `N=21` points in the top layer and `N=41` points in the bottom layer. 
+
+Cartesian Interface | Curvilinear Interface |
+--- | --- |
+![](./Images/non-conforming/eg1.png) | ![](./Images/non-conforming/eg2.png) | 
+
+The method is stable in **both cases** - and can be verified by computing the eigenvalues of the stiffness matrix. The eigenvalues are purely real and negative. Using the 2nd order Crank Nicolson Scheme, we solve the problem till final time $T=1.0$ with the time-stepping size $\Delta t = 10^{-3}$. For a flat interface, we observe the following convergence rates.
+
+Mesh Size (h) | Error | Rate |
+--- | --- | --- |
+1/20 | 0.0025948280285954467 | - |
+1/30 | 0.00046111499380706376 | 4.260855083231531 |
+1/40 | 0.00013426476738089056 | 4.288879453592164 |
+1/50 | 5.210498275712439e-5 | 4.241902301719028 |
+
+For the curvilinear interface, we observe the following convergence rates. We observe a drop in convergence rates.
+
+Mesh Size (h) | Error | Rate |
+--- | --- | --- |
+1/20 | 0.0345698052371385 | - |
+1/30 | 0.011429206798200506 | 2.7297257371831187 |
+1/40 | 0.005082457948617604 | 2.816918966422273 |
+1/50 | 0.0027707572279294197 | 2.718762602947539 |
+
+Following figure shows the maximum-norm error in the solution as a function of time for the curvilinear case. The problem was solved till final time $T=10.0$ s.
+
+Cartesian Interface | Curvilinear Interface | 
+--- | --- |
+![](./Images/non-conforming/maxdisp_cart.png) | ![](./Images/non-conforming/maxdisp.png) | 
 
 # References
 
