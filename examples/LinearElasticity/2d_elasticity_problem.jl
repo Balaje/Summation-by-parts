@@ -34,7 +34,7 @@ end
 """
 Exact solution
 """
-U(x,t) = (@SVector [sin(2π*x[1])*sin(2π*x[2])*cos(2π*t), -sin(2π*x[1])*sin(2π*x[2])*cos(2π*t)]);
+U(x,t) = (@SVector [sin(2π*x[1])*cos(2π*x[2])*cos(2π*(t+1)), -sin(2π*x[1])*cos(2π*x[2])*cos(2π*(t+1))]);
 
 """
 First time derivative Uₜ(x,t)

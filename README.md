@@ -779,21 +779,21 @@ The method is stable in **both cases** - and can be verified by computing the ei
 
 Mesh Size (h) | Error | Rate |
 --- | --- | --- |
-1/20 | 0.0025948280285954467 | - |
-1/30 | 0.00046111499380706376 | 4.260855083231531 |
-1/40 | 0.00013426476738089056 | 4.288879453592164 |
-1/50 | 5.210498275712439e-5 | 4.241902301719028 |
+1/20 | 0.026211808439636063 | - |
+1/30 | 0.008746630256191176 | 2.7068704025812806 |
+1/40 | 0.0038020449644579272 | 2.896007509233421 |
+1/50 | 0.0019686933629908636 | 2.9495318662548855 |
 
-For the curvilinear interface, we observe the following convergence rates. We observe a drop in convergence rates.
+For the curvilinear interface, we observe the following convergence rates.
 
 Mesh Size (h) | Error | Rate |
 --- | --- | --- |
-1/20 | 0.0345698052371385 | - |
-1/30 | 0.011429206798200506 | 2.7297257371831187 |
-1/40 | 0.005082457948617604 | 2.816918966422273 |
-1/50 | 0.0027707572279294197 | 2.718762602947539 |
+1/20 | 0.030295920639684136 | - |
+1/30 | 0.011206971663428154 | 2.4526821090526285 |
+1/40 | 0.0053189797099193435 | 2.5905491681617163 |
+1/50 | 0.002897981842482318 | 2.7214182045127746 |
 
-Following figure shows the maximum-norm error in the solution as a function of time for the curvilinear case. The problem was solved till final time $T=10.0$ s.
+We observe a convergence rate of $\approx 3$ in both cases. Following figure shows the maximum-norm error in the solution as a function of time for the curvilinear case. The problem was solved till final time $T=10.0$ s.
 
 Cartesian Interface | Curvilinear Interface | 
 --- | --- |

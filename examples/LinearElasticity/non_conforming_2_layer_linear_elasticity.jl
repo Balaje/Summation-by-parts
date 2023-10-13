@@ -192,11 +192,11 @@ end
 #############################
 # Begin solving the problem #
 #############################
-N = [21,31,41]
+N = [41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-tf = 8.0
+tf = 1.0
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
   
