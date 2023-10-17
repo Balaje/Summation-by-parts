@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.0*sin(2π*q)
+f(q) = 1 + 0.1*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , 1+r]; # Left boundary
@@ -94,10 +94,13 @@ function get_marker_matrix(N_C)
   I_N_F = spzeros(Float64, N_F, N_C)  
   I_N_F[N_F, 1] = 1.0
 
+  J_N_C = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,N_C)].^(0.0))
+  J_N_F = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,N_F)].^(0.0))
+
   W₁ = I(2) ⊗ I(N_C) ⊗ E1(1, 1, N_C)
   W₂ = I(2) ⊗ I(N_F) ⊗ E1(N_F, N_F, N_F)
-  Z₁ = I(2) ⊗ F2C ⊗ I_N_C
-  Z₂ = I(2) ⊗ C2F ⊗ I_N_F 
+  Z₁ = I(2) ⊗ (J_N_C\(F2C*J_N_F)) ⊗ I_N_C
+  Z₂ = I(2) ⊗ (J_N_F\(C2F*J_N_C)) ⊗ I_N_F 
   mk1 = [-W₁  Z₁; -Z₂  W₂]
   mk2 = [-W₁  Z₁; Z₂  -W₂]
   mk1, mk2
@@ -164,7 +167,7 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   ζ₀ = 40/h
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
   
-  Jbulk⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)  
+  Jbulk⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)
 end
 
 """
@@ -192,7 +195,7 @@ end
 #############################
 # Begin solving the problem #
 #############################
-N = [41]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
