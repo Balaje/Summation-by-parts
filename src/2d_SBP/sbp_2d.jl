@@ -215,10 +215,9 @@ Linear Elasticity traction SBP operator:
         where [A C; Cᵀ B] = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
 """
 struct Tᴱ <: SBP_TYPE
-  A::SparseMatrixCSC{Float64, Int64}
-  B::SparseMatrixCSC{Float64, Int64}
+  A::SparseMatrixCSC{Float64, Int64}  
 end
-function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})    
+function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐧)    
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
   m,n = size(Pqr)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -226,7 +225,36 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
-  Tq = [P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr)
-  Tr = [P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr)
-  Tᴱ(Tq, Tr)
+
+  ##########################
+  # Surface Jacobian terms #
+  ##########################  
+  if(𝐧 ≈ [0,-1])
+    SJ = spdiagm([J⁻¹s([q,0.0], Ω, 𝐧)*(det∘J)([q,0.0], Ω) for q in LinRange(0,1,m)].^(-1))  
+    JJ = get_surf_J(I(2)⊗SJ⊗E1(1,1,m), m)    
+    Tr = JJ*([P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr))
+  elseif(𝐧 ≈ [0,1])
+    SJ = spdiagm([J⁻¹s([q,1.0], Ω, 𝐧)*(det∘J)([q,1.0], Ω) for q in LinRange(0,1,m)].^(-1))  
+    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)    
+    Tr = JJ*([P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr))
+  elseif(𝐧 ≈ [-1,0])
+    SJ = spdiagm([J⁻¹s([0.0,r], Ω, 𝐧)*(det∘J)([0.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
+    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)
+    Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
+  elseif(𝐧 ≈ [1,0])
+    SJ = spdiagm([J⁻¹s([1.0,r], Ω, 𝐧)*(det∘J)([1.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
+    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)
+    Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
+  end
+  
+  Tᴱ(Tr)
+end
+
+function get_surf_J(JJ0,m)  
+  JJ = spdiagm(ones(2m^2))  
+  i,j,v = findnz(JJ0)
+  for k=1:2m
+    JJ[i[k], j[k]] = v[k]
+  end
+  JJ
 end

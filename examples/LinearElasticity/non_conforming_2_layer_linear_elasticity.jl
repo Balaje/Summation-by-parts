@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.1*sin(2π*q)
+f(q) = 1 + 0.7*exp(-2q)*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , 1+r]; # Left boundary
@@ -94,8 +94,8 @@ function get_marker_matrix(N_C)
   I_N_F = spzeros(Float64, N_F, N_C)  
   I_N_F[N_F, 1] = 1.0
 
-  J_N_C = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,N_C)].^(0.0))
-  J_N_F = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,N_F)].^(0.0))
+  J_N_C = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,N_C)].^(0.5))
+  J_N_F = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,N_F)].^(0.5))
 
   W₁ = I(2) ⊗ I(N_C) ⊗ E1(1, 1, N_C)
   W₂ = I(2) ⊗ I(N_F) ⊗ E1(N_F, N_F, N_F)
@@ -114,14 +114,14 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   detJ₁(x) = (det∘J)(x, Ω₁)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫₁) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
-  𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
+  𝐓₁ = Tᴱ(Pqr₁, Ω₁, [0,-1]) # Elasticity Traction operator
   𝐓q₁ = 𝐓₁.A
   𝐓r₁ = 𝐓₁.B
   # Second layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫₂) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
-  𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
+  𝐓₂ = Tᴱ(Pqr₂, Ω₂, [0,1]) # Elasticity Traction operator
   𝐓q₂ = 𝐓₂.A
   𝐓r₂ = 𝐓₂.B
   # Get the 2d operators
@@ -139,6 +139,8 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫₁))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫₂)) 
   Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
+  SJ₁ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,m₁)])
+  SJ₂ = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,m₂)])
   # Combine the operators    
   𝐏 = blockdiag(𝐏₁, 𝐏₂)
   𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀¹)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ¹)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ¹)*(𝐓r₁),
@@ -149,7 +151,7 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   Hq₂ = sbp_q₂.norm;  Hr₂ = sbp_r₂.norm    
   Hq₁⁻¹ = (Hq₁)\I(m₁) |> sparse;  Hr₁⁻¹ = (Hr₁)\I(n₁) |> sparse
   Hq₂⁻¹ = (Hq₂)\I(m₂) |> sparse;  Hr₂⁻¹ = (Hr₂)\I(n₂) |> sparse  
-  𝐃 = blockdiag((I(2)⊗(Hr₁)⊗I(m₁))*(I(2)⊗I(m₁)⊗(E1(1,1,m₁))), (I(2)⊗(Hr₂)⊗I(m₂))*(I(2)⊗I(m₂)⊗E1(m₂,m₂,m₂)))
+  𝐃 = blockdiag((I(2)⊗(SJ₁*Hr₁)⊗I(m₁))*(I(2)⊗I(m₁)⊗(E1(1,1,m₁))), (I(2)⊗(SJ₂*Hr₂)⊗I(m₂))*(I(2)⊗I(m₂)⊗E1(m₂,m₂,m₂)))
   𝐃⁻¹ = blockdiag((I(2)⊗Hq₁⁻¹⊗Hr₁⁻¹), (I(2)⊗Hq₂⁻¹⊗Hr₂⁻¹))
   BHᵀ, BT = get_marker_matrix(m₁) # Assuming coarse mesh in layer 1
   
@@ -199,7 +201,7 @@ N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-tf = 1.0
+tf = 2e-3
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
   

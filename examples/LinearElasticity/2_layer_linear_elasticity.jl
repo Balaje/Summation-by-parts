@@ -7,7 +7,7 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.0*sin(2π*q)
+f(q) = 1 + 0.1*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , 1+r]; # Left boundary
@@ -90,17 +90,21 @@ function 𝐊2(𝐪𝐫)
   detJ₁(x) = (det∘J)(x, Ω₁)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
-  𝐓₁ = Tᴱ(Pqr₁) # Elasticity Traction operator
-  𝐓q₁ = 𝐓₁.A
-  𝐓r₁ = 𝐓₁.B
+  # Elasticity traction operators
+  𝐓q₀¹ = Tᴱ(Pqr₁, Ω₁, [-1,0]).A
+  𝐓r₀¹ = Tᴱ(Pqr₁, Ω₁, [0,-1]).A
+  𝐓qₙ¹ = Tᴱ(Pqr₁, Ω₁, [1,0]).A 
+  𝐓rₙ¹ = Tᴱ(Pqr₁, Ω₁, [0,1]).A 
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
-  𝐓₂ = Tᴱ(Pqr₂) # Elasticity Traction operator
-  𝐓q₂ = 𝐓₂.A
-  𝐓r₂ = 𝐓₂.B
+  # Elasticity traction operators
+  𝐓q₀² = Tᴱ(Pqr₂, Ω₂, [-1,0]).A
+  𝐓r₀² = Tᴱ(Pqr₂, Ω₂, [0,-1]).A
+  𝐓qₙ² = Tᴱ(Pqr₂, Ω₂, [1,0]).A 
+  𝐓rₙ² = Tᴱ(Pqr₂, Ω₂, [0,1]).A 
   
   # Get the norm matrices (Same for both layers)
   m, n = size(𝐪𝐫)
@@ -114,10 +118,21 @@ function 𝐊2(𝐪𝐫)
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫)) 
   Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
   
+  # Surface Jacobians
+  SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,m)])
+  SJq₀¹ = spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for  q in LinRange(0,1,m)])
+  SJrₙ¹ = spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, [0,1])) for  q in LinRange(0,1,m)])
+  SJqₙ¹ = spdiagm([(det(J([1.0,q], Ω₁))*J⁻¹s([1.0,q], Ω₁, [1,0])) for  q in LinRange(0,1,m)])
+
+  SJr₀² = spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, [0,-1])) for  q in LinRange(0,1,m)])
+  SJq₀² = spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for  q in LinRange(0,1,m)])
+  SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,m)])
+  SJqₙ² = spdiagm([(det(J([1.0,q], Ω₂))*J⁻¹s([1.0,q], Ω₂, [1,0])) for  q in LinRange(0,1,m)])
+
   # Combine the operators    
   𝐏 = blockdiag(𝐏₁, 𝐏₂)
-  𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ)*(𝐓r₁),
-                -(I(2) ⊗ 𝐇q₀)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀)*(𝐓r₂))    
+  𝐓 = blockdiag(-(I(2)⊗𝐇q₀)*(I(2)⊗SJq₀¹⊗I(m))*(𝐓q₀¹) + (I(2)⊗𝐇qₙ)*(I(2)⊗SJqₙ¹⊗I(m))*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ)*(I(2)⊗I(m)⊗SJrₙ¹)*(𝐓rₙ¹),
+                -(I(2)⊗𝐇q₀)*(I(2)⊗SJq₀²⊗I(m))*(𝐓q₀²) + (I(2)⊗𝐇qₙ)*(I(2)⊗SJqₙ²⊗I(m))*(𝐓qₙ²) + -(I(2)⊗𝐇r₀)*(I(2)⊗I(m)⊗SJr₀²)*(𝐓r₀²))
   
   # Traction on the interface      
   Hq = sbp_q.norm
@@ -126,12 +141,12 @@ function 𝐊2(𝐪𝐫)
   Hr⁻¹ = (Hr)\I(n) |> sparse
   # Hq = sbp_q.norm
   Hr = sbp_r.norm
-  𝐃 = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
+  𝐃 = blockdiag((I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
   𝐃⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
   BHᵀ, BT = get_marker_matrix(m)
   
-  𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
-  𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'    
+  𝐓r = blockdiag(𝐓r₀¹, 𝐓rₙ²)
+  𝐓rᵀ = blockdiag(𝐓r₀¹, 𝐓rₙ²)'    
   
   X = 𝐃*BHᵀ*𝐓r;
   Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
@@ -170,10 +185,10 @@ function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C, σ)
   P1, P2, P3, P4 = P
   c₀, c₁, c₂, c₃ = C
     
-  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
-  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
-  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
-  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])
+  bvals_q₀ = reduce(hcat, [(det∘J)(@SVector[0.0, rᵢ], Ω)^-1*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [(det∘J)(@SVector[qᵢ, 0.0], Ω)^-1*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [(det∘J)(@SVector[1.0, rᵢ], Ω)^-1*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [(det∘J)(@SVector[qᵢ, 1.0], Ω)^-1*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])
     
   E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
   bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
@@ -187,7 +202,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [41]
+N = [21,31]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
