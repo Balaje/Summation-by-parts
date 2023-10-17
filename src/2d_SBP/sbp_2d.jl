@@ -239,11 +239,11 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐧)
     Tr = JJ*([P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr))
   elseif(𝐧 ≈ [-1,0])
     SJ = spdiagm([J⁻¹s([0.0,r], Ω, 𝐧)*(det∘J)([0.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)
+    JJ = get_surf_J(I(2)⊗E1(1,1,m)⊗SJ, m)
     Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
   elseif(𝐧 ≈ [1,0])
     SJ = spdiagm([J⁻¹s([1.0,r], Ω, 𝐧)*(det∘J)([1.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)
+    JJ = get_surf_J(I(2)⊗E1(m,m,m)⊗SJ, m)
     Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
   end
   

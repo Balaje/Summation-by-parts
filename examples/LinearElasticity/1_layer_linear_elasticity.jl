@@ -1,9 +1,9 @@
 include("2d_elasticity_problem.jl");
 
 ## Define the physical domain
-c₀(r) = @SVector [0.0 + 0.1*sin(π*r), r] # Left boundary 
-c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
-c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
+c₀(r) = @SVector [0.0 + 0.0*sin(π*r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0 + 0.0*sin(2π*q)] # Bottom boundary
+c₂(r) = @SVector [1.0 + 0.0*sin(π*r), r] # Right boundary
 c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)] # Top boundary
 domain = domain_2d(c₀, c₁, c₂, c₃)
 Ω(qr) = S(qr, domain)
@@ -51,34 +51,43 @@ function 𝐊(𝐪𝐫)
   detJ(x) = (det∘J)(x,Ω)    
   
   Pqr = P2R.(𝒫,Ω,𝐪𝐫) # Property matrix evaluated at grid points    
-  𝐏 = Pᴱ(Dᴱ(Pqr)) # Elasticity bulk differential operator
-  𝐓 = Tᴱ(Pqr) # Elasticity Traction operator
-  𝐓q = 𝐓.A
-  𝐓r = 𝐓.B
+  𝐏 = Pᴱ(Dᴱ(Pqr)) # Elasticity bulk differential operator  
+  𝐓q₀ = Tᴱ(Pqr, Ω, [-1,0]).A
+  𝐓r₀ = Tᴱ(Pqr, Ω, [0,-1]).A
+  𝐓qₙ = Tᴱ(Pqr, Ω, [1,0]).A 
+  𝐓rₙ = Tᴱ(Pqr, Ω, [0,1]).A 
   
   m, n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+
+  SJr₀ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω))*J⁻¹s([q,0.0], Ω, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
+  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m)]), m)
+  SJrₙ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω))*J⁻¹s([q,1.0], Ω, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
+  SJqₙ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω))*J⁻¹s([1.0,q], Ω, [1,0])) for q in LinRange(0,1,m)]), m)
   
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
   
   detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
-  spdiagm(detJ1.^-1)*(𝐏 - (-(I(2) ⊗ 𝐇q₀)*(𝐓q) + (I(2) ⊗ 𝐇qₙ)*(𝐓q) - (I(2) ⊗ 𝐇r₀)*(𝐓r) + (I(2) ⊗ 𝐇rₙ)*(𝐓r)))
+  spdiagm(detJ1.^-1)*(𝐏 - (-(I(2) ⊗ 𝐇q₀)*SJq₀*(𝐓q₀) + (I(2) ⊗ 𝐇qₙ)*SJqₙ*(𝐓qₙ) 
+                           -(I(2) ⊗ 𝐇r₀)*SJr₀*(𝐓r₀) + (I(2) ⊗ 𝐇rₙ)*SJrₙ*(𝐓rₙ)))
 end
 
 """
 Neumann boundary condition vector
 """
-function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm)
+function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C, σ)
   m,n= mn
   q = LinRange(0,1,m); r = LinRange(0,1,n)
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
+  P1, P2, P3, P4 = P
+  c₀, c₁, c₂, c₃ = C
   
-  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, 1) for rᵢ in r])
-  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, -1) for qᵢ in q])
-  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, -1) for rᵢ in r])
-  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, 1) for qᵢ in q])
+  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])
   
   E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
   bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
@@ -92,7 +101,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41,51]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 0.5
@@ -122,10 +131,11 @@ for (m,i) in zip(N, 1:length(N))
       global v₁ = zero(v₀)
       t = 0.0
       for i=1:ntime
-        Fₙ = eltocols(vec(F.(𝐱𝐲, t)))
-        Fₙ₊₁ = eltocols(vec(F.(𝐱𝐲, t+Δt)))
-        gₙ = 𝐠(t, (m,n), sbp_2d.norm)
-        gₙ₊₁ = 𝐠(t+Δt, (m,n), sbp_2d.norm)
+        Fₙ = eltocols(vec(F.(𝐱𝐲, t, σ, ρ)))
+        Fₙ₊₁ = eltocols(vec(F.(𝐱𝐲, t+Δt, σ, ρ)))
+        normals(Ω) = (r->Ω([0.0,r]), q->Ω([q,0.0]), r->Ω([1.0,r]), q->Ω([q,1.0]))        
+        gₙ = 𝐠(t, (m,n), sbp_2d.norm, Ω, [1, -1, -1, 1], normals(Ω), σ)
+        gₙ₊₁ = 𝐠(t+Δt, (m,n), sbp_2d.norm, Ω, [1, -1, -1, 1], normals(Ω), σ)
         
         rhs = Fₙ + Fₙ₊₁ + gₙ + gₙ₊₁
         fargs = Δt, u₀, v₀, rhs

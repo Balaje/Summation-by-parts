@@ -7,13 +7,13 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.7*exp(-2q)*sin(2π*q)
+f(q) = 1 + 0.1*sin(2π*q)
 cᵢ(q) = [q, f(q)];
 # Define the rest of the boundary
 c₀¹(r) = [0.0 , 1+r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
 c₂¹(r) = [1.0, 1+r]; # Right boundary
-c₃¹(q) = [q, 2.0]; # Top boundary
+c₃¹(q) = [q, 2.0 + 0.1*sin(2π*q)]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 Ω₁(qr) = S(qr, domain₁)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
@@ -114,16 +114,18 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   detJ₁(x) = (det∘J)(x, Ω₁)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫₁) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
-  𝐓₁ = Tᴱ(Pqr₁, Ω₁, [0,-1]) # Elasticity Traction operator
-  𝐓q₁ = 𝐓₁.A
-  𝐓r₁ = 𝐓₁.B
+  𝐓q₀¹ = Tᴱ(Pqr₁, Ω₁, [-1,0]).A
+  𝐓r₀¹ = Tᴱ(Pqr₁, Ω₁, [0,-1]).A
+  𝐓qₙ¹ = Tᴱ(Pqr₁, Ω₁, [1,0]).A 
+  𝐓rₙ¹ = Tᴱ(Pqr₁, Ω₁, [0,1]).A 
   # Second layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫₂) # Property matrix evaluated at grid points
-  𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
-  𝐓₂ = Tᴱ(Pqr₂, Ω₂, [0,1]) # Elasticity Traction operator
-  𝐓q₂ = 𝐓₂.A
-  𝐓r₂ = 𝐓₂.B
+  𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator 
+  𝐓q₀² = Tᴱ(Pqr₂, Ω₂, [-1,0]).A
+  𝐓r₀² = Tᴱ(Pqr₂, Ω₂, [0,-1]).A
+  𝐓qₙ² = Tᴱ(Pqr₂, Ω₂, [1,0]).A 
+  𝐓rₙ² = Tᴱ(Pqr₂, Ω₂, [0,1]).A 
   # Get the 2d operators
   m₁,n₁ = size(𝐪𝐫₁)
   sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
@@ -139,24 +141,33 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫₁))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫₂)) 
   Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
-  SJ₁ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,m₁)])
-  SJ₂ = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,m₂)])
+  # SJr₀¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m₁), m₁)
+  SJq₀¹ = get_surf_J(I(2)⊗E1(1,1,m₁)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m₁)]), m₁)
+  SJrₙ¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, [0,1])) for q in LinRange(0,1,m₁)])⊗E1(m₁,m₁,m₁), m₁)
+  SJqₙ¹ = get_surf_J(I(2)⊗E1(m₁,m₁,m₁)⊗spdiagm([(det(J([1.0,q], Ω₁))*J⁻¹s([1.0,q], Ω₁, [1,0])) for q in LinRange(0,1,m₁)]), m₁)
+
+  SJr₀² = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, [0,-1])) for q in LinRange(0,1,m₂)])⊗E1(1,1,m₂), m₂)
+  SJq₀² = get_surf_J(I(2)⊗E1(1,1,m₂)⊗spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for q in LinRange(0,1,m₂)]), m₂)
+  # SJrₙ² = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])⊗E1(m₂,m₂,m₂), m₂)
+  SJqₙ² = get_surf_J(I(2)⊗E1(m₂,m₂,m₂)⊗spdiagm([(det(J([1.0,q], Ω₂))*J⁻¹s([1.0,q], Ω₂, [1,0])) for q in LinRange(0,1,m₂)]), m₂)
   # Combine the operators    
   𝐏 = blockdiag(𝐏₁, 𝐏₂)
-  𝐓 = blockdiag(-(I(2) ⊗ 𝐇q₀¹)*(𝐓q₁) + (I(2) ⊗ 𝐇qₙ¹)*(𝐓q₁) + (I(2) ⊗ 𝐇rₙ¹)*(𝐓r₁),
-                 -(I(2) ⊗ 𝐇q₀²)*(𝐓q₂) + (I(2) ⊗ 𝐇qₙ²)*(𝐓q₂) + -(I(2) ⊗ 𝐇r₀²)*(𝐓r₂)) 
+  𝐓 = blockdiag(-(I(2)⊗𝐇q₀¹)*SJq₀¹*(𝐓q₀¹) + (I(2)⊗𝐇qₙ¹)*SJqₙ¹*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ¹)*SJrₙ¹*(𝐓rₙ¹),
+                -(I(2)⊗𝐇q₀²)*SJq₀²*(𝐓q₀²) + (I(2)⊗𝐇qₙ²)*SJqₙ²*(𝐓qₙ²) + -(I(2)⊗𝐇r₀²)*SJr₀²*(𝐓r₀²))
 
   # Traction on the interface      
   Hq₁ = sbp_q₁.norm;  Hr₁ = sbp_r₁.norm    
   Hq₂ = sbp_q₂.norm;  Hr₂ = sbp_r₂.norm    
   Hq₁⁻¹ = (Hq₁)\I(m₁) |> sparse;  Hr₁⁻¹ = (Hr₁)\I(n₁) |> sparse
   Hq₂⁻¹ = (Hq₂)\I(m₂) |> sparse;  Hr₂⁻¹ = (Hr₂)\I(n₂) |> sparse  
+  SJ₁ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for  q in LinRange(0,1,m₁)])
+  SJ₂ = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for  q in LinRange(0,1,m₂)])
   𝐃 = blockdiag((I(2)⊗(SJ₁*Hr₁)⊗I(m₁))*(I(2)⊗I(m₁)⊗(E1(1,1,m₁))), (I(2)⊗(SJ₂*Hr₂)⊗I(m₂))*(I(2)⊗I(m₂)⊗E1(m₂,m₂,m₂)))
   𝐃⁻¹ = blockdiag((I(2)⊗Hq₁⁻¹⊗Hr₁⁻¹), (I(2)⊗Hq₂⁻¹⊗Hr₂⁻¹))
   BHᵀ, BT = get_marker_matrix(m₁) # Assuming coarse mesh in layer 1
-  
-  𝐓r = blockdiag(𝐓r₁, 𝐓r₂)
-  𝐓rᵀ = blockdiag(𝐓r₁, 𝐓r₂)'    
+   
+  𝐓r = blockdiag(𝐓r₀¹, 𝐓rₙ²)
+  𝐓rᵀ = blockdiag(𝐓r₀¹, 𝐓rₙ²)'      
   
   X = 𝐃*BHᵀ*𝐓r;
   Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
@@ -171,25 +182,28 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   
   Jbulk⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)
 end
-
+  
 """
 Neumann boundary condition vector
 """
 function 𝐠(t::Float64, mn::Tuple{Int64,Int64}, norm, Ω, P, C, σ)
   m,n= mn
-  q = LinRange(0,1,m); r = LinRange(0,1,n) # Reference coordinate axes
-  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm # The inverse of the norm matrices
-  P1, P2, P3, P4 = P # A parameter to indicate the nature of the boundary; 0: Interface, 1: CW, -1: CCW
-  c₀, c₁, c₂, c₃ = C # The parametric representation of the boundary
-  bvals_q₀ = reduce(hcat, [J⁻¹s(@SVector[0.0, rᵢ], Ω, @SVector[-1.0,0.0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
-  bvals_r₀ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 0.0], Ω, @SVector[0.0,-1.0])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
-  bvals_qₙ = reduce(hcat, [J⁻¹s(@SVector[1.0, rᵢ], Ω, @SVector[1.0,0.0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
-  bvals_rₙ = reduce(hcat, [J⁻¹s(@SVector[qᵢ, 1.0], Ω, @SVector[0.0,1.0])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])    
+  q = LinRange(0,1,m); r = LinRange(0,1,n)
+  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = norm
+  P1, P2, P3, P4 = P
+  c₀, c₁, c₂, c₃ = C
+    
+  bvals_q₀ = reduce(hcat, [J⁻¹s([0.0,rᵢ], Ω, [-1,0])*g(t, c₀, rᵢ, σ, P1) for rᵢ in r])
+  bvals_r₀ = reduce(hcat, [J⁻¹s([qᵢ,0.0], Ω, [0,-1])*g(t, c₁, qᵢ, σ, P2) for qᵢ in q])
+  bvals_qₙ = reduce(hcat, [J⁻¹s([1.0,rᵢ], Ω, [1,0])*g(t, c₂, rᵢ, σ, P3) for rᵢ in r])
+  bvals_rₙ = reduce(hcat, [J⁻¹s([qᵢ,1.0], Ω, [0,1])*g(t, c₃, qᵢ, σ, P4) for qᵢ in q])
+    
   E1(i,M) = diag(SBP.SBP_2d.E1(i,i,M))
   bq₀ = (E1(1,2) ⊗ E1(1,m) ⊗ (bvals_q₀[1,:])) + (E1(2,2) ⊗ E1(1,m) ⊗ (bvals_q₀[2,:]))
   br₀ = (E1(1,2) ⊗ (bvals_r₀[1,:]) ⊗ E1(1,n)) + (E1(2,2) ⊗ (bvals_r₀[2,:]) ⊗ E1(1,n))
   bqₙ = (E1(1,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[1,:])) + (E1(2,2) ⊗ E1(m,n) ⊗ (bvals_qₙ[2,:]))
-  brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(m,n)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(m,n))    
+  brₙ = (E1(1,2) ⊗ (bvals_rₙ[1,:]) ⊗ E1(m,n)) + (E1(2,2) ⊗ (bvals_rₙ[2,:]) ⊗ E1(m,n))
+    
   collect((I(2)⊗𝐇r₀)*br₀ + (I(2)⊗𝐇rₙ)*brₙ + (I(2)⊗𝐇q₀)*bq₀ + (I(2)⊗𝐇qₙ)*bqₙ)
 end
 
