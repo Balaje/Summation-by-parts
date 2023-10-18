@@ -131,12 +131,12 @@ function 𝐊2_NC(𝐪𝐫₁, 𝐪𝐫₂)
   sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
   sbp_r₁ = SBP_1_2_CONSTANT_0_1(n₁)
   sbp_2d₁ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₁, sbp_r₁)
-  𝐇q₀¹, 𝐇qₙ¹, 𝐇r₀¹, 𝐇rₙ¹ = sbp_2d₁.norm
+  𝐇q₀¹, 𝐇qₙ¹, _, 𝐇rₙ¹ = sbp_2d₁.norm
   m₂,n₂ = size(𝐪𝐫₂)
   sbp_q₂ = SBP_1_2_CONSTANT_0_1(m₂)
   sbp_r₂ = SBP_1_2_CONSTANT_0_1(n₂)
   sbp_2d₂ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
-  𝐇q₀², 𝐇qₙ², 𝐇r₀², 𝐇rₙ² = sbp_2d₂.norm
+  𝐇q₀², 𝐇qₙ², 𝐇r₀², _ = sbp_2d₂.norm
   # Determinants of the transformation
   detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫₁))
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫₂)) 
@@ -211,11 +211,11 @@ end
 #############################
 # Begin solving the problem #
 #############################
-N = [21]
+N = [21,31,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
-tf = 2e-3
+tf = 1.0
 ntime = ceil(Int, tf/Δt)
 max_err = zeros(Float64, ntime, length(N))
   

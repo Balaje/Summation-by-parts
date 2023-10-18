@@ -118,15 +118,14 @@ function 𝐊2(𝐪𝐫)
   detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫)) 
   Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
   
-  # Surface Jacobians
-  # SJr₀¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
+  # Surface Jacobians of the outer boundaries
+  # - Layer 1  
   SJq₀¹ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m)]), m)
   SJrₙ¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
   SJqₙ¹ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₁))*J⁻¹s([1.0,q], Ω₁, [1,0])) for q in LinRange(0,1,m)]), m)
-
+  # - Layer 2
   SJr₀² = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
-  SJq₀² = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for q in LinRange(0,1,m)]), m)
-  # SJrₙ² = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
+  SJq₀² = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for q in LinRange(0,1,m)]), m)  
   SJqₙ² = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₂))*J⁻¹s([1.0,q], Ω₂, [1,0])) for q in LinRange(0,1,m)]), m)
 
   # Combine the operators    
@@ -134,16 +133,15 @@ function 𝐊2(𝐪𝐫)
   𝐓 = blockdiag(-(I(2)⊗𝐇q₀)*SJq₀¹*(𝐓q₀¹) + (I(2)⊗𝐇qₙ)*SJqₙ¹*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ)*SJrₙ¹*(𝐓rₙ¹),
                 -(I(2)⊗𝐇q₀)*SJq₀²*(𝐓q₀²) + (I(2)⊗𝐇qₙ)*SJqₙ²*(𝐓qₙ²) + -(I(2)⊗𝐇r₀)*SJr₀²*(𝐓r₀²))
   
-  # Traction on the interface      
+  # Interface SAT terms 
   Hq = sbp_q.norm
-  Hr = sbp_q.norm    
+  Hr = sbp_r.norm    
   Hq⁻¹ = (Hq)\I(m) |> sparse
-  Hr⁻¹ = (Hr)\I(n) |> sparse
-  # Hq = sbp_q.norm
-  Hr = sbp_r.norm
-  sjr₀ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])
-  sjrₙ = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])
-  𝐃 = blockdiag((I(2)⊗(sjr₀*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(sjrₙ*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
+  Hr⁻¹ = (Hr)\I(n) |> sparse  
+  # Surface Jacobian on the interface
+  SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])
+  SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])
+  𝐃 = blockdiag((I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
   𝐃⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
   BHᵀ, BT = get_marker_matrix(m)
   

@@ -171,6 +171,10 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫)
   ρσα = α*ρσ
   # Determinant of the Jacobian Matrix
   detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))  
+  SJr₀ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω))*J⁻¹s([q,0.0], Ω, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
+  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω))*J⁻¹s([0.0,q], Ω, [-1,0])) for q in LinRange(0,1,m)]), m)
+  SJrₙ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω))*J⁻¹s([q,1.0], Ω, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
+  SJqₙ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω))*J⁻¹s([1.0,q], Ω, [1,0])) for q in LinRange(0,1,m)]), m)
   # Get the derivative operator transformed to the reference grid
   Jinv_vec = get_property_matrix_on_grid(J⁻¹.(𝐪𝐫, Ω))
   Jinv_vec_diag = [spdiagm(vec(p)) for p in Jinv_vec] #[qx rx; qy ry]
@@ -182,9 +186,11 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫)
           JD₁    Z    -(α*Id+σ)   Z       Z;
           JD₂    Z       Z      -α*Id    Z;
           α*Id   Z       Z       Z     -α*Id ]  
-  # Get the traction operator of the elasticity part
-  𝐓 = Tᴱ(P) 
-  𝐓q, 𝐓r = 𝐓.A, 𝐓.B  
+  # Get the traction operators of the elasticity part 
+  𝐓q₀ = Tᴱ(P, Ω, [-1,0]).A
+  𝐓r₀ = Tᴱ(P, Ω, [0,-1]).A
+  𝐓qₙ = Tᴱ(P, Ω, [1,0]).A 
+  𝐓rₙ = Tᴱ(P, Ω, [0,1]).A 
   # Get the traction operator of the PML part
   Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(xy).*c₁₁.(xy)))), spdiagm(vec(sqrt.(ρ.(xy).*c₃₃.(xy)))))
   Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(xy).*c₃₃.(xy)))), spdiagm(vec(sqrt.(ρ.(xy).*c₂₂.(xy)))))  
@@ -192,10 +198,10 @@ function 𝐊ᴾᴹᴸ(𝐪𝐫)
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm  
   # Get the overall traction operator  
-  𝐓𝐪₀ = spdiagm(detJ1.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀)
-  𝐓𝐪ₙ = spdiagm(detJ1.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ)
-  𝐓𝐫₀ = spdiagm(detJ1.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r   Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀)
-  𝐓𝐫ₙ = spdiagm(detJ1.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ)
+  𝐓𝐪₀ = spdiagm(detJ1.^-1)*([-(I(2)⊗𝐇q₀)*SJq₀*𝐓q₀   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀)
+  𝐓𝐪ₙ = spdiagm(detJ1.^-1)*([(I(2)⊗𝐇qₙ)*SJqₙ*𝐓qₙ  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ)
+  𝐓𝐫₀ = spdiagm(detJ1.^-1)*([-(I(2)⊗𝐇r₀)*SJr₀*𝐓r₀   Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀)
+  𝐓𝐫ₙ = spdiagm(detJ1.^-1)*([(I(2)⊗𝐇rₙ)*SJrₙ*𝐓rₙ  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ)
   # The final system  
   zbT = spzeros(Float64, 2m^2, 10n^2)
   zbB = spzeros(Float64, 6m^2, 10n^2)
@@ -257,9 +263,9 @@ function split_solution(X, N)
 end
 
 const Δt = 1e-3
-const tf = 10.0
-const ntime = ceil(Int, tf/Δt)
-N = 81
+tf = 1e-3
+ntime = ceil(Int, tf/Δt)
+N = 21
 𝐪𝐫 = generate_2d_grid((N,N));
 xy = Ω.(𝐪𝐫);
 stima = 𝐊ᴾᴹᴸ(𝐪𝐫);

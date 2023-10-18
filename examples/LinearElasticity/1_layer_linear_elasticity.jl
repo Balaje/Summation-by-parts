@@ -1,9 +1,9 @@
 include("2d_elasticity_problem.jl");
 
 ## Define the physical domain
-c₀(r) = @SVector [0.0 + 0.0*sin(π*r), r] # Left boundary 
-c₁(q) = @SVector [q, 0.0 + 0.0*sin(2π*q)] # Bottom boundary
-c₂(r) = @SVector [1.0 + 0.0*sin(π*r), r] # Right boundary
+c₀(r) = @SVector [0.0 + 0.1*sin(π*r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
+c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
 c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)] # Top boundary
 domain = domain_2d(c₀, c₁, c₂, c₃)
 Ω(qr) = S(qr, domain)
@@ -63,7 +63,7 @@ function 𝐊(𝐪𝐫)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
 
   SJr₀ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω))*J⁻¹s([q,0.0], Ω, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
-  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m)]), m)
+  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω))*J⁻¹s([0.0,q], Ω, [-1,0])) for q in LinRange(0,1,m)]), m)
   SJrₙ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω))*J⁻¹s([q,1.0], Ω, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
   SJqₙ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω))*J⁻¹s([1.0,q], Ω, [1,0])) for q in LinRange(0,1,m)]), m)
   

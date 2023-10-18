@@ -13,19 +13,18 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
-# f(q) = 0.3*exp(-4*4.4π*(q-0.5)^2)
-pf = 1
-f(q) = 0.1*sin(pf*π*q)
-cᵢ(q) = [4.4π*q, 4π*f(q)];
+pf = 8
+f(q) = 0.3*exp(-4*4.4π*(q-0.55)^2)
+cᵢ(q) = [1.1*q, f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, 4π*r]; # Left boundary
+c₀¹(r) = [0.0, r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [4.4π, 4π*r]; # Right boundary
-c₃¹(q) = [4.4π*q, 4π]; # Top boundary
+c₂¹(r) = [1.1, r]; # Right boundary
+c₃¹(q) = [1.1*q, 1.0]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, 4π*r - 4π]; # Left boundary
-c₁²(q) = [4.4π*q, -4π]; # Bottom boundary. 
-c₂²(r) = [4.4π, 4π*r - 4π]; # Right boundary
+c₀²(r) = [0.0, r - 1.0]; # Left boundary
+c₁²(q) = [1.1*q, -1.0]; # Bottom boundary. 
+c₂²(r) = [1.1, r - 1.0]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -79,9 +78,9 @@ Cauchy Stress tensor using the displacement field.
 """
 The PML damping
 """
-const δ = 0.1*4π
-const Lₓ = 4π
-const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1
+const Lₓ = 1.0
+const σ₀ = 0.4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 function σₚ(x)
   if((x[1] ≈ Lₓ) || (x[1] > Lₓ))
@@ -167,16 +166,18 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Zxy::Tuple{SparseMatri
   # Get the physical coordinates
   Zx, Zy = Zxy
   𝐱𝐲 = Ω.(𝐪𝐫)    
-  # Zx = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₁₁.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))))
-  # Zy = blockdiag(spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₃₃.(𝐱𝐲)))), spdiagm(vec(sqrt.(ρ.(𝐱𝐲).*c₂₂.(𝐱𝐲)))))  
   σ = I(2) ⊗ (spdiagm(vec(σₚ.(𝐱𝐲))))
+  SJr₀ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω))*J⁻¹s([q,0.0], Ω, [0,-1])) for q in LinRange(0,1,m)].^-1)⊗E1(1,1,m), m)
+  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω))*J⁻¹s([0.0,q], Ω, [-1,0])) for q in LinRange(0,1,m)].^-1), m)
+  SJrₙ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω))*J⁻¹s([q,1.0], Ω, [0,1])) for q in LinRange(0,1,m)].^-1)⊗E1(m,m,m), m)
+  SJqₙ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω))*J⁻¹s([1.0,q], Ω, [1,0])) for q in LinRange(0,1,m)].^-1), m)
   # PML part of the Traction operator
   A = [P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
   B = [P_vec_diag[3,3] P_vec_diag[3,4]; P_vec_diag[4,3] P_vec_diag[4,4]]  
-  Tq₀ = [Z    (I(2)⊗𝐇q₀)*Zx     -(I(2)⊗𝐇q₀)*A     Z     Z]
-  Tqₙ = [Z     (I(2)⊗𝐇qₙ)*Zx     (I(2)⊗𝐇qₙ)*A     Z     Z]
-  Tr₀ = [(I(2)⊗𝐇r₀)*σ*Zy    (I(2)⊗𝐇r₀)*Zy     Z     -(I(2)⊗𝐇r₀)*B     -(I(2)⊗𝐇r₀)*σ*Zy] 
-  Trₙ = [(I(2)⊗𝐇rₙ)*σ*Zy     (I(2)⊗𝐇rₙ)*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy] 
+  Tq₀ = SJq₀*[Z    (I(2)⊗𝐇q₀)*Zx     -(I(2)⊗𝐇q₀)*A     Z     Z]
+  Tqₙ = SJqₙ*[Z     (I(2)⊗𝐇qₙ)*Zx     (I(2)⊗𝐇qₙ)*A     Z     Z]
+  Tr₀ = SJr₀*[(I(2)⊗𝐇r₀)*σ*Zy    (I(2)⊗𝐇r₀)*Zy     Z     -(I(2)⊗𝐇r₀)*B     -(I(2)⊗𝐇r₀)*σ*Zy] 
+  Trₙ = SJrₙ*[(I(2)⊗𝐇rₙ)*σ*Zy     (I(2)⊗𝐇rₙ)*Zy     Z     (I(2)⊗𝐇rₙ)*B     -(I(2)⊗𝐇rₙ)*σ*Zy] 
   Tq₀, Tqₙ, Tr₀, Trₙ
 end
 """
@@ -243,6 +244,10 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫)
   Jinv_vec_diag₁ = [spdiagm(vec(p)) for p in Jinv_vec₁] #[qx rx; qy ry]
   JD₁¹ = (I(2)⊗Jinv_vec_diag₁[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₁[1,2])*(I(2)⊗Dr)
   JD₂¹ = (I(2)⊗Jinv_vec_diag₁[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₁[2,2])*(I(2)⊗Dr)
+  SJr₀¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
+  SJq₀¹ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m)]), m)
+  SJrₙ¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
+  SJqₙ¹ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₁))*J⁻¹s([1.0,q], Ω₁, [1,0])) for q in LinRange(0,1,m)]), m)
   # Bulk stiffness matrix components on Layer 2
   𝐏₂ = Pᴱ(Dᴱ(P₂))  
   𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Dᴾᴹᴸ(PML₂))
@@ -254,6 +259,10 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫)
   Jinv_vec_diag₂ = [spdiagm(vec(p)) for p in Jinv_vec₂] #[qx rx; qy ry]
   JD₁² = (I(2)⊗Jinv_vec_diag₂[1,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₂[1,2])*(I(2)⊗Dr) # x-Derivative operator in physical domain
   JD₂² = (I(2)⊗Jinv_vec_diag₂[2,1])*(I(2)⊗Dq) + (I(2)⊗Jinv_vec_diag₂[2,2])*(I(2)⊗Dr) # y-Derivative operator in physical domain
+  SJr₀² = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
+  SJq₀² = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for q in LinRange(0,1,m)]), m)
+  SJrₙ² = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
+  SJqₙ² = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₂))*J⁻¹s([1.0,q], Ω₂, [1,0])) for q in LinRange(0,1,m)]), m)
   Id = sparse(I(2)⊗I(m)⊗I(n))
   Z = zero(Id)  
   # Assemble the bulk stiffness matrix
@@ -269,29 +278,33 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫)
       α*Id   Z       Z       Z     -α*Id ]
   Σ = blockdiag(Σ₁, Σ₂)  
   # Get the traction operator of the elasticity and PML parts on Layer 1
-  𝐓₁ = Tᴱ(P₁) 
-  𝐓q₁, 𝐓r₁ = 𝐓₁.A, 𝐓₁.B  
+  𝐓q₀¹ = Tᴱ(P₁, Ω₁, [-1,0]).A
+  𝐓r₀¹ = Tᴱ(P₁, Ω₁, [0,-1]).A
+  𝐓qₙ¹ = Tᴱ(P₁, Ω₁, [1,0]).A 
+  𝐓rₙ¹ = Tᴱ(P₁, Ω₁, [0,1]).A 
   Zx₁ = blockdiag(spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₁₁¹.(xy₁)))), spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₃₃¹.(xy₁)))))
   Zy₁ = blockdiag(spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₃₃¹.(xy₁)))), spdiagm(vec(sqrt.(ρ¹.(xy₁).*c₂₂¹.(xy₁)))))  
-  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, 𝐓ᴾᴹᴸr₀¹, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, (Zx₁, Zy₁), σₚ, Ω₁, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀¹, 𝐓ᴾᴹᴸqₙ¹, _, 𝐓ᴾᴹᴸrₙ¹  = Tᴾᴹᴸ(PML₁, (Zx₁, Zy₁), σₚ, Ω₁, 𝐪𝐫)
   # Get the traction operator of the elasticity and PML parts on Layer 2
-  𝐓₂ = Tᴱ(P₂) 
-  𝐓q₂, 𝐓r₂ = 𝐓₂.A, 𝐓₂.B  
+  𝐓q₀² = Tᴱ(P₂, Ω₂, [-1,0]).A
+  𝐓r₀² = Tᴱ(P₂, Ω₂, [0,-1]).A
+  𝐓qₙ² = Tᴱ(P₂, Ω₂, [1,0]).A 
+  𝐓rₙ² = Tᴱ(P₂, Ω₂, [0,1]).A 
   Zx₂ = blockdiag(spdiagm(vec(sqrt.(ρ².(xy₂).*c₁₁².(xy₂)))), spdiagm(vec(sqrt.(ρ².(xy₂).*c₃₃².(xy₂)))))
   Zy₂ = blockdiag(spdiagm(vec(sqrt.(ρ².(xy₂).*c₃₃².(xy₂)))), spdiagm(vec(sqrt.(ρ².(xy₂).*c₂₂².(xy₂)))))  
-  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², 𝐓ᴾᴹᴸrₙ²  = Tᴾᴹᴸ(PML₂, (Zx₂, Zy₂), σₚ, Ω₂, 𝐪𝐫)
+  𝐓ᴾᴹᴸq₀², 𝐓ᴾᴹᴸqₙ², 𝐓ᴾᴹᴸr₀², _  = Tᴾᴹᴸ(PML₂, (Zx₂, Zy₂), σₚ, Ω₂, 𝐪𝐫)
   # Norm matrices
   𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm  
-  # Get the overall traction operator on the outer boundaries of both Layer 1 and Layer 2
-  𝐓𝐪₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₁   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀¹)
-  𝐓𝐪ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₁  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ¹)
-  𝐓𝐫ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ¹)
-  𝐓𝐪₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇q₀)*𝐓q₂   Z    Z   Z   Z] + 𝐓ᴾᴹᴸq₀²)
-  𝐓𝐪ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇qₙ)*𝐓q₂  Z   Z    Z   Z] + 𝐓ᴾᴹᴸqₙ²)
-  𝐓𝐫₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀²)
-  # Interface (But not required. Will be multiplied by 0)
-  𝐓𝐫₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇r₀)*𝐓r₁  Z  Z   Z   Z] + 𝐓ᴾᴹᴸr₀¹)
-  𝐓𝐫ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇rₙ)*𝐓r₂  Z  Z   Z   Z] + 𝐓ᴾᴹᴸrₙ²)
+  # Get the overall traction operator on the outer boundaries
+  # Layer 1
+  𝐓𝐪₀¹ = spdiagm(detJ1₁.^-1)*([-(I(2)⊗𝐇q₀)*SJq₀¹*𝐓q₀¹   Z    Z   Z   Z] + SJq₀¹*𝐓ᴾᴹᴸq₀¹)
+  𝐓𝐪ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇qₙ)*SJqₙ¹*𝐓qₙ¹  Z   Z    Z   Z] + SJqₙ¹*𝐓ᴾᴹᴸqₙ¹)
+  𝐓𝐫ₙ¹ = spdiagm(detJ1₁.^-1)*([(I(2)⊗𝐇rₙ)*SJrₙ¹*𝐓rₙ¹  Z  Z   Z   Z] + SJrₙ¹*𝐓ᴾᴹᴸrₙ¹)
+  # Layer 2
+  𝐓𝐪₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇q₀)*SJq₀²*𝐓q₀²   Z    Z   Z   Z] + SJq₀²*𝐓ᴾᴹᴸq₀²)
+  𝐓𝐪ₙ² = spdiagm(detJ1₂.^-1)*([(I(2)⊗𝐇qₙ)*SJqₙ²*𝐓qₙ²  Z   Z    Z   Z] + SJqₙ²*𝐓ᴾᴹᴸqₙ²)
+  𝐓𝐫₀² = spdiagm(detJ1₂.^-1)*([-(I(2)⊗𝐇r₀)*SJr₀²*𝐓r₀²  Z  Z   Z   Z] + SJr₀²*𝐓ᴾᴹᴸr₀²)
+
   # Interface conditions: 
   zbT = spzeros(Float64, 2m^2, 10n^2)
   zbB = spzeros(Float64, 6m^2, 10n^2)
@@ -299,30 +312,32 @@ function 𝐊2ᴾᴹᴸ(𝐪𝐫)
   P_vec₂ = get_property_matrix_on_grid(PML₂)
   P_vec_diag₁ = [spdiagm(vec(p)) for p in P_vec₁]  
   P_vec_diag₂ = [spdiagm(vec(p)) for p in P_vec₂]
-  B₁ = [P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]] 
-  B₂ = [P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] 
-  𝐓𝐫₁ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)   Z     Z    (B₁)     Z]  
-  𝐓𝐫₂ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)   Z     Z    (B₂)     Z]    
+  B₁ = SJr₀¹\([P_vec_diag₁[3,3] P_vec_diag₁[3,4]; P_vec_diag₁[4,3] P_vec_diag₁[4,4]])
+  B₂ = SJrₙ²\([P_vec_diag₂[3,3] P_vec_diag₂[3,4]; P_vec_diag₂[4,3] P_vec_diag₂[4,4]] )
+  𝐓𝐫₁ = spdiagm(detJ1₁.^-1)*[(𝐓r₀¹)   Z     Z    (B₁)     Z]  
+  𝐓𝐫₂ = spdiagm(detJ1₂.^-1)*[(𝐓rₙ²)   Z     Z     (B₂)     Z]    
   𝐓𝐫 = blockdiag([𝐓𝐫₁; zbT; zbB], [𝐓𝐫₂; zbT; zbB])
   # Transpose matrix
-  𝐓𝐫₁ᵀ = spdiagm(detJ1₁.^-1)*[(𝐓r₁)'   Z     Z    (B₁)'   Z]  
-  𝐓𝐫₂ᵀ = spdiagm(detJ1₂.^-1)*[(𝐓r₂)'   Z     Z    (B₂)'   Z]  
+  𝐓𝐫₁ᵀ = spdiagm(detJ1₁.^-1)*[(𝐓r₀¹)'   Z     Z    (B₁)'   Z]  
+  𝐓𝐫₂ᵀ = spdiagm(detJ1₂.^-1)*[(𝐓rₙ²)'   Z     Z    (B₂)'   Z]  
   𝐓𝐫ᵀ = blockdiag([zbT;  𝐓𝐫₁ᵀ; zbB], [zbT;  𝐓𝐫₂ᵀ; zbB])
   BH, BT, BHᵀ = get_marker_matrix(m);
-  Hq⁻¹ = (sbp_q.norm\I(m)) |> sparse
-  Hr⁻¹ = (sbp_r.norm\I(m)) |> sparse
-  # Hq = sbp_q.norm
-  Hr = sbp_q.norm
-  𝐃₁⁻¹ = blockdiag((I(10)⊗Hq⁻¹⊗Hr⁻¹), (I(10)⊗Hq⁻¹⊗Hr⁻¹))
-  𝐃 = blockdiag((I(10)⊗(Hr)⊗ I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
-  𝐃₂ = blockdiag((I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
-                 (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
-  ζ₀ = 200/h
+  Hq = sbp_q.norm
+  Hr = sbp_r.norm  
+  Hq⁻¹ = (Hq\I(m)) |> sparse
+  Hr⁻¹ = (Hr\I(m)) |> sparse
+  𝐃₁⁻¹ = blockdiag((I(10)⊗Hq⁻¹⊗Hr⁻¹), (I(10)⊗Hq⁻¹⊗Hr⁻¹))  
+  SJ₁ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])
+  SJ₂ = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])
+  𝐃 = blockdiag((I(10)⊗(SJ₁*Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(1,1,m)), (I(10)⊗(SJ₂*Hr)⊗I(m))*(I(10)⊗I(m)⊗ E1(m,m,m)))
+  𝐃₂ = blockdiag((I(2)⊗(SJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, Z, (I(2)⊗(SJ₁*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(1,1,m)), Z, 
+                 (I(2)⊗(SJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z, Z, (I(2)⊗(SJ₂*Hr)⊗I(m))*(I(2)⊗I(m)⊗ E1(m,m,m)), Z)
+  ζ₀ = 800/h
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
-  𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*BHᵀ*𝐃₂
+  𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*𝐃₂*BHᵀ
   Ju = -𝐃₁⁻¹*𝐃*BT
   𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
-  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 0*𝐓𝐫₀¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀² + 0*𝐓𝐫ₙ²;   zbB])      
+  𝐓ₙ = blockdiag([zbT;   𝐓𝐪₀¹ + 𝐓𝐪ₙ¹ + 𝐓𝐫ₙ¹;   zbB], [zbT;   𝐓𝐪₀² + 𝐓𝐪ₙ² + 𝐓𝐫₀²;   zbB])      
   Σ - 𝐓ₙ - 𝐓ᵢ
 end
 
@@ -360,7 +375,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2))]
+𝐔₁(x) = @SVector [exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -369,7 +384,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2)), -exp(-((x[1]-2.2π)^2 + (x[2]-2π)^2))]
+𝐔₂(x) = @SVector [exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -390,7 +405,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-𝐍 = 101
+𝐍 = 41
 𝐪𝐫 = generate_2d_grid((𝐍, 𝐍));
 xy₁ = vec(Ω₁.(𝐪𝐫));
 xy₂ = vec(Ω₂.(𝐪𝐫));
@@ -401,7 +416,7 @@ massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫);
 cmax = 45.57
 τ₀ = 1/4
 const Δt = 0.2/(cmax*τ₀)*h
-tf = 1000.0
+tf = 40.0
 ntime = ceil(Int, tf/Δt)
 solmax = zeros(Float64, ntime)
 
@@ -419,8 +434,8 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀))
   
-  @gif for i=1:ntime
-  # for i=1:ntime
+  # @gif for i=1:ntime
+  for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M,sol)    
     t += Δt    
@@ -428,7 +443,7 @@ let
     (i%1000==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
     
     ## Plotting to get GIFs
-    u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
+    #= u1₁,u2₁ = split_solution(view(X₀, 1:10*𝐍^2), 𝐍)[1];
     u1₂,u2₂ = split_solution(view(X₀, 10*𝐍^2+1:20*𝐍^2), 𝐍)[1];              
     plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
     scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
@@ -439,9 +454,9 @@ let
     scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(xy₂)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
     scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],𝐍)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    plt1 = plot(plt1₁, plt1₂, layout=(1,2))
-  # end
-  end every 200
+    plt1 = plot(plt1₁, plt1₂, layout=(1,2)) =#
+  end
+  # end every 200
   global X₁ = X₀  
 end 
 
