@@ -14,18 +14,18 @@ Define the geometry of the two layers.
 # Layer 1 (q,r) ∈ [0,1] × [1,2]
 # Define the parametrization for interface
 # pf = 8
-# f(q) = 0.1*sin(pf*π*q)
-f(q) = 0.3*exp(-4*4.4π*(q-0.55)^2)
-cᵢ(q) = [1.1*q, f(q)];
+f(q) = 0.1*sin(π*q)
+# f(q) = 0.1*exp(-16π*(1.1*(q-0.5))^2)
+cᵢ(q) = [4.4π*q, 4π*f(q)];
 # Define the rest of the boundary
-c₀¹(r) = [0.0, r]; # Left boundary
+c₀¹(r) = [0.0, 4π*r]; # Left boundary
 c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
-c₂¹(r) = [1.1, r]; # Right boundary
-c₃¹(q) = [1.1*q, 1.0]; # Top boundary
+c₂¹(r) = [4.4π, 4π*r]; # Right boundary
+c₃¹(q) = [4.4π*q, 4π]; # Top boundary
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, r - 1.0]; # Left boundary
-c₁²(q) = [1.1*q, -1.0]; # Bottom boundary. 
-c₂²(r) = [1.1, r - 1.0]; # Right boundary
+c₀²(r) = [0.0, 4π*r - 4π]; # Left boundary
+c₁²(q) = [4.4π*q, -4π]; # Bottom boundary. 
+c₂²(r) = [4.4π, 4π*r - 4π]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
@@ -79,9 +79,9 @@ Cauchy Stress tensor using the displacement field.
 """
 The PML damping
 """
-const δ = 0.1
-const Lₓ = 1.0
-const σ₀ = 0.4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.4π
+const Lₓ = 4π
+const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀*0.05; # The frequency shift parameter
 function σₚ(x)
   if((x[1] ≈ Lₓ) || (x[1] > Lₓ))
@@ -378,7 +378,7 @@ function 𝐊2ᴾᴹᴸ_NC(𝐪𝐫₁, 𝐪𝐫₂)
                 (I(10)⊗(SJ₂*Hr₂)⊗I(m₂))*(I(10)⊗I(m₂)⊗ E1(m₂,m₂,m₂)))
   𝐃₂ = blockdiag((I(2)⊗(SJ₁*Hr₁)⊗I(m₁))*(I(2)⊗I(m₁)⊗ E1(1,1,m₁)), Z₁, Z₁, (I(2)⊗(SJ₁*Hr₁)⊗I(m₁))*(I(2)⊗I(m₁)⊗ E1(1,1,m₁)), Z₁, 
                  (I(2)⊗(SJ₂*Hr₂)⊗I(m₂))*(I(2)⊗I(m₂)⊗ E1(m₂,m₂,m₂)), Z₂, Z₂, (I(2)⊗(SJ₂*Hr₂)⊗I(m₂))*(I(2)⊗I(m₂)⊗ E1(m₂,m₂,m₂)), Z₂)
-  ζ₀ = 400/h₂
+  ζ₀ = 200/h₂
   𝚯 = 𝐃₁⁻¹*𝐃*BH*𝐓𝐫
   𝚯ᵀ = -𝐃₁⁻¹*𝐓𝐫ᵀ*𝐃₂*BHᵀ
   Ju = -𝐃₁⁻¹*𝐃*BT
@@ -423,7 +423,7 @@ end
 """
 Initial conditions (Layer 1)
 """
-𝐔₁(x) = @SVector [exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
+𝐔₁(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]+2π)^2)), -exp(-16π*((x[1]-2.2π)^2 + (x[2]+2π)^2))]
 𝐑₁(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₁(x) = @SVector [0.0, 0.0]
 𝐖₁(x) = @SVector [0.0, 0.0]
@@ -432,7 +432,7 @@ Initial conditions (Layer 1)
 """
 Initial conditions (Layer 2)
 """
-𝐔₂(x) = @SVector [exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2)), -exp(-20*((x[1]-0.55)^2 + (x[2]-0.5)^2))]
+𝐔₂(x) = @SVector [exp(-((x[1]-2.2π)^2 + (x[2]+2π)^2)), -exp(-16π*((x[1]-2.2π)^2 + (x[2]+2π)^2))]
 𝐑₂(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕₂(x) = @SVector [0.0, 0.0]
 𝐖₂(x) = @SVector [0.0, 0.0]
@@ -453,7 +453,7 @@ end
 #############################
 # Obtain Reference Solution #
 #############################
-N₁ = 21
+N₁ = 51
 N₂ = 2*N₁ - 1
 𝐪𝐫₁ = generate_2d_grid((N₁, N₁));
 𝐪𝐫₂ = generate_2d_grid((N₂, N₂));
@@ -465,7 +465,7 @@ stima = 𝐊2ᴾᴹᴸ_NC(𝐪𝐫₁, 𝐪𝐫₂);
 massma = 𝐌2ᴾᴹᴸ⁻¹(𝐪𝐫₁, 𝐪𝐫₂);
 
 cmax = 45.57
-τ₀ = 1/4
+τ₀ = 1/2
 const Δt = 0.2/(cmax*τ₀)*h₂
 tf = 40.0
 ntime = ceil(Int, tf/Δt)
@@ -485,8 +485,8 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀))
   
-  # @gif for i=1:ntime
-  for i=1:ntime
+  @gif for i=1:ntime
+  # for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M,sol)    
     t += Δt    
@@ -494,20 +494,16 @@ let
     (i%1000==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(solmax[i]))    
     
     ## Plotting to get GIFs
-    #= u1₁,u2₁ = split_solution(view(X₀, 1:10*N₁^2), N₁)[1];
+    u1₁,u2₁ = split_solution(view(X₀, 1:10*N₁^2), N₁)[1];
     u1₂,u2₂ = split_solution(view(X₀, 10*N₁^2+1:10*N₁^2+10*N₂^2), N₂)[1];              
     plt1₁ = scatter(Tuple.(xy₁), zcolor=vec(u1₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");    
     scatter!(plt1₁, Tuple.(xy₂), zcolor=vec(u1₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
     scatter!(plt1₁, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N₁)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
     scatter!(plt1₁, Tuple.([cᵢ(q) for q in LinRange(0,1,N₁)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
     title!(plt1₁, "Time t="*string(round(t,digits=4)))
-    plt1₂ = scatter(Tuple.(xy₁), zcolor=σₚ.(vec(xy₁)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.(xy₂), zcolor=σₚ.(vec(xy₂)), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="")
-    scatter!(plt1₂, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N₁)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:white, markersize=2, msw=0.1);
-    scatter!(plt1₂, Tuple.([cᵢ(q) for q in LinRange(0,1,N₂)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800))    
-    plt1 = plot(plt1₁, plt1₂, layout=(1,2)) =#
-  end
-  # end every 100
+    plt1₁
+  # end
+  end every 100
   global X₁ = X₀  
 end
 
@@ -527,7 +523,7 @@ title!(plt2, "Vertical Displacement")
 plt3 = scatter(Tuple.(xy₁), zcolor=vec(σₚ.(xy₁)), colormap=:turbo, markersize=4, msw=0.01, label="", ylabel="y", xlabel="x");
 scatter!(plt3, Tuple.(xy₂), zcolor=vec(σₚ.(xy₂)), colormap=:turbo, markersize=4, msw=0.01, label="", ylabel="y", xlabel="x");
 scatter!(plt3, Tuple.([[Lₓ,q] for q in LinRange(Ω₂([1.0,0.0])[2],Ω₁([1.0,1.0])[2],N₂)]), label="x ≥ "*string(round(Lₓ,digits=4))*" (PML)", markercolor=:red, markersize=2, msw=0.1, colorbar_exponentformat="power");
-scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,𝐍)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
+scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,N₂)]), label="Interface", markercolor=:green, markersize=2, msw=0.1, size=(800,800), right_margin=20*Plots.mm);
 title!(plt3, "PML Function")
 plt4 = plot()
 plot!(plt4, LinRange(iter*tf,(iter+1)*tf,ntime), solmax, yaxis=:log10, label="||U||₍∞₎", lw=2, size=(800,800))
