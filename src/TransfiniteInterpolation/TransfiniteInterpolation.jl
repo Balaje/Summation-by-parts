@@ -1,6 +1,6 @@
 module TransfiniteInterpolation
 
-export domain_2d, P, S, J, J⁻¹, J⁻¹s
+export domain_2d, P, S, J, J⁻¹, J⁻¹s, DiscreteDomain
 
 using NLsolve
 using ForwardDiff

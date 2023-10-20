@@ -43,6 +43,14 @@ function S(x, domain::domain_2d)
 end
 
 """
+Discretization of the Domain
+"""
+struct DiscreteDomain
+  domain::domain_2d
+  mn::Tuple{Int64,Int64}
+end
+
+"""
 Function to return the Jacobian of the transformation
 The entries of the matrices are 
   J(f)[j,k] = ∂f(x)[j]/∂x[k]

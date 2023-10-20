@@ -6,7 +6,6 @@ c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
 c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
 c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)] # Top boundary
 domain = domain_2d(c₀, c₁, c₂, c₃)
-Ω(qr) = S(qr, domain)
 
 ## Define the material properties on the physical grid
 const E = 1.0;
@@ -47,31 +46,41 @@ Cauchy Stress tensor using the displacement field.
 """
 Function to generate the stiffness matrices
 """
-function 𝐊(𝐪𝐫)
+function 𝐊!(𝒫, 𝛀::DiscreteDomain, 𝐪𝐫)
+  Ω(qr) = S(qr, 𝛀.domain)
   detJ(x) = (det∘J)(x,Ω)    
-  
-  Pqr = P2R.(𝒫,Ω,𝐪𝐫) # Property matrix evaluated at grid points    
-  𝐏 = Pᴱ(Dᴱ(Pqr)) # Elasticity bulk differential operator  
-  𝐓q₀ = Tᴱ(Pqr, Ω, [-1,0]).A
-  𝐓r₀ = Tᴱ(Pqr, Ω, [0,-1]).A
-  𝐓qₙ = Tᴱ(Pqr, Ω, [1,0]).A 
-  𝐓rₙ = Tᴱ(Pqr, Ω, [0,1]).A 
-  
+
+  (size(𝐪𝐫) != 𝛀.mn) && begin
+    @warn "Grid not same size. Using the grid size in DiscreteDomain and overwriting the reference grid.."
+    𝐪𝐫 = generate_2d_grid(𝛀.mn)
+  end
+
   m, n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
+  
+  # Get the material property matrix evaluated at grid points    
+  Pqr = P2R.(𝒫,Ω,𝐪𝐫) 
 
-  SJr₀ = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω))*J⁻¹s([q,0.0], Ω, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
-  SJq₀ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω))*J⁻¹s([0.0,q], Ω, [-1,0])) for q in LinRange(0,1,m)]), m)
-  SJrₙ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω))*J⁻¹s([q,1.0], Ω, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
-  SJqₙ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω))*J⁻¹s([1.0,q], Ω, [1,0])) for q in LinRange(0,1,m)]), m)
+  # Elasticity bulk differential operator  
+  𝐏 = Pᴱ(Pqr).A 
+
+  # Elasticity Traction Operators
+  𝐓q₀, 𝐓r₀, 𝐓qₙ, 𝐓rₙ = Tᴱ(Pqr, 𝛀, [-1,0]).A, Tᴱ(Pqr, 𝛀, [0,-1]).A, Tᴱ(Pqr, 𝛀, [1,0]).A, Tᴱ(Pqr, 𝛀, [0,1]).A   
+
+  # The surface Jacobians on the boundary
+  SJr₀, SJq₀, SJrₙ, SJqₙ = Js(𝛀, [0,-1]), Js(𝛀, [-1,0]), Js(𝛀, [0,1]), Js(𝛀, [1,0])   
   
-  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+  # The norm-inverse on the boundary
+  𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
   
-  detJ1 = [1,1] ⊗ vec(detJ.(𝐪𝐫))
-  spdiagm(detJ1.^-1)*(𝐏 - (-(I(2) ⊗ 𝐇q₀)*SJq₀*(𝐓q₀) + (I(2) ⊗ 𝐇qₙ)*SJqₙ*(𝐓qₙ) 
-                           -(I(2) ⊗ 𝐇r₀)*SJr₀*(𝐓r₀) + (I(2) ⊗ 𝐇rₙ)*SJrₙ*(𝐓rₙ)))
+  # Bulk Jacobian
+  𝐉 = Jb(𝛀, 𝐪𝐫)
+
+  # The SBP-SAT Formulation
+  𝐉\(𝐏 - (-(I(2) ⊗ 𝐇q₀⁻¹)*SJq₀*(𝐓q₀) + (I(2) ⊗ 𝐇qₙ⁻¹)*SJqₙ*(𝐓qₙ) 
+          -(I(2) ⊗ 𝐇r₀⁻¹)*SJr₀*(𝐓r₀) + (I(2) ⊗ 𝐇rₙ⁻¹)*SJrₙ*(𝐓rₙ)))
 end
 
 """
@@ -104,14 +113,15 @@ end
 N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
-tf = 0.5
+tf = 1.0
 const Δt = 1e-3
 ntime = ceil(Int, tf/Δt)
 
 for (m,i) in zip(N, 1:length(N))
   let
     𝐪𝐫 = generate_2d_grid((m,m))
-    global stima = 𝐊(𝐪𝐫)
+    𝛀 = DiscreteDomain(domain, (m,m))
+    global stima = 𝐊!(𝒫, 𝛀, 𝐪𝐫)
     𝐱𝐲 = Ω.(𝐪𝐫)
     ρᵢ = ρ.(𝐱𝐲)
     massma = I(2) ⊗ spdiagm(vec(ρᵢ))

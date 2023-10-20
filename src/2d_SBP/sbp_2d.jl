@@ -177,31 +177,24 @@ end
 # Sample SBP operators for Linear Elasticity problems #
 #######################################################
 """
-Linear Elasticity bulk SBP operator: The construction has two parts
+Linear Elasticity bulk SBP operator:
 
-1) Dᴱ(Pqr) 
+1) Pᴱ(Pqr) 
   - Input: (Pqr) is the material property tensor evaluated at every grid points.
-  - Output: 4×4 Matrix{SparseMatrixCSC} containing the individual matrices approximating the derivatives in the elastic wave equations
-            𝛛/𝛛𝐪(𝐀 𝛛/𝛛𝐪) : 4 sparse matrices
-            𝛛/𝛛𝐫(𝐁 𝛛/𝛛𝐫) : 4 sparse matrices 
-            𝛛/𝛛𝐪(𝐂 𝛛/𝛛𝐫) : 4 sparse matrices
-            𝛛/𝛛𝐫(𝐂ᵀ 𝛛/𝛛𝐪) : 4 sparse matrices
-
-2) Builds the operator Pᴱ(Dᴱ) ≈ 𝛛/𝛛𝐪(𝐀 𝛛/𝛛𝐪) + 𝛛/𝛛𝐫(𝐁 𝛛/𝛛𝐫) + 𝛛/𝛛𝐪(𝐂 𝛛/𝛛𝐫) + 𝛛/𝛛𝐫(𝐂ᵀ 𝛛/𝛛𝐪)
+  - Output: SparseMatrixCSC{Float64, Int64} containing the individual matrices approximating the derivatives in the elastic wave equations
+             ≈ 𝛛/𝛛𝐪(𝐀 𝛛/𝛛𝐪) + 𝛛/𝛛𝐫(𝐁 𝛛/𝛛𝐫) + 𝛛/𝛛𝐪(𝐂 𝛛/𝛛𝐫) + 𝛛/𝛛𝐫(𝐂ᵀ 𝛛/𝛛𝐪)
 """
-struct Dᴱ <: SBP_TYPE
-  A::Matrix{SparseMatrixCSC{Float64, Int64}}
+
+struct Pᴱ <: SBP_TYPE
+  A::SparseMatrixCSC{Float64, Int64}
 end
-function Dᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
+function Pᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   P_vec = get_property_matrix_on_grid(Pqr)
   Dᴱ₂ = [Dqq Dqq Dqr Dqr; Dqq Dqq Dqr Dqr; Drq Drq Drr Drr; Drq Drq Drr Drr]
-  res = [Dᴱ₂[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
-  Dᴱ(res)
-end
-function Pᴱ(D1::Dᴱ)
-  D = D1.A
-  [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
-  [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
+  D = [Dᴱ₂[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
+  res = [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
+        [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
+  Pᴱ(res)
 end
 
 """
@@ -210,51 +203,77 @@ Linear Elasticity traction SBP operator:
 1) Tᴱ(Pqr)
   - Input: (Pqr) is the material property tensor evaluated at every grid points.
   - Output: Sparse matrices
-            Tᴱ.A = A(I₂⊗Sq) + C(I₂⊗Dr) ≈ 𝐀 𝛛/𝛛𝐪 + 𝐂 𝛛/𝛛𝐫
-            Tᴱ.B = Cᵀ(I₂⊗Dq) + B(I₂⊗Sr) ≈ 𝐂ᵀ 𝛛/𝛛𝐪 + 𝐁 𝛛/𝛛𝐫
-        where [A C; Cᵀ B] = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
+              Tᴱ.A = A(I₂⊗Sq) + C(I₂⊗Dr) ≈ 𝐀 𝛛/𝛛𝐪 + 𝐂 𝛛/𝛛𝐫
+              Tᴱ.B = Cᵀ(I₂⊗Dq) + B(I₂⊗Sr) ≈ 𝐂ᵀ 𝛛/𝛛𝐪 + 𝐁 𝛛/𝛛𝐫
+            where [A C; Cᵀ B] = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
 """
 struct Tᴱ <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}  
 end
-function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Ω, 𝐧)    
+function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64})    
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
-  m,n = size(Pqr)
+  P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
+       [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]
+  m,n = 𝛀.mn
+  Ω(qr) = S(qr, 𝛀.domain)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
-
-  ##########################
-  # Surface Jacobian terms #
-  ##########################  
-  if(𝐧 ≈ [0,-1])
-    SJ = spdiagm([J⁻¹s([q,0.0], Ω, 𝐧)*(det∘J)([q,0.0], Ω) for q in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗SJ⊗E1(1,1,m), m)    
-    Tr = JJ*([P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr))
-  elseif(𝐧 ≈ [0,1])
-    SJ = spdiagm([J⁻¹s([q,1.0], Ω, 𝐧)*(det∘J)([q,1.0], Ω) for q in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗SJ⊗E1(m,m,m), m)    
-    Tr = JJ*([P_vec[3,1] P_vec[3,2]; P_vec[4,1] P_vec[4,2]]*(I(2)⊗Dq) + [P_vec[3,3] P_vec[3,4]; P_vec[4,3] P_vec[4,4]]*(I(2)⊗Sr))
-  elseif(𝐧 ≈ [-1,0])
-    SJ = spdiagm([J⁻¹s([0.0,r], Ω, 𝐧)*(det∘J)([0.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗E1(1,1,m)⊗SJ, m)
-    Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
-  elseif(𝐧 ≈ [1,0])
-    SJ = spdiagm([J⁻¹s([1.0,r], Ω, 𝐧)*(det∘J)([1.0,r], Ω) for r in LinRange(0,1,m)].^(-1))  
-    JJ = get_surf_J(I(2)⊗E1(m,m,m)⊗SJ, m)
-    Tr = JJ*([P_vec[1,1] P_vec[1,2]; P_vec[2,1] P_vec[2,2]]*(I(2)⊗Sq) + [P_vec[1,3] P_vec[1,4]; P_vec[2,3] P_vec[2,4]]*(I(2)⊗Dr))    
-  end
-  
+  𝛁 = [[I(2)⊗Sq] [I(2)⊗Dr];
+       [I(2)⊗Dq] [I(2)⊗Sr]]
+  ########################
+  # Compute the traction #
+  ######################## 
+  𝐧 = reshape(𝐧, (1,2))
+  JJ = Js(𝛀, 𝐧)  
+  Pn = (𝐧*P)
+  ∇n = (𝐧*𝛁)
+  𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
+  Tr = JJ\𝐓𝐧
   Tᴱ(Tr)
 end
 
-function get_surf_J(JJ0,m)  
-  JJ = spdiagm(ones(2m^2))  
-  i,j,v = findnz(JJ0)
+"""
+Get the surface Jacobian matrix defined as 
+  Js[i,i] = 1.0,    i ∉ Boundary(𝐧)  
+          = J⁻¹s(Ω, 𝐧),   i ∈ Boundary(𝐧)
+"""
+function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64})  
+  ##########################
+  # Surface Jacobian terms #
+  ##########################    
+  𝐧 = vec(𝐧)
+  m,_ = 𝛀.mn
+  Ω(qr) = S(qr, 𝛀.domain)
+  if(𝐧 == [0,-1])
+    SJ = spdiagm([J⁻¹s([q,0.0], Ω, 𝐧)*(det∘J)([q,0.0], Ω) for q in LinRange(0,1,m)])       
+    JJ1 = I(2)⊗SJ⊗E1(1,1,m) 
+  elseif(𝐧 == [0,1])
+    SJ = spdiagm([J⁻¹s([q,1.0], Ω, 𝐧)*(det∘J)([q,1.0], Ω) for q in LinRange(0,1,m)])      
+    JJ1 = I(2)⊗SJ⊗E1(m,m,m) 
+  elseif(𝐧 == [-1,0])
+    SJ = spdiagm([J⁻¹s([0.0,r], Ω, 𝐧)*(det∘J)([0.0,r], Ω) for r in LinRange(0,1,m)])      
+    JJ1 = I(2)⊗E1(1,1,m)⊗SJ
+  elseif(𝐧 == [1,0])
+    SJ = spdiagm([J⁻¹s([1.0,r], Ω, 𝐧)*(det∘J)([1.0,r], Ω) for r in LinRange(0,1,m)])      
+    JJ1 = I(2)⊗E1(m,m,m)⊗SJ
+  end  
+  JJ0 = spdiagm(ones(2m^2))  
+  i,j,v = findnz(JJ1)
   for k=1:2m
-    JJ[i[k], j[k]] = v[k]
+    JJ0[i[k], j[k]] = v[k]
   end
-  JJ
+  JJ0
+end
+
+"""
+Get the bulk Jacobian of the transformation
+  Jb[i,i] = J(qr[i,i], Ω)
+"""
+function Jb(𝛀::DiscreteDomain, 𝐪𝐫)
+  Ω(qr) = S(qr, 𝛀.domain)
+  detJ(x) = (det∘J)(x,Ω)    
+  spdiagm([1,1] ⊗ vec(detJ.(𝐪𝐫)))
 end
