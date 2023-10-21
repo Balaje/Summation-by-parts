@@ -15,7 +15,6 @@ c₁¹(q) = cᵢ(q) # Bottom boundary. Also the interface
 c₂¹(r) = [1.0, 1+r]; # Right boundary
 c₃¹(q) = [q, 2.0 + 0.1*sin(2π*q)]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-Ω₁(qr) = S(qr, domain₁)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
 c₀²(r) = [0.0, r]; # Left boundary
 c₁²(q) = [q, 0.0]; # Bottom boundary. 
@@ -85,94 +84,62 @@ Cauchy Stress tensor using the displacement field.
 """
 Stiffness matrix function
 """
-function 𝐊2(𝐪𝐫)
+function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
+  𝒫¹, 𝒫² = 𝒫
+  𝛀₁, 𝛀₂ = 𝛀
+  Ω₁(qr) = S(qr, 𝛀₁.domain)
+  Ω₂(qr) = S(qr, 𝛀₂.domain)
+  @assert 𝛀₁.mn == 𝛀₂.mn "Grid size need to be equal"
+  (size(𝐪𝐫) != 𝛀₁.mn) && begin
+    @warn "Grid not same size. Using the grid size in DiscreteDomain and overwriting the reference grid.."
+    𝐪𝐫 = generate_2d_grid(𝛀.mn)
+  end
   # Get the bulk and the traction operator for the 1st layer
   detJ₁(x) = (det∘J)(x, Ω₁)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
-  𝐏₁ = Pᴱ(Dᴱ(Pqr₁)) # Elasticity bulk differential operator
+  𝐏₁ = Pᴱ(Pqr₁) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀¹ = Tᴱ(Pqr₁, Ω₁, [-1,0]).A
-  𝐓r₀¹ = Tᴱ(Pqr₁, Ω₁, [0,-1]).A
-  𝐓qₙ¹ = Tᴱ(Pqr₁, Ω₁, [1,0]).A 
-  𝐓rₙ¹ = Tᴱ(Pqr₁, Ω₁, [0,1]).A 
+  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]).A 
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
-  𝐏₂ = Pᴱ(Dᴱ(Pqr₂)) # Elasticity bulk differential operator
+  𝐏₂ = Pᴱ(Pqr₂) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀² = Tᴱ(Pqr₂, Ω₂, [-1,0]).A
-  𝐓r₀² = Tᴱ(Pqr₂, Ω₂, [0,-1]).A
-  𝐓qₙ² = Tᴱ(Pqr₂, Ω₂, [1,0]).A 
-  𝐓rₙ² = Tᴱ(Pqr₂, Ω₂, [0,1]).A 
+  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]).A 
   
   # Get the norm matrices (Same for both layers)
   m, n = size(𝐪𝐫)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
-  𝐇q₀, 𝐇qₙ, 𝐇r₀, 𝐇rₙ = sbp_2d.norm
+  𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
   
   # Determinants of the transformation
-  detJ1₁ = [1,1] ⊗ vec(detJ₁.(𝐪𝐫))
-  detJ1₂ = [1,1] ⊗ vec(detJ₂.(𝐪𝐫)) 
-  Jbulk⁻¹ = blockdiag(spdiagm(detJ1₁.^-1), spdiagm(detJ1₂.^-1))
+  𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
+  𝐉₂ = Jb(𝛀₂, 𝐪𝐫) 
+  𝐉 = blockdiag(𝐉₁, 𝐉₂)   
   
   # Surface Jacobians of the outer boundaries
   # - Layer 1  
-  SJq₀¹ = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₁))*J⁻¹s([0.0,q], Ω₁, [-1,0])) for q in LinRange(0,1,m)]), m)
-  SJrₙ¹ = get_surf_J(I(2)⊗spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, [0,1])) for q in LinRange(0,1,m)])⊗E1(m,m,m), m)
-  SJqₙ¹ = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₁))*J⁻¹s([1.0,q], Ω₁, [1,0])) for q in LinRange(0,1,m)]), m)
+  _, SJq₀¹, SJrₙ¹, SJqₙ¹ = Js(𝛀₁, [0,-1]), Js(𝛀₁, [-1,0]), Js(𝛀₁, [0,1]), Js(𝛀₁, [1,0])   
   # - Layer 2
-  SJr₀² = get_surf_J(I(2)⊗spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, [0,-1])) for q in LinRange(0,1,m)])⊗E1(1,1,m), m)
-  SJq₀² = get_surf_J(I(2)⊗E1(1,1,m)⊗spdiagm([(det(J([0.0,q], Ω₂))*J⁻¹s([0.0,q], Ω₂, [-1,0])) for q in LinRange(0,1,m)]), m)  
-  SJqₙ² = get_surf_J(I(2)⊗E1(m,m,m)⊗spdiagm([(det(J([1.0,q], Ω₂))*J⁻¹s([1.0,q], Ω₂, [1,0])) for q in LinRange(0,1,m)]), m)
+  SJr₀², SJq₀², _, SJqₙ² = Js(𝛀₂, [0,-1]), Js(𝛀₂, [-1,0]), Js(𝛀₂, [0,1]), Js(𝛀₂, [1,0])   
 
   # Combine the operators    
-  𝐏 = blockdiag(𝐏₁, 𝐏₂)
-  𝐓 = blockdiag(-(I(2)⊗𝐇q₀)*SJq₀¹*(𝐓q₀¹) + (I(2)⊗𝐇qₙ)*SJqₙ¹*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ)*SJrₙ¹*(𝐓rₙ¹),
-                -(I(2)⊗𝐇q₀)*SJq₀²*(𝐓q₀²) + (I(2)⊗𝐇qₙ)*SJqₙ²*(𝐓qₙ²) + -(I(2)⊗𝐇r₀)*SJr₀²*(𝐓r₀²))
+  𝐏 = blockdiag(𝐏₁.A, 𝐏₂.A)
+  𝐓 = blockdiag(-(I(2)⊗𝐇q₀⁻¹)*SJq₀¹*(𝐓q₀¹) + (I(2)⊗𝐇qₙ⁻¹)*SJqₙ¹*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ⁻¹)*SJrₙ¹*(𝐓rₙ¹),
+                -(I(2)⊗𝐇q₀⁻¹)*SJq₀²*(𝐓q₀²) + (I(2)⊗𝐇qₙ⁻¹)*SJqₙ²*(𝐓qₙ²) + -(I(2)⊗𝐇r₀⁻¹)*SJr₀²*(𝐓r₀²))
+  𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)            
   
-  # Interface SAT terms 
-  Hq = sbp_q.norm
-  Hr = sbp_r.norm    
-  Hq⁻¹ = (Hq)\I(m) |> sparse
-  Hr⁻¹ = (Hr)\I(n) |> sparse  
-  # Surface Jacobian on the interface
-  SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, [0,-1])) for q in LinRange(0,1,m)])
-  SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, [0,1])) for q in LinRange(0,1,m)])
-  𝐃 = blockdiag((I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m))) # # The inverse is contained in the 2d stencil struct                
-  𝐃⁻¹ = blockdiag((I(2)⊗Hq⁻¹⊗Hr⁻¹), (I(2)⊗Hq⁻¹⊗Hr⁻¹))
-  BHᵀ, BT = get_marker_matrix(m)
+  # Get the Interface SAT for Conforming Interface
+  B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0 -1], [0 1], ConformingInterface())
   
-  𝐓r = blockdiag(𝐓r₀¹, 𝐓rₙ²)
-  𝐓rᵀ = blockdiag(𝐓r₀¹, 𝐓rₙ²)'    
-  
-  X = 𝐃*BHᵀ*𝐓r;
-  Xᵀ = 𝐓rᵀ*𝐃*BHᵀ;
-  
-  𝚯 = 𝐃⁻¹*X
-  𝚯ᵀ = -𝐃⁻¹*Xᵀ
-  Ju = -𝐃⁻¹*𝐃*BT;   
-  
-  h = cᵢ(1)[1]/(m-1)
+  h = 1/(m-1)
   ζ₀ = 40/h
-  𝐓ᵢ = 0.5*𝚯 + 0.5*𝚯ᵀ + ζ₀*Ju
+  𝐓ᵢ = (I(2)⊗𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢ'*B̂ - ζ₀*B̃)
   
-  Jbulk⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)
-end
-
-"""
-Function to get the marker matrix for implementing the jump conditions on the interface
-"""
-function get_marker_matrix(m)
-  W₁ = I(2) ⊗ I(m) ⊗ E1(1,1,m)
-  W₂ = I(2) ⊗ I(m) ⊗ E1(m,m,m)
-  Z₁ = I(2) ⊗ I(m) ⊗ E1(1,m,m)  
-  Z₂ = I(2) ⊗ I(m) ⊗ E1(m,1,m)  
-  mk1 = [-W₁  Z₁; -Z₂  W₂]
-  mk2 = [-W₁  Z₁; Z₂  -W₂]
-  mk1, mk2
+  𝐉\(𝐏 - 𝐓 - 𝐓ᵢ)
 end
   
 """
@@ -213,7 +180,11 @@ max_err = zeros(Float64, ntime, length(N))
 for (m,Ni) in zip(N, 1:length(N))
   let
     𝐪𝐫 = generate_2d_grid((m,m))
-    global stima2 = 𝐊2(𝐪𝐫)
+    global 𝛀₁ = DiscreteDomain(domain₁, (m,m))
+    global 𝛀₂ = DiscreteDomain(domain₂, (m,m))
+    global Ω₁(qr) = S(qr, 𝛀₁.domain)
+    global Ω₂(qr) = S(qr, 𝛀₂.domain)
+    global stima2 = 𝐊2!((𝒫¹, 𝒫²), (𝛀₁, 𝛀₂), 𝐪𝐫)
     𝐱𝐲₁ = Ω₁.(𝐪𝐫)
     𝐱𝐲₂ = Ω₂.(𝐪𝐫)        
     massma2 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ².(𝐱𝐲₂)))))

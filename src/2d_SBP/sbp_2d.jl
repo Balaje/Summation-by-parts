@@ -277,3 +277,63 @@ function Jb(𝛀::DiscreteDomain, 𝐪𝐫)
   detJ(x) = (det∘J)(x,Ω)    
   spdiagm([1,1] ⊗ vec(detJ.(𝐪𝐫)))
 end
+
+"""
+Struct to dispatch interface SAT routine SATᵢᴱ for Conforming Interface
+"""
+struct ConformingInterface <: Any end
+
+"""
+Function to return the SAT term on the interface. 
+Input: SATᵢᴱ(𝛀₁::DiscreteDomain, 
+             𝛀₂::DiscreteDomain, 
+             𝐧₁::AbstractVecOrMat{Int64}, 
+             𝐧₂::AbstractVecOrMat{Int64}, 
+             ::ConformingInterface)
+
+The normal 𝐧₁ decides the boundary in Layer 1 on which the interface is situated. 
+The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
+
+The function only works for ::ConformingInterface
+
+"""
+function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface)  
+  Ω₁(qr) = S(qr, 𝛀₁.domain)
+  Ω₂(qr) = S(qr, 𝛀₂.domain)
+  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
+  @assert 𝛀₁.mn == 𝛀₂.mn "The interface needs to be conforming"
+  𝐧₁ = vec(𝐧₁); 𝐧₂ = vec(𝐧₂)
+  m, n = 𝛀₁.mn
+  sbp_q = SBP_1_2_CONSTANT_0_1(m)
+  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  Hq = sbp_q.norm
+  Hr = sbp_r.norm
+  Hq⁻¹ = (Hq)\I(m) |> sparse
+  Hr⁻¹ = (Hr)\I(n) |> sparse  
+  if(𝐧₁ == [0,-1])  
+    B̂ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); -(I(2) ⊗ I(m) ⊗ E1(m,1,m)) (I(2) ⊗ I(m) ⊗ E1(m,m,m))]
+    B̃ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); (I(2) ⊗ I(m) ⊗ E1(m,1,m)) -(I(2) ⊗ I(m) ⊗ E1(m,m,m))]
+    SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
+    SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
+    𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m)) )
+  elseif(𝐧₁ == [0,1])
+    B̂ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); -(I(2) ⊗ I(m) ⊗ E1(1,m,m)) (I(2) ⊗ I(m) ⊗ E1(1,1,m))]
+    B̃ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); (I(2) ⊗ I(m) ⊗ E1(1,m,m)) -(I(2) ⊗ I(m) ⊗ E1(1,1,m))]
+    SJr₀¹ = spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
+    SJrₙ² = spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
+    𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(m,m,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(1,1,m)) )
+  elseif(𝐧₁ == [-1,0])
+    B̂ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); -(I(2) ⊗ E1(m,1,m) ⊗ I(m)) (I(2) ⊗ E1(m,m,m) ⊗ I(m))]
+    B̃ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); (I(2) ⊗ E1(m,1,m) ⊗ I(m)) -(I(2) ⊗ E1(m,m,m) ⊗ I(m))]
+    SJr₀¹ = spdiagm([(det(J([0.0,r], Ω₁))*J⁻¹s([0.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
+    SJrₙ² = spdiagm([(det(J([1.0,r], Ω₂))*J⁻¹s([1.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
+    𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)) )
+  elseif(𝐧₁ == [1,0])
+    B̂ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); -(I(2) ⊗ E1(1,m,m) ⊗ I(m)) (I(2) ⊗ E1(1,1,m) ⊗ I(m))]
+    B̃ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); (I(2) ⊗ E1(1,m,m) ⊗ I(m)) -(I(2) ⊗ E1(1,1,m) ⊗ I(m))]
+    SJr₀¹ = spdiagm([(det(J([1.0,r], Ω₁))*J⁻¹s([1.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
+    SJrₙ² = spdiagm([(det(J([0.0,r], Ω₂))*J⁻¹s([0.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
+    𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)) )
+  end
+  (𝐃*B̂, 𝐃*B̃, (I(2)⊗Hq⁻¹⊗Hr⁻¹)) 
+end

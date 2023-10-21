@@ -121,6 +121,7 @@ for (m,i) in zip(N, 1:length(N))
   let
     𝐪𝐫 = generate_2d_grid((m,m))
     𝛀 = DiscreteDomain(domain, (m,m))
+    global Ω(qr) = S(qr, 𝛀.domain)
     global stima = 𝐊!(𝒫, 𝛀, 𝐪𝐫)
     𝐱𝐲 = Ω.(𝐪𝐫)
     ρᵢ = ρ.(𝐱𝐲)
