@@ -21,7 +21,7 @@ eᵢ(i::Int64,m::Int64) = diag(E1(i,i,m))
 """
 A Dictionary to obtain the side corresponding to the normal in the ith direction
 """
-N2S(x,y) = Dict([(0,I(21)), (1,x), (-1,y)])
+N2S(x,y) = Dict([(0,I(size(x,1))), (1,x), (-1,y)])
 (d::Dict)(k) = d[k];
 
 import SBP.E1
@@ -42,10 +42,10 @@ function SJ(qr, Ω, 𝐧::AbstractVecOrMat{Int64}; X=I(2))
   m = size(qr,1)
   n(x) = reshape(Float64.(𝐧), (2,1))
   nqr = n.(qr)
-  Jqr = J⁻¹.(qr, Ω)
+  Jqr = (det∘J).(qr, Ω).*J⁻¹.(qr, Ω)
   J_on_grid = spdiagm.(vec.(get_property_matrix_on_grid(Jqr)))
   n_on_grid = spdiagm.(vec.(get_property_matrix_on_grid(nqr)))  
-  n2s = kron(N2S(E1(1,1,m), E1(m,m,m)).(𝐧)...)
-  Jn_on_grid = ((J_on_grid)*(J_on_grid));
-  [X⊗(Ji*n2s) for Ji in Jn_on_grid]
+  n2s = kron(N2S(E1(m,m,m), E1(1,1,m)).(𝐧)...)
+  Jn_on_grid = ((J_on_grid)*(n_on_grid));
+  X⊗sqrt.(sum([(Ji*n2s) for Ji in Jn_on_grid].^2))
 end
