@@ -67,10 +67,10 @@ function 𝐊!(𝒫, 𝛀::DiscreteDomain, 𝐪𝐫)
   𝐏 = Pᴱ(Pqr).A 
 
   # Elasticity Traction Operators
-  𝐓q₀, 𝐓r₀, 𝐓qₙ, 𝐓rₙ = Tᴱ(Pqr, 𝛀, [-1,0]).A, Tᴱ(Pqr, 𝛀, [0,-1]).A, Tᴱ(Pqr, 𝛀, [1,0]).A, Tᴱ(Pqr, 𝛀, [0,1]).A   
+  𝐓q₀, 𝐓r₀, 𝐓qₙ, 𝐓rₙ = Tᴱ(Pqr, 𝛀, [-1,0]; X=I(2)).A, Tᴱ(Pqr, 𝛀, [0,-1];  X=I(2)).A, Tᴱ(Pqr, 𝛀, [1,0];  X=I(2)).A, Tᴱ(Pqr, 𝛀, [0,1];  X=I(2)).A   
 
   # The surface Jacobians on the boundary
-  SJr₀, SJq₀, SJrₙ, SJqₙ = Js(𝛀, [0,-1]), Js(𝛀, [-1,0]), Js(𝛀, [0,1]), Js(𝛀, [1,0])   
+  SJr₀, SJq₀, SJrₙ, SJqₙ = Js(𝛀, [0,-1];  X=I(2)), Js(𝛀, [-1,0];  X=I(2)), Js(𝛀, [0,1];  X=I(2)), Js(𝛀, [1,0];  X=I(2))   
   
   # The norm-inverse on the boundary
   𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
@@ -110,7 +110,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21]
+N = [21,31,41]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 tf = 1.0

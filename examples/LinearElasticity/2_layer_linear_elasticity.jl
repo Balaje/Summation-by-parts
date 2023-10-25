@@ -67,21 +67,6 @@ Density function
 ρ²(x) = 0.5
 
 """
-The material property tensor in the physical coordinates
-  𝒫(x) = [A(x) C(x); 
-          C(x)' B(x)]
-where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
-"""
-𝒫¹(x) = @SMatrix [c₁₁¹(x) 0 0 c₁₂¹(x); 0 c₃₃¹(x) c₃₃¹(x) 0; 0 c₃₃¹(x) c₃₃¹(x) 0; c₁₂¹(x) 0 0 c₂₂¹(x)];
-𝒫²(x) = @SMatrix [c₁₁²(x) 0 0 c₁₂²(x); 0 c₃₃²(x) c₃₃²(x) 0; 0 c₃₃²(x) c₃₃²(x) 0; c₁₂²(x) 0 0 c₂₂²(x)];
-
-"""
-Cauchy Stress tensor using the displacement field.
-"""
-σ¹(∇u,x) = 𝒫¹(x)*∇u
-σ²(∇u,x) = 𝒫²(x)*∇u
-
-"""
 Stiffness matrix function
 """
 function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
@@ -99,14 +84,14 @@ function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Pqr₁) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]).A 
+  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]; X=I(2)).A 
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Pqr₂) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]).A 
+  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]; X=I(2)).A 
   
   # Get the norm matrices (Same for both layers)
   m, n = size(𝐪𝐫)
@@ -122,9 +107,9 @@ function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   
   # Surface Jacobians of the outer boundaries
   # - Layer 1  
-  _, SJq₀¹, SJrₙ¹, SJqₙ¹ = Js(𝛀₁, [0,-1]), Js(𝛀₁, [-1,0]), Js(𝛀₁, [0,1]), Js(𝛀₁, [1,0])   
+  _, SJq₀¹, SJrₙ¹, SJqₙ¹ = Js(𝛀₁, [0,-1]; X=I(2)), Js(𝛀₁, [-1,0]; X=I(2)), Js(𝛀₁, [0,1]; X=I(2)), Js(𝛀₁, [1,0]; X=I(2))   
   # - Layer 2
-  SJr₀², SJq₀², _, SJqₙ² = Js(𝛀₂, [0,-1]), Js(𝛀₂, [-1,0]), Js(𝛀₂, [0,1]), Js(𝛀₂, [1,0])   
+  SJr₀², SJq₀², _, SJqₙ² = Js(𝛀₂, [0,-1]; X=I(2)), Js(𝛀₂, [-1,0]; X=I(2)), Js(𝛀₂, [0,1]; X=I(2)), Js(𝛀₂, [1,0]; X=I(2))   
 
   # Combine the operators    
   𝐏 = blockdiag(𝐏₁.A, 𝐏₂.A)
@@ -133,7 +118,7 @@ function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)            
   
   # Get the Interface SAT for Conforming Interface
-  B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0 -1], [0 1], ConformingInterface())
+  B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=I(2))
   
   h = 1/(m-1)
   ζ₀ = 40/h

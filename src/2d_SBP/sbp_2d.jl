@@ -1,9 +1,3 @@
-
-"""
-Kronecker Product
-"""
-⊗(A,B) = kron(A, B)
-
 """
 SBP operators in two-dimensions obtained using Kronecker Product of 1d operators
 """
@@ -44,12 +38,6 @@ function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CO
   SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪₀,𝐇𝐪ₙ,𝐇𝐫₀,𝐇𝐫ₙ), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
 end
 
-function E1(i,j,m)
-  X = spzeros(Float64,m,m)
-  X[i,j] = 1.0
-  X
-end
-
 """
 Function to generate the 2d grid on the reference domain (0,1)×(0,1)
 """
@@ -74,33 +62,6 @@ function P2R(𝒫, 𝒮, qr)
   S = invJ ⊗ I(2)
   m,n = size(S)
   SMatrix{m,n,Float64}(S'*𝒫(x)*S)*detJ
-end
-
-"""
-Function to reshape the material properties on the grid.
-
-𝐈𝐧𝐩𝐮𝐭 a matrix of tensors (an n×n matrix) evaluated on the grid points.
-   Pqr::Matrix{SMatrix{m,n,Float64}} = [𝐏(x₁₁) 𝐏(x₁₂) ... 𝐏(x₁ₙ)
-                                        𝐏(x₂₁) 𝐏(x₂₂) ... 𝐏(x₂ₙ)
-                                                      ...
-                                        𝐏(xₙ₁) 𝐏(xₙ₂)  ... 𝐏(xₙₙ)]
-  where 𝐏(x) = [P₁₁(x) P₁₂(x)
-                P₂₁(x) P₂₂(x)]
-𝐎𝐮𝐭𝐩𝐮𝐭 a matrix of matrix with the following form
-result = [ [P₁₁(x₁₁) ... P₁₁(x₁ₙ)        [P₁₂(x₁₁) ... P₁₂(x₁ₙ)
-                     ...                          ...
-            P₁₁(xₙ₁) ... P₁₁(xₙₙ)],         P₁₂(xₙ₁) ... P₁₂(x₁ₙ)];              
-           [P₂₁(x₁₁) ... P₂₁(x₁ₙ)        [P₂₂(x₁₁) ... P₂₂(x₁ₙ)
-                     ...                          ...
-            P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
-         ]
-"""
-function get_property_matrix_on_grid(Pqr, l::Int64)
-  m,n = size(Pqr[1])
-  Ptuple = Tuple.(Pqr)
-  P_page = reinterpret(reshape, Float64, Ptuple)
-  dim = length(size(P_page))  
-  reshape(splitdimsview(P_page, dim-l), (m,n))
 end
 
 """
@@ -210,7 +171,7 @@ Linear Elasticity traction SBP operator:
 struct Tᴱ <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}  
 end
-function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64})    
+function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])    
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
   P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
        [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]
@@ -227,7 +188,7 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
   # Compute the traction #
   ######################## 
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧)  
+  JJ = Js(𝛀, 𝐧; X=X)  
   Pn = (𝐧*P)
   ∇n = (𝐧*𝛁)
   𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
@@ -240,26 +201,15 @@ Get the surface Jacobian matrix defined as
   Js[i,i] = 1.0,    i ∉ Boundary(𝐧)  
           = J⁻¹s(Ω, 𝐧),   i ∈ Boundary(𝐧)
 """
-function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64})  
-  ##########################
-  # Surface Jacobian terms #
-  ##########################    
+function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
+  #########################################################
+  # Surface Jacobian terms pasted onto an identity matrix #
+  #########################################################
   𝐧 = vec(𝐧)
-  m,_ = 𝛀.mn
-  Ω(qr) = S(qr, 𝛀.domain)
-  if(𝐧 == [0,-1])
-    SJ = spdiagm([J⁻¹s([q,0.0], Ω, 𝐧)*(det∘J)([q,0.0], Ω) for q in LinRange(0,1,m)])       
-    JJ1 = I(2)⊗SJ⊗E1(1,1,m) 
-  elseif(𝐧 == [0,1])
-    SJ = spdiagm([J⁻¹s([q,1.0], Ω, 𝐧)*(det∘J)([q,1.0], Ω) for q in LinRange(0,1,m)])      
-    JJ1 = I(2)⊗SJ⊗E1(m,m,m) 
-  elseif(𝐧 == [-1,0])
-    SJ = spdiagm([J⁻¹s([0.0,r], Ω, 𝐧)*(det∘J)([0.0,r], Ω) for r in LinRange(0,1,m)])      
-    JJ1 = I(2)⊗E1(1,1,m)⊗SJ
-  elseif(𝐧 == [1,0])
-    SJ = spdiagm([J⁻¹s([1.0,r], Ω, 𝐧)*(det∘J)([1.0,r], Ω) for r in LinRange(0,1,m)])      
-    JJ1 = I(2)⊗E1(m,m,m)⊗SJ
-  end  
+  m = 𝛀.mn[1]
+  Ω(qr) = S(qr, 𝛀.domain) 
+  qr = generate_2d_grid(𝛀.mn) 
+  JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)
   JJ0 = spdiagm(ones(2m^2))  
   i,j,v = findnz(JJ1)
   for k=1:2m
@@ -297,43 +247,43 @@ The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
 The function only works for ::ConformingInterface
 
 """
-function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface)  
+function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface; X=[1])  
   Ω₁(qr) = S(qr, 𝛀₁.domain)
   Ω₂(qr) = S(qr, 𝛀₂.domain)
   @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
   @assert 𝛀₁.mn == 𝛀₂.mn "The interface needs to be conforming"
-  𝐧₁ = vec(𝐧₁); 𝐧₂ = vec(𝐧₂)
-  m, n = 𝛀₁.mn
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
-  Hq = sbp_q.norm
-  Hr = sbp_r.norm
-  Hq⁻¹ = (Hq)\I(m) |> sparse
-  Hr⁻¹ = (Hr)\I(n) |> sparse  
-  if(𝐧₁ == [0,-1])  
-    B̂ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); -(I(2) ⊗ I(m) ⊗ E1(m,1,m)) (I(2) ⊗ I(m) ⊗ E1(m,m,m))]
-    B̃ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); (I(2) ⊗ I(m) ⊗ E1(m,1,m)) -(I(2) ⊗ I(m) ⊗ E1(m,m,m))]
-    SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
-    SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
-    𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m)) )
-  elseif(𝐧₁ == [0,1])
-    B̂ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); -(I(2) ⊗ I(m) ⊗ E1(1,m,m)) (I(2) ⊗ I(m) ⊗ E1(1,1,m))]
-    B̃ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); (I(2) ⊗ I(m) ⊗ E1(1,m,m)) -(I(2) ⊗ I(m) ⊗ E1(1,1,m))]
-    SJr₀¹ = spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
-    SJrₙ² = spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
-    𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(m,m,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(1,1,m)) )
-  elseif(𝐧₁ == [-1,0])
-    B̂ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); -(I(2) ⊗ E1(m,1,m) ⊗ I(m)) (I(2) ⊗ E1(m,m,m) ⊗ I(m))]
-    B̃ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); (I(2) ⊗ E1(m,1,m) ⊗ I(m)) -(I(2) ⊗ E1(m,m,m) ⊗ I(m))]
-    SJr₀¹ = spdiagm([(det(J([0.0,r], Ω₁))*J⁻¹s([0.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
-    SJrₙ² = spdiagm([(det(J([1.0,r], Ω₂))*J⁻¹s([1.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
-    𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)) )
-  elseif(𝐧₁ == [1,0])
-    B̂ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); -(I(2) ⊗ E1(1,m,m) ⊗ I(m)) (I(2) ⊗ E1(1,1,m) ⊗ I(m))]
-    B̃ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); (I(2) ⊗ E1(1,m,m) ⊗ I(m)) -(I(2) ⊗ E1(1,1,m) ⊗ I(m))]
-    SJr₀¹ = spdiagm([(det(J([1.0,r], Ω₁))*J⁻¹s([1.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
-    SJrₙ² = spdiagm([(det(J([0.0,r], Ω₂))*J⁻¹s([0.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
-    𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)) )
-  end
-  (𝐃*B̂, 𝐃*B̃, (I(2)⊗Hq⁻¹⊗Hr⁻¹)) 
+  m = 𝛀₁.mn[1]
+  qr = generate_2d_grid(𝛀₁.mn)
+  sbp = SBP_1_2_CONSTANT_0_1(m)
+  H = sbp.norm  
+  H⁻¹ = (H)\I(m) |> sparse  
+  𝐃 = blockdiag(I(2)⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), I(2)⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
+  B̂, B̃ = jump(m, 𝐧₁; X=X)
+  JJ = blockdiag(_surface_jacobian(qr, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr, Ω₂, 𝐧₂; X=X))  
+  # if(𝐧₁ == [0,-1])  
+  #   B̂ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); -(I(2) ⊗ I(m) ⊗ E1(m,1,m)) (I(2) ⊗ I(m) ⊗ E1(m,m,m))]
+  #   B̃ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); (I(2) ⊗ I(m) ⊗ E1(m,1,m)) -(I(2) ⊗ I(m) ⊗ E1(m,m,m))]
+  #   SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
+  #   SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
+  #   𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m)) )
+  # elseif(𝐧₁ == [0,1])
+  #   B̂ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); -(I(2) ⊗ I(m) ⊗ E1(1,m,m)) (I(2) ⊗ I(m) ⊗ E1(1,1,m))]
+  #   B̃ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); (I(2) ⊗ I(m) ⊗ E1(1,m,m)) -(I(2) ⊗ I(m) ⊗ E1(1,1,m))]
+  #   SJr₀¹ = spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
+  #   SJrₙ² = spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
+  #   𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(m,m,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(1,1,m)) )
+  # elseif(𝐧₁ == [-1,0])
+  #   B̂ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); -(I(2) ⊗ E1(m,1,m) ⊗ I(m)) (I(2) ⊗ E1(m,m,m) ⊗ I(m))]
+  #   B̃ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); (I(2) ⊗ E1(m,1,m) ⊗ I(m)) -(I(2) ⊗ E1(m,m,m) ⊗ I(m))]
+  #   SJr₀¹ = spdiagm([(det(J([0.0,r], Ω₁))*J⁻¹s([0.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
+  #   SJrₙ² = spdiagm([(det(J([1.0,r], Ω₂))*J⁻¹s([1.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
+  #   𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)) )
+  # elseif(𝐧₁ == [1,0])
+  #   B̂ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); -(I(2) ⊗ E1(1,m,m) ⊗ I(m)) (I(2) ⊗ E1(1,1,m) ⊗ I(m))]
+  #   B̃ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); (I(2) ⊗ E1(1,m,m) ⊗ I(m)) -(I(2) ⊗ E1(1,1,m) ⊗ I(m))]
+  #   SJr₀¹ = spdiagm([(det(J([1.0,r], Ω₁))*J⁻¹s([1.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
+  #   SJrₙ² = spdiagm([(det(J([0.0,r], Ω₂))*J⁻¹s([0.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
+  #   𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)) )
+  # end
+  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (I(2)⊗H⁻¹⊗H⁻¹)) 
 end

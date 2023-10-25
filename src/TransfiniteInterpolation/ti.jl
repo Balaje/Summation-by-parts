@@ -87,3 +87,30 @@ Here the parameters
 function J⁻¹s(x, S, n)  
   norm(J⁻¹(x, S)*n)
 end
+
+"""
+Function to reshape the material properties on the grid.
+
+𝐈𝐧𝐩𝐮𝐭 a matrix of tensors (an n×n matrix) evaluated on the grid points.
+   Pqr::Matrix{SMatrix{m,n,Float64}} = [𝐏(x₁₁) 𝐏(x₁₂) ... 𝐏(x₁ₙ)
+                                        𝐏(x₂₁) 𝐏(x₂₂) ... 𝐏(x₂ₙ)
+                                                      ...
+                                        𝐏(xₙ₁) 𝐏(xₙ₂)  ... 𝐏(xₙₙ)]
+  where 𝐏(x) = [P₁₁(x) P₁₂(x)
+                P₂₁(x) P₂₂(x)]
+𝐎𝐮𝐭𝐩𝐮𝐭 a matrix of matrix with the following form
+result = [ [P₁₁(x₁₁) ... P₁₁(x₁ₙ)        [P₁₂(x₁₁) ... P₁₂(x₁ₙ)
+                     ...                          ...
+            P₁₁(xₙ₁) ... P₁₁(xₙₙ)],         P₁₂(xₙ₁) ... P₁₂(x₁ₙ)];              
+           [P₂₁(x₁₁) ... P₂₁(x₁ₙ)        [P₂₂(x₁₁) ... P₂₂(x₁ₙ)
+                     ...                          ...
+            P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
+         ]
+"""
+function get_property_matrix_on_grid(Pqr, l::Int64)
+  m,n = size(Pqr[1])
+  Ptuple = Tuple.(Pqr)
+  P_page = reinterpret(reshape, Float64, Ptuple)
+  dim = length(size(P_page))  
+  reshape(splitdimsview(P_page, dim-l), (m,n))
+end

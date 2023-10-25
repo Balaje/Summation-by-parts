@@ -4,7 +4,7 @@
 """
 Function to obtain the jump matrix corresponding to the normal vector
 """
-function jump(m::Int64, 𝐧::AbstractVector{Int64}; X=I(2))
+function jump(m::Int64, 𝐧::AbstractVecOrMat{Int64}; X=[1])
   BH = [-(X ⊗ kron(N2S(E1(m,m,m), E1(1,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(m,1,m), E1(1,m,m), I(m)).(𝐧)...)); 
         -(X ⊗ kron(N2S(E1(1,m,m), E1(m,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(1,1,m), E1(m,m,m), I(m)).(𝐧)...))]
   BT = [-(X ⊗ kron(N2S(E1(m,m,m), E1(1,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(m,1,m), E1(1,m,m), I(m)).(𝐧)...)); 
@@ -21,7 +21,7 @@ N2S(x,y,z) = Dict([(0,z), (1,x), (-1,y)])
 """
 Surface Jacobian matrix
 """
-function SJ(qr, Ω, 𝐧::AbstractVecOrMat{Int64}; X=I(2))  
+function _surface_jacobian(qr, Ω, 𝐧::AbstractVecOrMat{Int64}; X=[1])  
   m = size(qr,1)
   n(x) = reshape(Float64.(𝐧), (length(𝐧),1))
   nqr = n.(qr)
@@ -34,19 +34,9 @@ function SJ(qr, Ω, 𝐧::AbstractVecOrMat{Int64}; X=I(2))
 end
 
 """
-Function to return the rectangular version of the grid-point marker in one-dimension
-"""
-function SBP.E1(i,j,mn::Tuple{Int64,Int64})
-  m,n = mn
-  res = spzeros(Float64, m, n)
-  res[i,j] = 1.0
-  res
-end
-
-"""
 Function to compute the jump with non-conforming interfaces
 """
-function jump(m₁::Int64, m₂::Int64, 𝐧::AbstractVecOrMat{Int64}, qr₁, qr₂, Ω₁, Ω₂; X=I(2))
+function jump(m₁::Int64, m₂::Int64, 𝐧::AbstractVecOrMat{Int64}, qr₁, qr₂, Ω₁, Ω₂; X=[1])
   @assert length(𝐧)==2 "Only Inpterpolation on 2d grids implemented for now"
   NC = min(m₁, m₂)  
   NF = 2*NC-1

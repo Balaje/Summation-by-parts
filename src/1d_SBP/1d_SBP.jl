@@ -1,9 +1,14 @@
 module SBP_1d
 
-export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1, INTERPOLATION_4
+export SBP_TYPE, SBP_2_VARIABLE_0_1, SBP_1_2_CONSTANT_0_1, INTERPOLATION_4, E1, ⊗
 
 using SparseArrays
 using LinearAlgebra
+
+"""
+Kronecker Product
+"""
+⊗(A,B) = kron(A, B)
 
 """
 Abstract type defined for defining other SBP
@@ -248,6 +253,25 @@ function INTERPOLATION_4(N_C::Int64)
   I1 = sparse(I1);
   I2 = sparse(I2);
   (I1,I2)
+end
+
+"""
+Grid marker function in one-dimension
+"""
+function E1(i,j,m)
+  X = spzeros(Float64,m,m)
+  X[i,j] = 1.0
+  X
+end
+
+"""
+Function to return the rectangular version of the grid-point marker in one-dimension
+"""
+function E1(i,j,mn::Tuple{Int64,Int64})
+  m,n = mn
+  res = spzeros(Float64, m, n)
+  res[i,j] = 1.0
+  res
 end
 
 end
