@@ -63,7 +63,8 @@ Here the parameters
 - x is the (x[1],x[2]) pair in the reference grid
 """
 function J(x, S)
-    SMatrix{2,2,Float64}(ForwardDiff.jacobian(S, x))'
+  d = size(x,1)
+  SMatrix{d,d,Float64}(ForwardDiff.jacobian(S, x))'
 end
 
 """

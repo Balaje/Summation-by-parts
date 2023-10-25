@@ -95,12 +95,12 @@ result = [ [P₁₁(x₁₁) ... P₁₁(x₁ₙ)        [P₁₂(x₁₁) ... P
             P₂₁(xₙ₁) ... P₂₁(xₙₙ)],         P₂₂(xₙ₁) ... P₂₂(x₁ₙ)] 
          ]
 """
-function get_property_matrix_on_grid(Pqr)
+function get_property_matrix_on_grid(Pqr, l::Int64)
   m,n = size(Pqr[1])
   Ptuple = Tuple.(Pqr)
   P_page = reinterpret(reshape, Float64, Ptuple)
-  dim = length(size(P_page))
-  reshape(splitdimsview(P_page, dim-2), (m,n))
+  dim = length(size(P_page))  
+  reshape(splitdimsview(P_page, dim-l), (m,n))
 end
 
 """
@@ -189,7 +189,7 @@ struct Pᴱ <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
 function Pᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
-  P_vec = get_property_matrix_on_grid(Pqr)
+  P_vec = get_property_matrix_on_grid(Pqr,2)
   Dᴱ₂ = [Dqq Dqq Dqr Dqr; Dqq Dqq Dqr Dqr; Drq Drq Drr Drr; Drq Drq Drr Drr]
   D = [Dᴱ₂[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
   res = [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
@@ -211,7 +211,7 @@ struct Tᴱ <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}  
 end
 function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64})    
-  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
+  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
   P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
        [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]
   m,n = 𝛀.mn
