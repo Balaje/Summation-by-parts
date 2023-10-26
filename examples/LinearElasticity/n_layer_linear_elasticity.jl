@@ -1,6 +1,7 @@
 include("2d_elasticity_problem.jl")
 
 using SplitApplyCombine
+using LoopVectorization
 
 """
 Define the geometry of the two layers. 
@@ -173,7 +174,7 @@ stima3 = 𝐊3!((𝒫¹, 𝒫², 𝒫³), (𝛀₁, 𝛀₂, 𝛀₃), 𝐪𝐫)
 massma3 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ².(𝐱𝐲₂)))), (I(2)⊗spdiagm(vec(ρ³.(𝐱𝐲₃)))))
 
 const Δt = 1e-3
-tf = 40.0
+tf = 5.0
 ntime = ceil(Int, tf/Δt)
 
 """

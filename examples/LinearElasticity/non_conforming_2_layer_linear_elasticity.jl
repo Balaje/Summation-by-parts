@@ -133,23 +133,12 @@ function 𝐊2_NC!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   # Get the Interface SAT for Conforming Interface
   B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=I(2))
   
-  h = 1/(m-1)
+  h = 1/(max(m₁,m₂)-1)
   ζ₀ = 40/h
   𝐓ᵢ = (𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢ'*B̂ - ζ₀*B̃)
   
   𝐉\(𝐏 - 𝐓 - 𝐓ᵢ)
 end
-  
-m₁ = 21;
-m₂ = 41;
-qr₁ = generate_2d_grid((m₁, m₁));
-qr₂ = generate_2d_grid((m₂, m₂));
-𝛀₁ = DiscreteDomain(domain₁, (m₁,m₁));
-𝛀₂ = DiscreteDomain(domain₂, (m₂,m₂));
-Ω₁(qr) = S(qr, 𝛀₁.domain);
-Ω₂(qr) = S(qr, 𝛀₂.domain);
-
-stima2_nc = 𝐊2_NC!((𝒫¹, 𝒫²), (𝛀₁, 𝛀₂), (qr₁, qr₂));
 
 """
 Neumann boundary condition vector

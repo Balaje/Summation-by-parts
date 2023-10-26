@@ -38,23 +38,30 @@ Function to compute the jump with non-conforming interfaces
 """
 function jump(m₁::Int64, m₂::Int64, 𝐧::AbstractVecOrMat{Int64}, qr₁, qr₂, Ω₁, Ω₂; X=[1])
   @assert length(𝐧)==2 "Only Inpterpolation on 2d grids implemented for now"
-  NC = min(m₁, m₂)  
-  NF = 2*NC-1
-  (m₁==NC) && @assert m₂ == NF  "The coarse:fine ratio should be 1/2"
-  (m₂==NC) && @assert m₁ == NF  "The coarse:fine ratio should be 1/2"
-  @assert size(qr₁) == Tuple(m₁*ones(length(𝐧))) "Check the input grid size qr₁"
-  @assert size(qr₂) == Tuple(m₂*ones(length(𝐧))) "Check the input grid size qr₂"
-  C2F, F2C = INTERPOLATION_4(NC) 
-  J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
-  J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
-  coarse_or_fine_points = N2S(NF, NC, NC)
-  (m₁ == NC) && (coarse_or_fine_interpolation = N2S(J₂\(C2F*J₁), J₁\(F2C*J₂), J₁\(F2C*J₂)))
-  (m₂ == NC) && (coarse_or_fine_interpolation = N2S(J₁\(C2F*J₂), J₂\(F2C*J₁), J₂\(F2C*J₁)))
-  W₁ = (X ⊗ kron(N2S(E1(NF,NF,(NF,NF)), E1(1,1,(NC,NC)), sparse(I(coarse_or_fine_points.(𝐧 |> sum)))).(𝐧)...))
-  Z₁ = (X ⊗ kron(N2S(E1(NF,1,(NF,NC)), E1(1,NF,(NC,NF)), coarse_or_fine_interpolation.(𝐧 |> sum)).(𝐧)...))  
-  Z₂ = (X ⊗ kron(N2S(E1(1,NF,(NC,NF)), E1(NF,1,(NF,NC)), coarse_or_fine_interpolation.(-𝐧 |> sum)).(𝐧)...))
-  W₂ = (X ⊗ kron(N2S(E1(NC,NC,(NC,NC)), E1(NF,NF,(NF,NF)), sparse(I(coarse_or_fine_points.(-𝐧 |> sum)))).(𝐧)...))
-  BH = [-W₁   Z₁;   -Z₂   W₂]
-  BT = [-W₁   Z₁;   Z₂   -W₂]
+  if(m₁ < m₂)
+    NC = m₁
+    NF = m₂
+    C2F, F2C = INTERPOLATION_4(NC) 
+    J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
+    J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
+    W₁ = (X ⊗ kron(N2S(E1(NC,NC,(NC,NC)), E1(1,1,(NC,NC)), sparse(I(NC))).(𝐧)...))
+    Z₁ = (X ⊗ kron(N2S(E1(NC,1,(NC,NF)), E1(1,NF,(NC,NF)), J₁\(F2C*J₂) ).(𝐧)...))  
+    Z₂ = (X ⊗ kron(N2S(E1(1,NC,(NF,NC)), E1(NF,1,(NF,NC)), J₂\(C2F*J₁) ).(𝐧)...))
+    W₂ = (X ⊗ kron(N2S(E1(1,1,(NF,NF)), E1(NF,NF,(NF,NF)), sparse(I(NF))).(𝐧)...))
+    BH = [-W₁   Z₁;   -Z₂   W₂]
+    BT = [-W₁   Z₁;   Z₂   -W₂]
+  else
+    NF = m₁
+    NC = m₂
+    C2F, F2C = INTERPOLATION_4(NC) 
+    J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
+    J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
+    W₁ = (X ⊗ kron(N2S(E1(NF,NF,(NF,NF)), E1(1,1,(NF,NF)), sparse(I(NF))).(𝐧)...))
+    Z₁ = (X ⊗ kron(N2S(E1(NF,1,(NF,NC)), E1(1,NC,(NF,NC)), J₁\(C2F*J₂) ).(𝐧)...))  
+    Z₂ = (X ⊗ kron(N2S(E1(1,NF,(NC,NF)), E1(NC,1,(NC,NF)), J₂\(F2C*J₁) ).(𝐧)...))
+    W₂ = (X ⊗ kron(N2S(E1(1,1,(NC,NC)), E1(NC,NC,(NC,NC)), sparse(I(NC))).(𝐧)...))
+    BH = [-W₁   Z₁;   -Z₂   W₂]
+    BT = [-W₁   Z₁;   Z₂   -W₂]
+  end
   BH, BT
 end

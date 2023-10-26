@@ -254,7 +254,7 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   𝐃 = blockdiag(X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
   B̂, B̃ = jump(m, 𝐧₁; X=X)
   JJ = blockdiag(_surface_jacobian(qr, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr, Ω₂, 𝐧₂; X=X))   
-  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (I(2)⊗H⁻¹⊗H⁻¹)) 
+  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (X⊗H⁻¹⊗H⁻¹)) 
 end
 
 """
