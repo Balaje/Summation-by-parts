@@ -7,26 +7,26 @@ Define the geometry of the two layers.
 """
 # Layer 1 (q,r) ∈ [0,1] × [0,1]
 # Define the parametrization for interface
-f(q) = 1 + 0.0*sin(2π*q)
-cᵢ¹(q) = [q, f(q)];
-cᵢ²(r) = [f(r), r];
+f(q) = 0.2*exp(-4*4π*(q-0.5)^2)
+cᵢ¹(q) = 4π*[q, 1 + f(q)];
+cᵢ²(r) = 4π*[2.0 + f(r), r];
 # Define the rest of the boundary
-c₀¹(r) = [0.0 , 1+r]; # Left boundary
-c₁¹(q) = cᵢ(q) # Bottom boundary. (Interface 1)
-c₂¹(r) = [1.0, 1+r]; # Right boundary
-c₃¹(q) = [q, 2.0 + 0.0*sin(2π*q)]; # Top boundary
+c₀¹(r) = 4π*[0.0 , 1+r]; # Left boundary
+c₁¹(q) = cᵢ¹(q) # Bottom boundary. (Interface 1)
+c₂¹(r) = 4π*[1.0, 1+r]; # Right boundary
+c₃¹(q) = 4π*[q, 2.0 - f(q)]; # Top boundary
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 # Layer 2 (q,r) ∈ [0,1] × [0,1]
-c₀²(r) = [0.0, r]; # Left boundary
-c₁²(q) = [q, 0.0]; # Bottom boundary. 
+c₀²(r) = 4π*[0.0, r]; # Left boundary
+c₁²(q) = 4π*[q, 0.0]; # Bottom boundary. 
 c₂²(r) = cᵢ²(r); # Right boundary (Interface 2)
-c₃²(q) = c₁¹(q); # Top boundary. (Interface 1)
+c₃²(q) = cᵢ¹(q); # Top boundary. (Interface 1)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 Ω₂(qr) = S(qr, domain₂)
 c₀³(r) = cᵢ²(r) # Left boundary (Interface 2)
-c₁³(q) = [1.0 + q, 0.0] # Bottom boundary
-c₂³(r) = [2.0, r] # Right boundary
-c₃³(q) = [1.0 + q, 1.0] # Top boundary
+c₁³(q) = 4π*[1.0 + q, 0.0] # Bottom boundary
+c₂³(r) = 4π*[2.0 - f(r), r] # Right boundary
+c₃³(q) = 4π*[1.0 + q, 1.0] # Top boundary
 domain₃ = domain_2d(c₀³, c₁³, c₂³, c₃³)
 
 ## Define the material properties on the physical grid
@@ -35,10 +35,10 @@ The Lamé parameters μ, λ
 """
 λ¹(x) = 2.0
 μ¹(x) = 1.0
-λ²(x) = 2.0
-μ²(x) = 1.0
-λ³(x) = 2.0
-μ³(x) = 1.0
+λ²(x) = 1.0
+μ²(x) = 0.5
+λ³(x) = 0.5
+μ³(x) = 0.25
 
 """
 Material properties coefficients of an anisotropic material
@@ -79,8 +79,8 @@ Cauchy Stress tensor using the displacement field.
 Density function 
 """
 ρ¹(x) = 1.0
-ρ²(x) = 0.5
-ρ³(x) = 0.25
+ρ²(x) = 1.0
+ρ³(x) = 1.0
 
 """
 Stiffness matrix function
@@ -158,7 +158,7 @@ function 𝐊3!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain, DiscreteDomain
   𝐉\(𝐏 - 𝐓 - 𝐓ᵢ¹ - 𝐓ᵢ²)
 end
   
-m = 21;
+m = 81;
 𝐪𝐫 = generate_2d_grid((m,m))
 𝛀₁ = DiscreteDomain(domain₁, (m,m))
 𝛀₂ = DiscreteDomain(domain₂, (m,m))
@@ -166,4 +166,86 @@ m = 21;
 Ω₁(qr) = S(qr, 𝛀₁.domain)
 Ω₂(qr) = S(qr, 𝛀₂.domain)
 Ω₃(qr) = S(qr, 𝛀₃.domain)
-stima3 = 𝐊3!((𝒫¹, 𝒫², 𝒫³), (𝛀₁, 𝛀₂, 𝛀₃), 𝐪𝐫)
+𝐱𝐲₁ = Ω₁.(𝐪𝐫)
+𝐱𝐲₂ = Ω₂.(𝐪𝐫)
+𝐱𝐲₃ = Ω₃.(𝐪𝐫)
+stima3 = 𝐊3!((𝒫¹, 𝒫², 𝒫³), (𝛀₁, 𝛀₂, 𝛀₃), 𝐪𝐫);
+massma3 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ².(𝐱𝐲₂)))), (I(2)⊗spdiagm(vec(ρ³.(𝐱𝐲₃)))))
+
+const Δt = 1e-3
+tf = 15.0
+ntime = ceil(Int, tf/Δt)
+
+"""
+A non-allocating implementation of the RK4 scheme
+"""
+function RK4_1!(M, sol)  
+  X₀, k₁, k₂, k₃, k₄ = sol
+  # k1 step  
+  mul!(k₁, M, X₀);
+  # k2 step
+  mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
+  # k3 step
+  mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
+  # k4 step
+  mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
+  # Final step
+  @turbo for i=1:lastindex(X₀)
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i])
+  end
+  X₀
+end
+
+"""
+Extract solution vector from the raw vector
+"""
+function get_sol_vector_from_raw_vector(sol, m)
+  ((reshape(sol[1:m^2], (m,m)), reshape(sol[m^2+1:2m^2], (m,m))), 
+  (reshape(sol[2m^2+1:3m^2], (m,m)), reshape(sol[3m^2+1:4m^2], (m,m))),
+  (reshape(sol[4m^2+1:5m^2], (m,m)), reshape(sol[5m^2+1:6m^2], (m,m))))
+end
+
+U₀(x) = @SVector [exp(-((x[1]-2π)^2 + (x[2]-6π)^2)), -exp(-((x[1]-2π)^2 + (x[2]-6π)^2))]
+V₀(x) = @SVector [0.0,0.0]
+
+# Begin time loop
+let
+  t = 0.0
+  X₀ = vcat(eltocols(vec(U₀.(𝐱𝐲₁))), eltocols(vec(U₀.(𝐱𝐲₂))), eltocols(vec(U₀.(𝐱𝐲₃))));
+  Y₀ = vcat(eltocols(vec(V₀.(𝐱𝐲₁))), eltocols(vec(V₀.(𝐱𝐲₂))), eltocols(vec(V₀.(𝐱𝐲₃))));
+  global Z₀ = vcat(X₀, Y₀)
+  k₁ = zeros(Float64, length(Z₀))
+  k₂ = zeros(Float64, length(Z₀))
+  k₃ = zeros(Float64, length(Z₀))
+  k₄ = zeros(Float64, length(Z₀)) 
+  M = massma3\stima3
+  K = [zero(M) I(size(M,1)); M zero(M)]
+  @gif for i=1:ntime
+  # for i=1:ntime
+    sol = Z₀, k₁, k₂, k₃, k₄
+    Z₀ = RK4_1!(K, sol)    
+    t += Δt    
+    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
+
+    # Plotting part for 
+    u1ref₁,u2ref₁ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[1];
+    u1ref₂,u2ref₂ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[2];
+    u1ref₃,u2ref₃ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[3];
+    plt3 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(u1ref₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+    scatter!(plt3, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(u1ref₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+    scatter!(plt3, Tuple.(𝐱𝐲₃ |> vec), zcolor=vec(u1ref₃), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+    scatter!(plt3, Tuple.([Ω₁([q,0.0]) for q in LinRange(0,1,m)]), label="", msw=0.01, ms=2)
+    scatter!(plt3, Tuple.([Ω₃([0.0,r]) for r in LinRange(0,1,m)]), label="", msw=0.01, ms=2, right_margin=20*Plots.mm)
+    title!(plt3, "Time t="*string(t))
+  # end
+  end  every 100 
+end  
+
+u1ref₁,u2ref₁ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[1];
+u1ref₂,u2ref₂ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[2];
+u1ref₃,u2ref₃ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[3];
+plt3 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(𝐱𝐲₃ |> vec), zcolor=vec(u1ref₃), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.([Ω₁([q,0.0]) for q in LinRange(0,1,m)]), label="", msw=0.01, ms=2)
+scatter!(plt3, Tuple.([Ω₃([0.0,r]) for r in LinRange(0,1,m)]), label="", msw=0.01, ms=2, right_margin=10*Plots.mm, size=(800,800))
