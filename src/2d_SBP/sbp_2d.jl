@@ -184,9 +184,7 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
   Sq, Sr = sbp_2d.S
   𝛁 = [[I(2)⊗Sq] [I(2)⊗Dr];
        [I(2)⊗Dq] [I(2)⊗Sr]]
-  ########################
-  # Compute the traction #
-  ######################## 
+  # Compute the traction
   𝐧 = reshape(𝐧, (1,2))
   JJ = Js(𝛀, 𝐧; X=X)  
   Pn = (𝐧*P)
@@ -202,9 +200,6 @@ Get the surface Jacobian matrix defined as
           = J⁻¹s(Ω, 𝐧),   i ∈ Boundary(𝐧)
 """
 function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
-  #########################################################
-  # Surface Jacobian terms pasted onto an identity matrix #
-  #########################################################
   𝐧 = vec(𝐧)
   m = 𝛀.mn[1]
   Ω(qr) = S(qr, 𝛀.domain) 
@@ -245,7 +240,6 @@ The normal 𝐧₁ decides the boundary in Layer 1 on which the interface is sit
 The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
 
 The function only works for ::ConformingInterface
-
 """
 function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface; X=[1])  
   Ω₁(qr) = S(qr, 𝛀₁.domain)
@@ -257,33 +251,46 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   sbp = SBP_1_2_CONSTANT_0_1(m)
   H = sbp.norm  
   H⁻¹ = (H)\I(m) |> sparse  
-  𝐃 = blockdiag(I(2)⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), I(2)⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
+  𝐃 = blockdiag(X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
   B̂, B̃ = jump(m, 𝐧₁; X=X)
-  JJ = blockdiag(_surface_jacobian(qr, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr, Ω₂, 𝐧₂; X=X))  
-  # if(𝐧₁ == [0,-1])  
-  #   B̂ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); -(I(2) ⊗ I(m) ⊗ E1(m,1,m)) (I(2) ⊗ I(m) ⊗ E1(m,m,m))]
-  #   B̃ = [-(I(2) ⊗ I(m) ⊗ E1(1,1,m))  (I(2) ⊗ I(m) ⊗ E1(1,m,m)); (I(2) ⊗ I(m) ⊗ E1(m,1,m)) -(I(2) ⊗ I(m) ⊗ E1(m,m,m))]
-  #   SJr₀¹ = spdiagm([(det(J([q,0.0], Ω₁))*J⁻¹s([q,0.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
-  #   SJrₙ² = spdiagm([(det(J([q,1.0], Ω₂))*J⁻¹s([q,1.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
-  #   𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(1,1,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(m,m,m)) )
-  # elseif(𝐧₁ == [0,1])
-  #   B̂ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); -(I(2) ⊗ I(m) ⊗ E1(1,m,m)) (I(2) ⊗ I(m) ⊗ E1(1,1,m))]
-  #   B̃ = [-(I(2) ⊗ I(m) ⊗ E1(m,m,m))  (I(2) ⊗ I(m) ⊗ E1(m,1,m)); (I(2) ⊗ I(m) ⊗ E1(1,m,m)) -(I(2) ⊗ I(m) ⊗ E1(1,1,m))]
-  #   SJr₀¹ = spdiagm([(det(J([q,1.0], Ω₁))*J⁻¹s([q,1.0], Ω₁, 𝐧₁)) for q in LinRange(0,1,m)])
-  #   SJrₙ² = spdiagm([(det(J([q,0.0], Ω₂))*J⁻¹s([q,0.0], Ω₂, 𝐧₂)) for q in LinRange(0,1,m)])
-  #   𝐃 = blockdiag( (I(2)⊗(SJr₀¹*Hr)⊗I(m))*(I(2)⊗I(m)⊗(E1(m,m,m))), (I(2)⊗(SJrₙ²*Hr)⊗I(m))*(I(2)⊗I(m)⊗E1(1,1,m)) )
-  # elseif(𝐧₁ == [-1,0])
-  #   B̂ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); -(I(2) ⊗ E1(m,1,m) ⊗ I(m)) (I(2) ⊗ E1(m,m,m) ⊗ I(m))]
-  #   B̃ = [-(I(2) ⊗ E1(1,1,m) ⊗ I(m))  (I(2) ⊗ E1(1,m,m) ⊗ I(m)); (I(2) ⊗ E1(m,1,m) ⊗ I(m)) -(I(2) ⊗ E1(m,m,m) ⊗ I(m))]
-  #   SJr₀¹ = spdiagm([(det(J([0.0,r], Ω₁))*J⁻¹s([0.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
-  #   SJrₙ² = spdiagm([(det(J([1.0,r], Ω₂))*J⁻¹s([1.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
-  #   𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)) )
-  # elseif(𝐧₁ == [1,0])
-  #   B̂ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); -(I(2) ⊗ E1(1,m,m) ⊗ I(m)) (I(2) ⊗ E1(1,1,m) ⊗ I(m))]
-  #   B̃ = [-(I(2) ⊗ E1(m,m,m) ⊗ I(m))  (I(2) ⊗ E1(m,1,m) ⊗ I(m)); (I(2) ⊗ E1(1,m,m) ⊗ I(m)) -(I(2) ⊗ E1(1,1,m) ⊗ I(m))]
-  #   SJr₀¹ = spdiagm([(det(J([1.0,r], Ω₁))*J⁻¹s([1.0,r], Ω₁, 𝐧₁)) for r in LinRange(0,1,m)])
-  #   SJrₙ² = spdiagm([(det(J([0.0,r], Ω₂))*J⁻¹s([0.0,r], Ω₂, 𝐧₂)) for r in LinRange(0,1,m)])
-  #   𝐃 = blockdiag( (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(m,m,m)⊗I(m)), (I(2)⊗I(m)⊗(SJr₀¹*Hq))*(I(2)⊗E1(1,1,m)⊗I(m)) )
-  # end
+  JJ = blockdiag(_surface_jacobian(qr, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr, Ω₂, 𝐧₂; X=X))   
   (𝐃*JJ*B̂, 𝐃*JJ*B̃, (I(2)⊗H⁻¹⊗H⁻¹)) 
+end
+
+"""
+Struct to dispatch inteface SAT routine SATᵢᴱ for non-conforming interface 
+"""
+struct NonConformingInterface <: Any end
+
+"""
+Function to return the SAT term on the interface. 
+Input: SATᵢᴱ(𝛀₁::DiscreteDomain, 
+             𝛀₂::DiscreteDomain, 
+             𝐧₁::AbstractVecOrMat{Int64}, 
+             𝐧₂::AbstractVecOrMat{Int64}, 
+             ::NonConformingInterface)
+
+The normal 𝐧₁ decides the boundary in Layer 1 on which the interface is situated. 
+The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
+
+The function only works for ::NonConformingInterface
+"""
+function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::NonConformingInterface; X=[1])  
+  Ω₁(qr) = S(qr, 𝛀₁.domain)
+  Ω₂(qr) = S(qr, 𝛀₂.domain)
+  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
+  m₁ = 𝛀₁.mn[1]
+  m₂ = 𝛀₂.mn[1]
+  qr₁ = generate_2d_grid(𝛀₁.mn)
+  qr₂ = generate_2d_grid(𝛀₂.mn)
+  sbp₁ = SBP_1_2_CONSTANT_0_1(m₁)
+  sbp₂ = SBP_1_2_CONSTANT_0_1(m₂)
+  H₁ = sbp₁.norm  
+  H₂ = sbp₂.norm  
+  H₁⁻¹ = (H₁)\I(m₁) |> sparse  
+  H₂⁻¹ = (H₂)\I(m₂) |> sparse
+  𝐃 = blockdiag(X⊗kron(N2S(E1(m₁,m₁,m₁), E1(1,1,m₁), H₁).(𝐧₁)...), X⊗kron(N2S(E1(m₂,m₂,m₂), E1(1,1,m₂), H₂).(𝐧₂)...))    
+  B̂, B̃ = jump(m₁, m₂, 𝐧₁, qr₁, qr₂, Ω₁, Ω₂; X=X)
+  JJ = blockdiag(_surface_jacobian(qr₁, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr₂, Ω₂, 𝐧₂; X=X))   
+  (𝐃*JJ*B̂, 𝐃*JJ*B̃, blockdiag((X⊗H₁⁻¹⊗H₁⁻¹), (X⊗H₂⁻¹⊗H₂⁻¹))) 
 end

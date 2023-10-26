@@ -45,15 +45,15 @@ function jump(m₁::Int64, m₂::Int64, 𝐧::AbstractVecOrMat{Int64}, qr₁, qr
   @assert size(qr₁) == Tuple(m₁*ones(length(𝐧))) "Check the input grid size qr₁"
   @assert size(qr₂) == Tuple(m₂*ones(length(𝐧))) "Check the input grid size qr₂"
   C2F, F2C = INTERPOLATION_4(NC) 
-  J₁ = spdiagm(((SJ(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
-  J₂ = spdiagm(((SJ(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
+  J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
+  J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
   coarse_or_fine_points = N2S(NF, NC, NC)
   (m₁ == NC) && (coarse_or_fine_interpolation = N2S(J₂\(C2F*J₁), J₁\(F2C*J₂), J₁\(F2C*J₂)))
   (m₂ == NC) && (coarse_or_fine_interpolation = N2S(J₁\(C2F*J₂), J₂\(F2C*J₁), J₂\(F2C*J₁)))
   W₁ = (X ⊗ kron(N2S(E1(NF,NF,(NF,NF)), E1(1,1,(NC,NC)), sparse(I(coarse_or_fine_points.(𝐧 |> sum)))).(𝐧)...))
-  Z₁ = (X ⊗ kron(N2S(E1(NF,1,(NF,NC)), E1(1,NF,(NC,NF)), coarse_or_fine_interpolation.(𝐧 |> sum)).(𝐧)...))
-  W₂ = (X ⊗ kron(N2S(E1(NC,NC,(NC,NC)), E1(NF,NF,(NF,NF)), sparse(I(coarse_or_fine_points.(-𝐧 |> sum)))).(𝐧)...))
+  Z₁ = (X ⊗ kron(N2S(E1(NF,1,(NF,NC)), E1(1,NF,(NC,NF)), coarse_or_fine_interpolation.(𝐧 |> sum)).(𝐧)...))  
   Z₂ = (X ⊗ kron(N2S(E1(1,NF,(NC,NF)), E1(NF,1,(NF,NC)), coarse_or_fine_interpolation.(-𝐧 |> sum)).(𝐧)...))
+  W₂ = (X ⊗ kron(N2S(E1(NC,NC,(NC,NC)), E1(NF,NF,(NF,NF)), sparse(I(coarse_or_fine_points.(-𝐧 |> sum)))).(𝐧)...))
   BH = [-W₁   Z₁;   -Z₂   W₂]
   BT = [-W₁   Z₁;   Z₂   -W₂]
   BH, BT

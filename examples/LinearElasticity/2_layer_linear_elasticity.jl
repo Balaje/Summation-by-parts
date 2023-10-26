@@ -21,7 +21,6 @@ c₁²(q) = [q, 0.0]; # Bottom boundary.
 c₂²(r) = [1.0, r]; # Right boundary
 c₃²(q) = c₁¹(q); # Top boundary. Also the interface 
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
-Ω₂(qr) = S(qr, domain₂)
 
 ## Define the material properties on the physical grid
 """
