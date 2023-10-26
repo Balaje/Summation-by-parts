@@ -173,7 +173,7 @@ stima3 = 𝐊3!((𝒫¹, 𝒫², 𝒫³), (𝛀₁, 𝛀₂, 𝛀₃), 𝐪𝐫)
 massma3 = blockdiag((I(2)⊗spdiagm(vec(ρ¹.(𝐱𝐲₁)))), (I(2)⊗spdiagm(vec(ρ².(𝐱𝐲₂)))), (I(2)⊗spdiagm(vec(ρ³.(𝐱𝐲₃)))))
 
 const Δt = 1e-3
-tf = 15.0
+tf = 40.0
 ntime = ceil(Int, tf/Δt)
 
 """
@@ -214,31 +214,35 @@ let
   X₀ = vcat(eltocols(vec(U₀.(𝐱𝐲₁))), eltocols(vec(U₀.(𝐱𝐲₂))), eltocols(vec(U₀.(𝐱𝐲₃))));
   Y₀ = vcat(eltocols(vec(V₀.(𝐱𝐲₁))), eltocols(vec(V₀.(𝐱𝐲₂))), eltocols(vec(V₀.(𝐱𝐲₃))));
   global Z₀ = vcat(X₀, Y₀)
+  global maxvals = zeros(Float64, ntime)
   k₁ = zeros(Float64, length(Z₀))
   k₂ = zeros(Float64, length(Z₀))
   k₃ = zeros(Float64, length(Z₀))
   k₄ = zeros(Float64, length(Z₀)) 
   M = massma3\stima3
   K = [zero(M) I(size(M,1)); M zero(M)]
-  @gif for i=1:ntime
-  # for i=1:ntime
+  # @gif for i=1:ntime
+  for i=1:ntime
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(K, sol)    
-    t += Δt    
+    t += Δt        
     (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
     u1ref₁,u2ref₁ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[1];
     u1ref₂,u2ref₂ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[2];
     u1ref₃,u2ref₃ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[3];
-    plt3 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(u1ref₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
+    
+    #=  plt3 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(u1ref₁), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
     scatter!(plt3, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(u1ref₂), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
     scatter!(plt3, Tuple.(𝐱𝐲₃ |> vec), zcolor=vec(u1ref₃), colormap=:redsblues, ylabel="y(=r)", markersize=2, msw=0.01, label="");
     scatter!(plt3, Tuple.([Ω₁([q,0.0]) for q in LinRange(0,1,m)]), label="", msw=0.01, ms=2)
     scatter!(plt3, Tuple.([Ω₃([0.0,r]) for r in LinRange(0,1,m)]), label="", msw=0.01, ms=2, right_margin=20*Plots.mm)
-    title!(plt3, "Time t="*string(t))
-  # end
-  end  every 100 
+    title!(plt3, "Time t="*string(t)) =#
+
+    maxvals[i] = max(maximum(abs.(u1ref₁)), maximum(abs.(u1ref₂)), maximum(abs.(u1ref₃)))
+  end
+  # end  every 100 
 end  
 
 u1ref₁,u2ref₁ = get_sol_vector_from_raw_vector(Z₀[1:6m^2], m)[1];
@@ -249,3 +253,5 @@ scatter!(plt3, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(u1ref₂), colormap=:turbo
 scatter!(plt3, Tuple.(𝐱𝐲₃ |> vec), zcolor=vec(u1ref₃), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.([Ω₁([q,0.0]) for q in LinRange(0,1,m)]), label="", msw=0.01, ms=2)
 scatter!(plt3, Tuple.([Ω₃([0.0,r]) for r in LinRange(0,1,m)]), label="", msw=0.01, ms=2, right_margin=10*Plots.mm, size=(800,800))
+
+plt4 = plot(LinRange(0,tf,ntime), maxvals, lw=2, label="", xlabel="t", ylabel="||U||∞")
