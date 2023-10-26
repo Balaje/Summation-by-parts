@@ -137,19 +137,19 @@ function 𝐊4!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain, DiscreteDomain
   # Elasticity traction operators
   𝐓q₀⁴, 𝐓r₀⁴, 𝐓qₙ⁴, 𝐓rₙ⁴ = Tᴱ(Pqr₄, 𝛀₄, [-1,0]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [0,-1]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [1,0]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [0,1]; X=I(2)).A 
   
-  # Get the norm matrices (Same for Layer 2 and Layer 3)
-  # Layer 1
-  m₁, n₁ = size(qr₁)
-  sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
-  sbp_r₁ = SBP_1_2_CONSTANT_0_1(n₁)
-  sbp_2d₁ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₁, sbp_r₁)
-  𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, _, 𝐇rₙ⁻¹₁ = sbp_2d₁.norm
+  # Get the norm matrices (Same for Layer 1 and Layer 2)
   # Same for Layer 2 and Layer 3
-  (m₂, n₂) = (m₃, n₃) = size(qr₂)
-  sbp_q₂ = sbp_q₃ = SBP_1_2_CONSTANT_0_1(m₂)
-  sbp_r₂ = sbp_r₃ = SBP_1_2_CONSTANT_0_1(n₂)
-  sbp_2d₂ = sbp_2d₃ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
-  (𝐇q₀⁻¹₂, _, 𝐇r₀⁻¹₂, _) = (_, 𝐇qₙ⁻¹₃, _, 𝐇rₙ⁻¹₃) = sbp_2d₂.norm
+  (m₁, n₁) = (m₂, n₂) = size(qr₁)
+  sbp_q₁ = sbp_q₂ = SBP_1_2_CONSTANT_0_1(m₂)
+  sbp_r₁ = sbp_r₂ = SBP_1_2_CONSTANT_0_1(n₂)
+  sbp_2d₁ = sbp_2d₂ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
+  (𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, _, 𝐇rₙ⁻¹₁ ) = (𝐇q₀⁻¹₂, _, 𝐇r₀⁻¹₂, _) = sbp_2d₂.norm
+  # Layer 3
+  (m₃, n₃) = size(qr₃)
+  sbp_q₃ = SBP_1_2_CONSTANT_0_1(m₃)
+  sbp_r₃ = SBP_1_2_CONSTANT_0_1(n₃)
+  sbp_2d₃ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₃, sbp_r₃)
+  (_, 𝐇qₙ⁻¹₃, _, 𝐇rₙ⁻¹₃) = sbp_2d₃.norm
   # Layer 4
   m₄, n₄ = size(qr₄)
   sbp_q₄ = SBP_1_2_CONSTANT_0_1(m₄)
@@ -185,14 +185,14 @@ function 𝐊4!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain, DiscreteDomain
   𝐓rᵢ³ = blockdiag(𝐓r₀³, 𝐓rₙ⁴)            
   
   # Get the Interface SAT for Conforming Interface
-  B̂₁, B̃₁, 𝐇⁻¹₁ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=I(2))
-  B̂₂, B̃₂, 𝐇⁻¹₂ = SATᵢᴱ(𝛀₂, 𝛀₃, [1; 0], [-1; 0], ConformingInterface(); X=I(2))
+  B̂₁, B̃₁, 𝐇⁻¹₁ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=I(2))
+  B̂₂, B̃₂, 𝐇⁻¹₂ = SATᵢᴱ(𝛀₂, 𝛀₃, [1; 0], [-1; 0], NonConformingInterface(); X=I(2))
   B̂₃, B̃₃, 𝐇⁻¹₃ = SATᵢᴱ(𝛀₃, 𝛀₄, [0; -1], [0; 1], NonConformingInterface(); X=I(2))  
   
   h = 1/(max(m₁,m₂,m₃,m₄)-1)
   ζ₀ = 40/h
-  𝐓ᵢ¹ = blockdiag((𝐇⁻¹₁)*(0.5*B̂₁*𝐓rᵢ¹ - 0.5*𝐓rᵢ¹'*B̂₁ - ζ₀*B̃₁), zero(𝐏₃.A), zero(𝐏₄.A))
-  𝐓ᵢ² = blockdiag(zero(𝐏₁.A), (I(2)⊗𝐇⁻¹₂)*(-0.5*B̂₂*𝐓qᵢ² + 0.5*𝐓qᵢ²'*B̂₂ - ζ₀*B̃₂), zero(𝐏₄.A))
+  𝐓ᵢ¹ = blockdiag((I(2)⊗𝐇⁻¹₁)*(0.5*B̂₁*𝐓rᵢ¹ - 0.5*𝐓rᵢ¹'*B̂₁ - ζ₀*B̃₁), zero(𝐏₃.A), zero(𝐏₄.A))
+  𝐓ᵢ² = blockdiag(zero(𝐏₁.A), (𝐇⁻¹₂)*(-0.5*B̂₂*𝐓qᵢ² + 0.5*𝐓qᵢ²'*B̂₂ - ζ₀*B̃₂), zero(𝐏₄.A))
   𝐓ᵢ³ = blockdiag(zero(𝐏₁.A), zero(𝐏₂.A), (𝐇⁻¹₃)*(0.5*B̂₃*𝐓rᵢ³ - 0.5*𝐓rᵢ³'*B̂₃ - ζ₀*B̃₃))
 
   𝐉\(𝐏 - 𝐓 - 𝐓ᵢ¹ - 𝐓ᵢ² - 𝐓ᵢ³)
@@ -201,10 +201,10 @@ end
 ############################
 # Begin solving the problem
 
-m₁ = 41;
+m₁ = 81;
 m₂ = 81;
-m₃ = 81;
-m₄ = 41;
+m₃ = 41;
+m₄ = 21;
 qr₁ = generate_2d_grid((m₁,m₁))
 qr₂ = generate_2d_grid((m₂,m₂))
 qr₃ = generate_2d_grid((m₃,m₃))
