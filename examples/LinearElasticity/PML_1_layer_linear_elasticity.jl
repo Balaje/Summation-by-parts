@@ -1,6 +1,7 @@
 ###################################################################################
 # Program to solve the linear elasticity equations with a Perfectly Matched Layer
 # 1) The computational domain Ω = [0,4.4π] × [0, 4π]
+# -------------- CORRECTION WORK IN PROGRESS.... -----------------
 ###################################################################################
 
 include("2d_elasticity_problem.jl");
@@ -9,23 +10,17 @@ using SplitApplyCombine
 using LoopVectorization
 
 # Define the domain
-c₀(r) = @SVector [0.0, r]
-c₁(q) = @SVector [1.1*q, 0.0 + 0.1*sin(π*q)]
-c₂(r) = @SVector [1.1, r]
-c₃(q) = @SVector [1.1*q, 1.0]
+c₀(r) = @SVector [0.0, 1.1*r]
+c₁(q) = @SVector [1.1*q, 1.1*(0.0 + 0.0*sin(π*q))]
+c₂(r) = @SVector [1.1, 1.1*r]
+c₃(q) = @SVector [1.1*q, 1.1]
 domain = domain_2d(c₀, c₁, c₂, c₃)
-Ω(qr) = S(qr, domain)
 
 """
 The Lamé parameters μ, λ
 """
 λ(x) = 2.0
 μ(x) = 1.0
-
-"""
-The density of the material
-"""
-ρ(x) = 1.0
 
 """
 Material properties coefficients of an anisotropic material
@@ -38,17 +33,30 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const Lₓ = 1.0
-const δ = 0.1*Lₓ
-const σ₀ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const α = σ₀*0.05; # The frequency shift parameter
+const Lᵥ = 1.0
+const Lₕ = 1.0
+const δ = 0.1*Lᵥ
+const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
-function σₚ(x)
-  if((x[1] ≈ Lₓ) || x[1] > Lₓ)
+"""
+Vertical PML strip
+"""
+function σᵥ(x)
+  if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
     return σ₀*((x[1] - Lₓ)/δ)^3  
   else
     return 0.0
   end
+end
+
+function σₕ(x)
+  if((x[2] ≈ Lₕ) || x[2] > Lₕ)
+    return σ₀*((x[2] - Lₕ)/δ)^3  
+  else
+    return 0.0
+  end  
 end
 
 """
@@ -61,55 +69,22 @@ where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal 
 
 """
 The material property tensor with the PML is given as follows:
-𝒫ᴾᴹᴸ(x) = [-σₚ(x)*A(x)      0; 
-              0         σₚ(x)*B(x)]
+𝒫ᴾᴹᴸ(x) = [-σᵥ(x)*A(x) + σₕ(x)*A(x)      0; 
+              0         σᵥ(x)*B(x) - σₕ(x)*B(x)]
 where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and the damping parameter in the physical domain
 """
-𝒫ᴾᴹᴸ(x) = @SMatrix [-σₚ(x)*c₁₁(x) 0 0 0; 0 -σₚ(x)*c₃₃(x) 0 0; 0 0 σₚ(x)*c₃₃(x) 0; 0 0 0 σₚ(x)*c₂₂(x)];
+𝒫ᴾᴹᴸ(x) = @SMatrix [-σᵥ(x)*c₁₁(x) + σₕ(x)*c₁₁(x) 0 0 0; 0 -σᵥ(x)*c₃₃(x) + σₕ(x)*c₃₃(x) 0 0; 0 0 σᵥ(x)*c₃₃(x) - σₕ(x)*c₃₃(x)  0; 0 0 0 σᵥ(x)*c₂₂(x) - σₕ(x)*c₂₂*(x)];
 
 """
-Transform the PML properties to the material grid
+Density function 
 """
-function P2Rᴾᴹᴸ(𝒫ᴾᴹᴸ, Ω, qr)
-  x = Ω(qr)
-  invJ = J⁻¹(qr, Ω)
-  S = invJ ⊗ I(2)
-  m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))
-end 
+ρ(x) = 1.0
 
 """
-SBP operator to approximate the PML part: Contains two parts
-1) Contains a 4×4 matrix of sparse matrices representing the individual derivatives of the PML part
-    (-) 𝛛/𝛛𝐪(𝐀 ) : 4 sparse matrices
-    (-) 𝛛/𝛛𝐪(𝟎 ) : 4 sparse matrices
-    (-) 𝛛/𝛛𝐫(𝟎 ) : 4 sparse matrices 
-    (-) 𝛛/𝛛𝐫(𝐁 ) : 4 sparse matrices
-2) Pᴾᴹᴸ(Dᴾᴹᴸ(Pqr)) ≈ 𝛛/𝛛𝐪(𝐀 ) +  𝛛/𝛛𝐫(𝐁 )
-    (-) Asssemble the PML matrices to obtain the bulk PML difference operator
+Material velocity tensors
 """
-struct Dᴾᴹᴸ
-  A::Matrix{SparseMatrixCSC{Float64, Int64}}
-end
-function Dᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
-  P_vec = get_property_matrix_on_grid(Pqr)
-  P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
-  m, n = size(Pqr)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
-  Dq, Dr = sbp_2d.D1
-  I1 = [1 1 1 1; 1 1 1 1]
-  D₁ = vcat(I1⊗[Dq], I1⊗[Dr])
-  res = [D₁[i,j]*P_vec_diag[i,j] for i=1:4, j=1:4]
-  res
-end
-function Pᴾᴹᴸ(D::Matrix{SparseMatrixCSC{Float64, Int64}})
-  [D[1,1] D[1,2] D[1,3] D[1,4]; 
-  D[2,1] D[2,2] D[2,3] D[2,4]] + 
-  [D[3,1] D[3,2] D[3,3] D[3,4]; 
-  D[4,1] D[4,2] D[4,3] D[4,4]]
-end
+Z₁(x) = @SMatrix [√(c₁₁(x)/ρ(x))  0;  0 √(c₃₃(x)/ρ(x))]
+Z₂(x) = @SMatrix [√(c₃₃(x)/ρ(x))  0;  0 √(c₂₂(x)/ρ(x))]
 
 """
 Function to obtain the PML contribution to the traction on the boundary:
@@ -118,7 +93,7 @@ Tᴾᴹᴸ(Pqr, Zxy, σₚ, Ω, 𝐪𝐫)
 2) Zxy: Impedance matrices evaluated at the grid points
 3) σₚ: PML damping function
 4) Ω: Physical to Reference map
-5) 𝐪𝐫: Reference coordinates
+5) 𝐪𝐫: Reference coordinates7 
 """
 function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, Zxy::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}},
               σₚ::Function, Ω::Function, 𝐪𝐫::Matrix{SVector{2, Float64}})
