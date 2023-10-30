@@ -67,7 +67,7 @@ function 𝐊!(𝒫, 𝛀::DiscreteDomain, 𝐪𝐫)
   𝐏 = Pᴱ(Pqr).A 
 
   # Elasticity Traction Operators
-  𝐓q₀, 𝐓r₀, 𝐓qₙ, 𝐓rₙ = Tᴱ(Pqr, 𝛀, [-1,0]; X=I(2)).A, Tᴱ(Pqr, 𝛀, [0,-1];  X=I(2)).A, Tᴱ(Pqr, 𝛀, [1,0];  X=I(2)).A, Tᴱ(Pqr, 𝛀, [0,1];  X=I(2)).A   
+  𝐓q₀, 𝐓r₀, 𝐓qₙ, 𝐓rₙ = Tᴱ(Pqr, 𝛀, [-1,0]).A, Tᴱ(Pqr, 𝛀, [0,-1]).A, Tᴱ(Pqr, 𝛀, [1,0]).A, Tᴱ(Pqr, 𝛀, [0,1]).A   
 
   # The surface Jacobians on the boundary
   SJr₀, SJq₀, SJrₙ, SJqₙ = Js(𝛀, [0,-1];  X=I(2)), Js(𝛀, [-1,0];  X=I(2)), Js(𝛀, [0,1];  X=I(2)), Js(𝛀, [1,0];  X=I(2))   
@@ -120,7 +120,7 @@ ntime = ceil(Int, tf/Δt)
 for (m,i) in zip(N, 1:length(N))
   let
     𝐪𝐫 = generate_2d_grid((m,m))
-    𝛀 = DiscreteDomain(domain, (m,m))
+    global 𝛀 = DiscreteDomain(domain, (m,m))
     global Ω(qr) = S(qr, 𝛀.domain)
     global stima = 𝐊!(𝒫, 𝛀, 𝐪𝐫)
     𝐱𝐲 = Ω.(𝐪𝐫)

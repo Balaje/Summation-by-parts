@@ -46,6 +46,37 @@ function 𝐙(𝒫, Ω, qr)
 end
 
 """
-Function to obtain the Characteristic boundary condition
+Function to obtain the Traction with PML
 """
-function χᴾᴹᴸ()
+struct Tᴾᴹᴸ
+  A::Tuple{SparseMatrixCSC{Float64, Int64}, SparseMatrixCSC{Float64, Int64}}
+end
+function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
+  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
+  P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
+       [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]  
+  # Compute the traction
+  𝐧 = reshape(𝐧, (1,2))
+  JJ = Js(𝛀, 𝐧; X=I(2))  
+  Pn = (𝐧*P)  
+  Tr₁, Tr₂ = JJ\Pn[1], JJ\Pn[2]
+  Tᴾᴹᴸ((X⊗Tr₁, X⊗Tr₂))
+end
+
+"""
+Function to obtain the characteristic boundary condition
+"""
+struct χᴾᴹᴸ
+  A::Vector{SparseMatrixCSC{Float64, Int64}}
+end
+function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
+  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, Z₁σᵥqr, Z₂σₕqr = PQR
+  mass_p = abs(𝐧[1])*Z₁ + abs(𝐧[2])*Z₂
+  T_elas_u = Tᴱ(Pqrᴱ, 𝛀, 𝐧).A
+  T_pml_v, T_pml_w = Tᴾᴹᴸ(Pqrᴾᴹᴸ, 𝛀, 𝐧).A
+  impedance_u = abs(𝐧[1])*Z₁σᵥqr + abs(𝐧[2])*Z₂σₕqr
+  impedance_q = abs(𝐧[1])*Z₁σᵥqr + abs(𝐧[2])*Z₂σₕqr
+  𝐧 = reshape(𝐧, (1,2))
+  JJ = Js(𝛀, 𝐧; X=I(2)) 
+  χᴾᴹᴸ([JJ\(T_elas_u + impedance_u), JJ\mass_p, JJ\T_pml_v, JJ\T_pml_w, -JJ\impedance_q])
+end

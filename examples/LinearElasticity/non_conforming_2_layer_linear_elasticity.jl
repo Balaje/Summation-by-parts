@@ -90,14 +90,14 @@ function 𝐊2_NC!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫₁) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Pqr₁) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]; X=I(2)).A 
+  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]).A 
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫₂) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Pqr₂) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]; X=I(2)).A 
+  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]).A 
   
   # Get the norm matrices (Different on the two layers)
   # Layer 1

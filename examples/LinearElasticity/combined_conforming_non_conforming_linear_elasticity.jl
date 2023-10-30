@@ -114,28 +114,28 @@ function 𝐊4!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain, DiscreteDomain
   Pqr₁ = P2R.(𝒫¹, Ω₁, qr₁) # Property matrix evaluated at grid points
   𝐏₁ = Pᴱ(Pqr₁) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]; X=I(2)).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]; X=I(2)).A 
+  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]).A 
   
   # Get the bulk and the traction operator for the 2nd layer
   detJ₂(x) = (det∘J)(x, Ω₂)    
   Pqr₂ = P2R.(𝒫², Ω₂, qr₂) # Property matrix evaluated at grid points
   𝐏₂ = Pᴱ(Pqr₂) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]; X=I(2)).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]; X=I(2)).A 
+  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]).A 
 
   # Get the bulk and the traction operator for the 3rd layer
   detJ₃(x) = (det∘J)(x, Ω₃)    
   Pqr₃ = P2R.(𝒫³, Ω₃, qr₃) # Property matrix evaluated at grid points
   𝐏₃ = Pᴱ(Pqr₃) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀³, 𝐓r₀³, 𝐓qₙ³, 𝐓rₙ³ = Tᴱ(Pqr₃, 𝛀₃, [-1,0]; X=I(2)).A, Tᴱ(Pqr₃, 𝛀₃, [0,-1]; X=I(2)).A, Tᴱ(Pqr₃, 𝛀₃, [1,0]; X=I(2)).A, Tᴱ(Pqr₃, 𝛀₃, [0,1]; X=I(2)).A 
+  𝐓q₀³, 𝐓r₀³, 𝐓qₙ³, 𝐓rₙ³ = Tᴱ(Pqr₃, 𝛀₃, [-1,0]).A, Tᴱ(Pqr₃, 𝛀₃, [0,-1]).A, Tᴱ(Pqr₃, 𝛀₃, [1,0]).A, Tᴱ(Pqr₃, 𝛀₃, [0,1]).A 
 
   # Get the bulk and the traction operator for the 4th layer
   detJ₄(x) = (det∘J)(x, Ω₄)    
   Pqr₄ = P2R.(𝒫⁴, Ω₄, qr₄) # Property matrix evaluated at grid points
   𝐏₄ = Pᴱ(Pqr₄) # Elasticity bulk differential operator
   # Elasticity traction operators
-  𝐓q₀⁴, 𝐓r₀⁴, 𝐓qₙ⁴, 𝐓rₙ⁴ = Tᴱ(Pqr₄, 𝛀₄, [-1,0]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [0,-1]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [1,0]; X=I(2)).A, Tᴱ(Pqr₄, 𝛀₄, [0,1]; X=I(2)).A 
+  𝐓q₀⁴, 𝐓r₀⁴, 𝐓qₙ⁴, 𝐓rₙ⁴ = Tᴱ(Pqr₄, 𝛀₄, [-1,0]).A, Tᴱ(Pqr₄, 𝛀₄, [0,-1]).A, Tᴱ(Pqr₄, 𝛀₄, [1,0]).A, Tᴱ(Pqr₄, 𝛀₄, [0,1]).A 
   
   # Get the norm matrices (Same for Layer 1 and Layer 2)
   # Same for Layer 2 and Layer 3

@@ -186,12 +186,12 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
        [I(2)⊗Dq] [I(2)⊗Sr]]
   # Compute the traction
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=X)  
+  JJ = Js(𝛀, 𝐧; X=I(2))  
   Pn = (𝐧*P)
   ∇n = (𝐧*𝛁)
   𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
   Tr = JJ\𝐓𝐧
-  Tᴱ(Tr)
+  Tᴱ(X⊗Tr)
 end
 
 """
