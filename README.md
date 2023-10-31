@@ -799,6 +799,13 @@ Cartesian Interface | Curvilinear Interface |
 --- | --- |
 ![](./Images/non-conforming/maxdisp_cart.png) | ![](./Images/non-conforming/maxdisp.png) | 
 
+### Combining non-conforming interfaces with conforming interfaces. 
+
+We could also have more sophisticated cases where the domain comprises of different layers with different grid sizes. Following is the solution to the linear elastic equation on a composite domain with different material properties. We have three material interfaces, one conforming interface and two non-conforming:
+
+![](./Images/non-conforming/nc-linear-elas-4.gif) | ![](./Images/non-conforming/maxdisp-4.png) |
+--- | --- |
+
 # References
 
 - Mattsson, K. and Nordström, J., 2004. Summation by parts operators for finite difference approximations of second derivatives. Journal of Computational Physics, 199(2), pp.503-540.
