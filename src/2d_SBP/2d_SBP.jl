@@ -11,7 +11,6 @@ export generate_2d_grid, P2R, Js, Jb
 export ConformingInterface, NonConformingInterface, SATᵢᴱ
 
 using SparseArrays
-using LazyArrays
 using LinearAlgebra
 using StaticArrays
 

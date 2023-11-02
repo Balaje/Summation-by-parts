@@ -70,13 +70,14 @@ struct χᴾᴹᴸ
   A::Vector{SparseMatrixCSC{Float64, Int64}}
 end
 function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
-  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, Z₁σᵥqr, Z₂σₕqr = PQR
+  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, σᵥqr, σₕqr = PQR
   mass_p = abs(𝐧[1])*Z₁ + abs(𝐧[2])*Z₂
   T_elas_u = Tᴱ(Pqrᴱ, 𝛀, 𝐧).A
   T_pml_v, T_pml_w = Tᴾᴹᴸ(Pqrᴾᴹᴸ, 𝛀, 𝐧).A
-  impedance_u = abs(𝐧[1])*Z₁σᵥqr + abs(𝐧[2])*Z₂σₕqr
-  impedance_q = abs(𝐧[1])*Z₁σᵥqr + abs(𝐧[2])*Z₂σₕqr
+  impedance_u = abs(𝐧[1])*Z₁*σᵥqr + abs(𝐧[2])*Z₂*σₕqr
+  impedance_q = impedance_u
+  impedance_r = abs(𝐧[1])*Z₁*σₕqr*σᵥqr + abs(𝐧[2])*Z₂*σₕqr*σᵥqr
   𝐧 = reshape(𝐧, (1,2))
   JJ = Js(𝛀, 𝐧; X=I(2)) 
-  χᴾᴹᴸ([JJ\(T_elas_u + impedance_u), JJ\mass_p, JJ\T_pml_v, JJ\T_pml_w, -JJ\impedance_q])
+  χᴾᴹᴸ([JJ\(T_elas_u + impedance_u + impedance_r), JJ\mass_p, JJ\T_pml_v, JJ\T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
 end
