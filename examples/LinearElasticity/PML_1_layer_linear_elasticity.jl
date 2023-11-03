@@ -10,10 +10,10 @@ using SplitApplyCombine
 using LoopVectorization
 
 # Define the domain
-c₀(r) = @SVector [0.0, 1.1*r]
-c₁(q) = @SVector [1.1*q, 0.0 + 0.11*sin(π*q)]
-c₂(r) = @SVector [1.1, 1.1*r]
-c₃(q) = @SVector [1.1*q, 1.1 - 0.11*sin(π*q)]
+c₀(r) = @SVector [0.0, 4.4π*r]
+c₁(q) = @SVector [4.4π*q, 0.0 + 0.0*sin(π*q)]
+c₂(r) = @SVector [4.4π + 0.0*sin(π*r), 4.4π*r]
+c₃(q) = @SVector [4.4π*q, 4.4π - 0.0*sin(π*q)]
 domain = domain_2d(c₀, c₁, c₂, c₃)
 
 """
@@ -33,11 +33,11 @@ c₁₂(x) = λ(x)
 """
 The PML damping
 """
-const Lᵥ = 1.0
-const Lₕ = 1.0
+const Lᵥ = 4π
+const Lₕ = 4π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 0.4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0.0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -86,17 +86,10 @@ Material velocity tensors
 Z₁(x) = @SMatrix [√(c₁₁(x)/ρ(x))  0;  0 √(c₃₃(x)/ρ(x))]
 Z₂(x) = @SMatrix [√(c₃₃(x)/ρ(x))  0;  0 √(c₂₂(x)/ρ(x))]
 
-
-m = 21;
-𝛀 = DiscreteDomain(domain, (m,m));
-Ω(qr) = S(qr, 𝛀.domain);
-𝐪𝐫 = generate_2d_grid((m,m));
-
-
 """
 Function to obtain the PML stiffness matrix
 """
-function 𝐊ᴾᴹᴸ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪𝐫)
+function 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪𝐫)
   Ω(qr) = S(qr, 𝛀.domain);
   Z₁, Z₂ = Z₁₂
 
@@ -173,4 +166,113 @@ function 𝐊ᴾᴹᴸ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪�
   bulk - SAT;
 end
 
-stima = 𝐊ᴾᴹᴸ(𝒫, 𝒫ᴾᴹᴸ, (Z₁, Z₂), 𝛀, 𝐪𝐫);
+"""
+Inverse of the mass matrix
+"""
+function 𝐌⁻¹ₚₘₗ(𝛀::DiscreteDomain, 𝐪𝐫)
+  m, n = size(𝐪𝐫)
+  Id = sparse(I(2)⊗I(m)⊗I(n))
+  Ω(qr) = S(qr, 𝛀.domain);
+  ρᵥ = I(2)⊗spdiagm(vec(1 ./ρ.(Ω.(𝐪𝐫))))
+  blockdiag(Id, ρᵥ, Id, Id, Id, Id)
+end 
+
+"""
+A non-allocating implementation of the RK4 scheme
+"""
+function RK4_1!(M, sol)  
+  X₀, k₁, k₂, k₃, k₄ = sol
+  # k1 step  
+  mul!(k₁, M, X₀);
+  # k2 step
+  mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
+  # k3 step
+  mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
+  # k4 step
+  mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
+  # Final step
+  @turbo for i=1:lastindex(X₀)
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i])
+  end
+  X₀
+end
+
+"""
+Function to split the solution into the corresponding variables
+"""
+function split_solution(X, N)  
+  res = splitdimsview(reshape(X, (N^2, 12)))
+  u1, u2 = res[1:2]
+  p1, p2 = res[3:4]
+  v1, v2 = res[5:6]
+  w1, w2 = res[7:8]
+  q1, q2 = res[9:10]
+  r1, r2 = res[11:12]
+  (u1,u2), (p1,p2), (v1, v2), (w1,w2), (q1,q2), (r1,r2)
+end
+
+"""
+Initial conditions
+"""
+𝐔(x) = @SVector [exp(-2*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-2*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+𝐕(x) = @SVector [0.0, 0.0]
+𝐖(x) = @SVector [0.0, 0.0]
+𝐐(x) = @SVector [0.0, 0.0]
+𝐑(x) = @SVector [0.0, 0.0]
+
+const Δt = 1e-3
+tf = 10.0
+ntime = ceil(Int, tf/Δt)
+N = 81;
+𝛀 = DiscreteDomain(domain, (N,N));
+Ω(qr) = S(qr, 𝛀.domain);
+𝐪𝐫 = generate_2d_grid((N,N));
+xy = Ω.(𝐪𝐫);
+stima = 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, (Z₁, Z₂), 𝛀, 𝐪𝐫);
+massma = 𝐌⁻¹ₚₘₗ(𝛀, 𝐪𝐫)
+
+# Begin time loop
+let
+  t = 0.0
+  X₀ = vcat(eltocols(vec(𝐔.(xy))), eltocols(vec(𝐏.(xy))), eltocols(vec(𝐕.(xy))), eltocols(vec(𝐖.(xy))), eltocols(vec(𝐐.(xy))), eltocols(vec(𝐑.(xy))));
+  k₁ = zeros(Float64, length(X₀))
+  k₂ = zeros(Float64, length(X₀))
+  k₃ = zeros(Float64, length(X₀))
+  k₄ = zeros(Float64, length(X₀)) 
+  M = massma*stima
+  @gif for i=1:ntime
+  # for i=1:ntime
+    sol = X₀, k₁, k₂, k₃, k₄
+    X₀ = RK4_1!(M, sol)    
+    t += Δt    
+    (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+
+    # Plotting part for 
+    u1ref,u2ref = split_solution(X₀, N)[1];
+    𝐪𝐫 = generate_2d_grid((N,N));
+    xy = vec(Ω.(𝐪𝐫));
+    plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);  
+    title!(plt3, "Time t="*string(t))
+  # end
+  end  every 50      
+  global Xref = X₀
+end  
+
+# Plotting
+u1ref,u2ref = split_solution(Xref,N)[1];
+xy = vec(xy)
+plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₕ)*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+title!(plt3, "Horizontal Displacement")
+plt4 = scatter(Tuple.(xy), zcolor=vec(u2ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
+scatter!(plt4, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₕ)*" (PML)", markercolor=:white, markersize=4, msw=0.1)
+title!(plt4, "Vertical Displacement")
+
+plt34 = plot(plt3, plt4, layout=(2,1), size=(800,800));
+
+plt5 = scatter(Tuple.(xy), zcolor=σₕ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt5, Tuple.([[q,Lᵥ] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(Lᵥ)*" (PML)")
+plt6 = scatter(Tuple.(xy), zcolor=σᵥ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt6, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(Lᵥ)*" (PML)")
