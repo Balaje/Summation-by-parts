@@ -205,9 +205,9 @@ function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
   Ω(qr) = S(qr, 𝛀.domain) 
   qr = generate_2d_grid(𝛀.mn) 
   JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)
-  JJ0 = spdiagm(ones(2m^2))  
+  JJ0 = spdiagm(ones(size(JJ1,1)))  
   i,j,v = findnz(JJ1)
-  for k=1:2m
+  for k=1:lastindex(v)
     JJ0[i[k], j[k]] = v[k]
   end
   JJ0
@@ -250,11 +250,12 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   qr = generate_2d_grid(𝛀₁.mn)
   sbp = SBP_1_2_CONSTANT_0_1(m)
   H = sbp.norm  
-  H⁻¹ = (H)\I(m) |> sparse  
-  𝐃 = blockdiag(X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), X⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
+  H⁻¹ = (H)\I(m) |> sparse    
   B̂, B̃ = jump(m, 𝐧₁; X=X)
-  JJ = blockdiag(_surface_jacobian(qr, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr, Ω₂, 𝐧₂; X=X))   
-  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (X⊗H⁻¹⊗H⁻¹)) 
+  Y = I(size(X,2))
+  𝐃 = blockdiag(Y⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), Y⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
+  JJ = blockdiag(Js(𝛀₁, 𝐧₁; X=X), Js(𝛀₂, 𝐧₂; X=X))   
+  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (H⁻¹⊗H⁻¹)) 
 end
 
 """
@@ -289,8 +290,9 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   H₂ = sbp₂.norm  
   H₁⁻¹ = (H₁)\I(m₁) |> sparse  
   H₂⁻¹ = (H₂)\I(m₂) |> sparse
-  𝐃 = blockdiag(X⊗kron(N2S(E1(m₁,m₁,m₁), E1(1,1,m₁), H₁).(𝐧₁)...), X⊗kron(N2S(E1(m₂,m₂,m₂), E1(1,1,m₂), H₂).(𝐧₂)...))    
+  Y = I(size(X,2))
+  𝐃 = blockdiag(Y⊗kron(N2S(E1(m₁,m₁,m₁), E1(1,1,m₁), H₁).(𝐧₁)...), Y⊗kron(N2S(E1(m₂,m₂,m₂), E1(1,1,m₂), H₂).(𝐧₂)...))    
   B̂, B̃ = jump(m₁, m₂, 𝐧₁, qr₁, qr₂, Ω₁, Ω₂; X=X)
   JJ = blockdiag(_surface_jacobian(qr₁, Ω₁, 𝐧₁; X=X), _surface_jacobian(qr₂, Ω₂, 𝐧₂; X=X))   
-  (𝐃*JJ*B̂, 𝐃*JJ*B̃, blockdiag((X⊗H₁⁻¹⊗H₁⁻¹), (X⊗H₂⁻¹⊗H₂⁻¹))) 
+  (𝐃*JJ*B̂, 𝐃*JJ*B̃, sparse(H₁⁻¹⊗H₁⁻¹), sparse(H₂⁻¹⊗H₂⁻¹))
 end

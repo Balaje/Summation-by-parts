@@ -36,7 +36,7 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 4π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -83,8 +83,8 @@ Density function
 """
 Material velocity tensors
 """
-Z₁(x) = @SMatrix [√(c₁₁(x)/ρ(x))  0;  0 √(c₃₃(x)/ρ(x))]
-Z₂(x) = @SMatrix [√(c₃₃(x)/ρ(x))  0;  0 √(c₂₂(x)/ρ(x))]
+Z₁(x) = @SMatrix [√(c₁₁(x)*ρ(x))  0;  0 √(c₃₃(x)*ρ(x))]
+Z₂(x) = @SMatrix [√(c₃₃(x)*ρ(x))  0;  0 √(c₂₂(x)*ρ(x))]
 
 """
 Function to obtain the PML stiffness matrix

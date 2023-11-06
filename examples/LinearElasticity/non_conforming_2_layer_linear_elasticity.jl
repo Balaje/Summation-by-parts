@@ -131,11 +131,11 @@ function 𝐊2_NC!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)            
   
   # Get the Interface SAT for Conforming Interface
-  B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=I(2))
+  B̂, B̃, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=I(2))
   
   h = 1/(max(m₁,m₂)-1)
   ζ₀ = 40/h
-  𝐓ᵢ = (𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢ'*B̂ - ζ₀*B̃)
+  𝐓ᵢ = (blockdiag(I(2)⊗𝐇₁⁻¹, I(2)⊗𝐇₂⁻¹))*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢ'*B̂ - ζ₀*B̃)
   
   𝐉\(𝐏 - 𝐓 - 𝐓ᵢ)
 end
