@@ -1,31 +1,32 @@
-#include("2d_elasticity_problem.jl");
+include("2d_elasticity_problem.jl");
 
 using SplitApplyCombine
 using LoopVectorization
 
 # Define the domain
-c₀¹(r) = @SVector [0.0, 4.4π*r]
-c₁¹(q) = @SVector [4.4π*q, 0.0]
-c₂¹(r) = @SVector [4.4π, 4.4π*r]
-c₃¹(q) = @SVector [4.4π*q, 4.4π]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.0*sin(π*q)]
+c₀¹(r) = @SVector [0.0, 4π*r]
+c₁¹(q) = cᵢ(q)
+c₂¹(r) = @SVector [4.4π, 4π*r]
+c₃¹(q) = @SVector [4.4π*q, 4π]
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [0.0, 4.4π*r - 4.4π]
-c₁²(q) = @SVector [4.4π*q, -4.4π]
-c₂²(r) = @SVector [4.4π, 4.4π*r-4.4π]
-c₃²(q) = @SVector [4.4π*q, 0.0]
+c₀²(r) = @SVector [0.0, 4π*r - 4π]
+c₁²(q) = @SVector [4.4π*q, -4π]
+c₂²(r) = @SVector [4.4π, 4π*r-4π]
+c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
 """
 The Lamé parameters μ₁, λ₁ on Layer 1
 """
-λ₁(x) = 2.0
-μ₁(x) = 1.0
+λ₁(x) = 4.8629
+μ₁(x) = 4.86
 
 """
 The Lamé parameters μ₁, λ₁ on Layer 2
 """
-λ₂(x) = 2.0
-μ₂(x) = 1.0
+λ₂(x) = 26.9952
+μ₂(x) = 27.0
 
 
 """
@@ -48,7 +49,7 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 4π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -92,8 +93,8 @@ where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and th
 """
 Density function 
 """
-ρ₁(x) = 1.0
-ρ₂(x) = 1.0
+ρ₁(x) = 1.5
+ρ₂(x) = 3.0
 
 """
 Material velocity tensors
@@ -217,7 +218,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₁ = (fill(SJq₀¹,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
   SJ_𝐇qₙ⁻¹₁ = (fill(SJqₙ¹,6).*fill((I(2)⊗𝐇qₙ⁻¹),6));
-  # SJ_𝐇r₀⁻¹₁ = (fill(SJr₀¹,6).*fill((I(2)⊗𝐇r₀⁻¹),6));
+  SJ_𝐇r₀⁻¹₁ = (fill(SJr₀¹,6).*fill((I(2)⊗𝐇r₀⁻¹),6));
   SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
   SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹));
   
@@ -227,30 +228,37 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   SJ_𝐇q₀⁻¹₂ = (fill(SJq₀²,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
   SJ_𝐇qₙ⁻¹₂ = (fill(SJqₙ²,6).*fill((I(2)⊗𝐇qₙ⁻¹),6));
   SJ_𝐇r₀⁻¹₂ = (fill(SJr₀²,6).*fill((I(2)⊗𝐇r₀⁻¹),6));
-  # SJ_𝐇rₙ⁻¹₂ = (fill(SJrₙ²,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
+  SJ_𝐇rₙ⁻¹₂ = (fill(SJrₙ²,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
   SAT₂ = sum(es.⊗(SJ_𝐇q₀⁻¹₂.*χq₀²)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₂.*χqₙ²)) + sum(es.⊗(SJ_𝐇r₀⁻¹₂.*χr₀²));
 
   # The interface part
   Eᵢ¹ = E1(2,1,(6,6)) ⊗ I(2)
   Eᵢ² = E1(1,1,(6,6)) ⊗ I(2)
   # Get the jump matrices
-  B̂, _, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
-  B̂ᵀ, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
-  # Traction on interface 1
+  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
+  B̂ᵀ, _, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
+  # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
-  Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A
-  es = [E1(2,i,(6,6)) for i=[1,3,4]]
-  𝐓r₀¹ = sum(es .⊗ [Tr₀¹, Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁])
-  # Traction on interface 2
+  Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
+  # Traction on interface From Layer 2
   Trₙ² = Tᴱ(Pqr₂, 𝛀₂, [0;1]).A
-  Trₙᴾᴹᴸ₂₁, Trₙᴾᴹᴸ₂₂ = Tᴾᴹᴸ(Pᴾᴹᴸqr₂, 𝛀₂, [0;1]).A
-  es = [E1(2,i,(6,6)) for i=[1,3,4]]
-  𝐓rₙ² = sum(es .⊗ [Trₙ², Trₙᴾᴹᴸ₂₁, Trₙᴾᴹᴸ₂₂])
-  𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)    
-  𝐓rᵢ, B̂
+  Trₙᴾᴹᴸ₁₂, Trₙᴾᴹᴸ₂₂ = Tᴾᴹᴸ(Pᴾᴹᴸqr₂, 𝛀₂, [0;1]).A
+  # Assemble the traction on the two layers
+  es = [E1(1,i,(6,6)) for i=[1,3,4]]; 𝐓r₀¹ = sum(es .⊗ [Tr₀¹, Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁])
+  es = [E1(1,i,(6,6)) for i=[1,3,4]]; 𝐓rₙ² = sum(es .⊗ [Trₙ², Trₙᴾᴹᴸ₁₂, Trₙᴾᴹᴸ₂₂])
+  es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀ₀¹ = sum(es .⊗ [(Tr₀¹)', (Tr₀ᴾᴹᴸ₁₁)', (Tr₀ᴾᴹᴸ₂₁)'])  
+  es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
+  𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
+  𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
+  ζ₀ = 0*(m-1)   
+  # Assemble the interface SAT
+  𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
+  SATᵢ = (I(2)⊗I(12)⊗𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
+
   # The SBP-SAT Formulation
-  # bulk = (EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁);  
-  #bulk - SAT;
+  bulk = blockdiag((EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁), (EQ1₂ + EQ2₂ + EQ3₂ + EQ4₂ + EQ5₂ + EQ6₂));  
+  SATₙ = blockdiag(SAT₁, SAT₂)
+  bulk - SATᵢ - SATₙ;
 end
 
 """
@@ -348,3 +356,12 @@ stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ),
   end  every 50      
   global Xref = X₀
 end   =#
+
+plt1 = scatter(Tuple.(vec(xy₁)))
+scatter!(Tuple.(vec(xy₂)))
+
+using DelimitedFiles
+ijk = readdlm("./stima_pml_example_1_layer.txt");
+stima_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3]);
+m = N
+stima[2m^2+1:4m^2, 1:2m^2] ≈ stima_ref[2m^2+1:4m^2, 1:2m^2]

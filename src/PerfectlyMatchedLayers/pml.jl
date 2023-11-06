@@ -4,7 +4,6 @@ Transform the PML properties to the material grid
 function P2Rᴾᴹᴸ(𝒫ᴾᴹᴸ, Ω, qr)
   x = Ω(qr)
   invJ = J⁻¹(qr, Ω)
-  detJ = (det∘J)(qr, Ω)
   S = invJ ⊗ I(2)
   m,n = size(S)
   SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))
