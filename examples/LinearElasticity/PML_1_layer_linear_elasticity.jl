@@ -98,8 +98,12 @@ function 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪�
   𝐏 = Pᴱ(Pqr).A;
   𝐏ᴾᴹᴸ₁, 𝐏ᴾᴹᴸ₂ = Pᴾᴹᴸ(Pᴾᴹᴸqr).A;
 
-  # Obtain some quantities on the grid points
-  𝐙₁ = 𝐙(Z₁, Ω, 𝐪𝐫);  𝐙₂ = 𝐙(Z₂, Ω, 𝐪𝐫);
+  # Bulk Jacobian
+  𝐉 = Jb(𝛀, 𝐪𝐫)
+  𝐉⁻¹ = 𝐉\(I(size(𝐉,1))) 
+
+  # Obtain some quantities on the grid points  
+  𝐙₁ = 𝐉*𝐙(Z₁, Ω, 𝐪𝐫);  𝐙₂ = 𝐉*𝐙(Z₂, Ω, 𝐪𝐫);
   𝛔ᵥ = I(2) ⊗ spdiagm(σᵥ.(Ω.(vec(𝐪𝐫))));  𝛔ₕ = I(2) ⊗ spdiagm(σₕ.(Ω.(vec(𝐪𝐫))));
   𝛒 = I(2) ⊗ spdiagm(ρ.(Ω.(vec(𝐪𝐫))))
   # Get the transformed gradient
@@ -114,10 +118,7 @@ function 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪�
   𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
   Dq, Dr = sbp_2d.D1
   Dqr = [I(2)⊗Dq, I(2)⊗Dr]
-  Dx, Dy = J_vec_diag*Dqr;
-  # Bulk Jacobian
-  𝐉 = Jb(𝛀, 𝐪𝐫)
-  𝐉⁻¹ = 𝐉\(I(size(𝐉,1))) 
+  Dx, Dy = J_vec_diag*Dqr;  
 
   # Surface Jacobian Matrices
   SJr₀, SJq₀, SJrₙ, SJqₙ =  𝐉⁻¹*Js(𝛀, [0,-1];  X=I(2)), 𝐉⁻¹*Js(𝛀, [-1,0];  X=I(2)), 𝐉⁻¹*Js(𝛀, [0,1];  X=I(2)), 𝐉⁻¹*Js(𝛀, [1,0];  X=I(2))

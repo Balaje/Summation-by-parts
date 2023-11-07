@@ -37,12 +37,9 @@ end
 Function to obtain the Impedance matrix
 """
 function 𝐙(𝒫, Ω, qr)
-  Pqr = 𝒫.(Ω.(qr))
-  Jqr = J⁻¹.(qr, Ω)
-  P_vec = get_property_matrix_on_grid(Pqr, 2)
-  J_vec = get_property_matrix_on_grid(Jqr, 2)
-  P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
-  J_vec_diag = [spdiagm(vec(p)) for p in J_vec]
+  Pqr = 𝒫.(Ω.(qr))  
+  P_vec = get_property_matrix_on_grid(Pqr, 2)  
+  P_vec_diag = [spdiagm(vec(p)) for p in P_vec]  
   [J_vec_diag[1,1] J_vec_diag[1,2]; J_vec_diag[2,1]  J_vec_diag[2,2]]*[P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
 end
 
@@ -71,7 +68,8 @@ struct χᴾᴹᴸ
   A::Vector{SparseMatrixCSC{Float64, Int64}}
 end
 function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
-  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, σᵥqr, σₕqr = PQR
+  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, σᵥqr, σₕqr, J = PQR  
+  Z₁₂ = [Z₁, Z₂]  
   mass_p = abs(𝐧[1])*Z₁ + abs(𝐧[2])*Z₂
   T_elas_u = Tᴱ(Pqrᴱ, 𝛀, 𝐧).A
   T_pml_v, T_pml_w = Tᴾᴹᴸ(Pqrᴾᴹᴸ, 𝛀, 𝐧).A

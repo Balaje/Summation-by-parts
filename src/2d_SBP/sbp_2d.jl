@@ -253,9 +253,8 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   H⁻¹ = (H)\I(m) |> sparse    
   B̂, B̃ = jump(m, 𝐧₁; X=X)
   Y = I(size(X,2))
-  𝐃 = blockdiag(Y⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...), Y⊗kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...))    
-  JJ = blockdiag(Js(𝛀₁, 𝐧₁; X=X), Js(𝛀₂, 𝐧₂; X=X))   
-  (𝐃*JJ*B̂, 𝐃*JJ*B̃, (H⁻¹⊗H⁻¹)) 
+  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))      
+  (𝐃*B̂, 𝐃*B̃, (H⁻¹⊗H⁻¹)) 
 end
 
 """

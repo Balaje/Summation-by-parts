@@ -115,7 +115,11 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   Ω₂(qr) = S(qr, 𝛀₂.domain);
 
   # Extract the material property functions
-  (Z₁¹, Z₂¹), (Z₁², Z₂²) = Z₁₂
+  # (Z₁¹, Z₂¹), (Z₁², Z₂²) = Z₁₂
+  Z¹₁₂, Z²₁₂ = Z₁₂
+  Z₁¹, Z₂¹ = Z¹₁₂
+  Z₁², Z₂² = Z²₁₂
+
   𝒫₁, 𝒫₂ = 𝒫
   𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ = 𝒫ᴾᴹᴸ
 
@@ -140,21 +144,26 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   Dq, Dr = sbp_2d.D1
   Dqr = [I(2)⊗Dq, I(2)⊗Dr]
 
+   # Bulk Jacobian
+   𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
+   𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
+
   # Obtain some quantities on the grid points on Layer 1
-  𝐙₁¹ = 𝐙(Z₁¹, Ω₁, 𝐪𝐫);  𝐙₂¹ = 𝐙(Z₂¹, Ω₁, 𝐪𝐫);
+  𝐙₁¹ = 𝐉₁*𝐙(Z₁¹, Ω₁, 𝐪𝐫);  𝐙₂¹ = 𝐉₁*𝐙(Z₂¹, Ω₁, 𝐪𝐫);
   𝛔ᵥ¹ = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫))));  𝛔ₕ¹ = I(2) ⊗ spdiagm(σₕ.(Ω₁.(vec(𝐪𝐫))));
   𝛒₁ = I(2) ⊗ spdiagm(ρ₁.(Ω₁.(vec(𝐪𝐫))))
   # Get the transformed gradient
   Jqr₁ = J⁻¹.(𝐪𝐫, Ω₁);
   J_vec₁ = get_property_matrix_on_grid(Jqr₁, 2);
   J_vec_diag₁ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₁];
-  Dx₁, Dy₁ = J_vec_diag₁*Dqr;
-  # Bulk Jacobian
-  𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
-  𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
+  Dx₁, Dy₁ = J_vec_diag₁*Dqr; 
 
-  # Obtain some quantities on the grid points on Layer 2
-  𝐙₁² = 𝐙(Z₁², Ω₂, 𝐪𝐫);  𝐙₂² = 𝐙(Z₂², Ω₂, 𝐪𝐫);
+  # Bulk Jacobian
+  𝐉₂ = Jb(𝛀₂, 𝐪𝐫)
+  𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
+
+  # Obtain some quantities on the grid points on Layer 2  
+  𝐙₁² = 𝐉₂*𝐙(Z₁², Ω₂, 𝐪𝐫);  𝐙₂² = 𝐉₂*𝐙(Z₂², Ω₂, 𝐪𝐫);
   𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫))));
   𝛒₂ = I(2) ⊗ spdiagm(ρ₂.(Ω₂.(vec(𝐪𝐫))))
   # Get the transformed gradient
@@ -162,9 +171,6 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   J_vec₂ = get_property_matrix_on_grid(Jqr₂, 2);
   J_vec_diag₂ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₂];
   Dx₂, Dy₂ = J_vec_diag₂*Dqr;
-  # Bulk Jacobian
-  𝐉₂ = Jb(𝛀₂, 𝐪𝐫)
-  𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
 
   # Surface Jacobian Matrices on Layer 1
   SJr₀¹, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
@@ -253,7 +259,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   ζ₀ = 0*(m-1)   
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
-  SATᵢ = (I(2)⊗I(12)⊗𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
+  SATᵢ = (I(2)⊗I(12)⊗𝐇⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
 
   # The SBP-SAT Formulation
   bulk = blockdiag((EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁), (EQ1₂ + EQ2₂ + EQ3₂ + EQ4₂ + EQ5₂ + EQ6₂));  
@@ -264,12 +270,16 @@ end
 """
 Inverse of the mass matrix
 """
-function 𝐌2⁻¹ₚₘₗ(𝛀::DiscreteDomain, 𝐪𝐫)
+function 𝐌2⁻¹ₚₘₗ(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, ρ)
+  ρ₁, ρ₂ = ρ
+  𝛀₁, 𝛀₂ = 𝛀
   m, n = size(𝐪𝐫)
   Id = sparse(I(2)⊗I(m)⊗I(n))
-  Ω(qr) = S(qr, 𝛀.domain);
-  ρᵥ = I(2)⊗spdiagm(vec(1 ./ρ.(Ω.(𝐪𝐫))))
-  blockdiag(Id, ρᵥ, Id, Id, Id, Id)
+  Ω₁(qr) = S(qr, 𝛀₁.domain);
+  Ω₂(qr) = S(qr, 𝛀₂.domain);
+  ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ₁.(Ω₁.(𝐪𝐫))))
+  ρᵥ² = I(2)⊗spdiagm(vec(1 ./ρ₂.(Ω₂.(𝐪𝐫))))
+  blockdiag(blockdiag(Id, ρᵥ¹, Id, Id, Id, Id), blockdiag(Id, ρᵥ², Id, Id, Id, Id))
 end 
 
 """
@@ -328,11 +338,14 @@ N = 21;
 xy₁ = Ω₁.(𝐪𝐫);
 xy₂ = Ω₂.(𝐪𝐫);
 stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), 𝐪𝐫);
+massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
 # Begin time loop
 #= let
   t = 0.0
-  X₀ = vcat(eltocols(vec(𝐔.(xy))), eltocols(vec(𝐏.(xy))), eltocols(vec(𝐕.(xy))), eltocols(vec(𝐖.(xy))), eltocols(vec(𝐐.(xy))), eltocols(vec(𝐑.(xy))));
+  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
+  X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
+  X₀ = vcat(X₀¹, X₀²)
   k₁ = zeros(Float64, length(X₀))
   k₂ = zeros(Float64, length(X₀))
   k₃ = zeros(Float64, length(X₀))
@@ -360,8 +373,13 @@ end   =#
 plt1 = scatter(Tuple.(vec(xy₁)))
 scatter!(Tuple.(vec(xy₂)))
 
-using DelimitedFiles
-ijk = readdlm("./stima_pml_example_1_layer.txt");
-stima_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3]);
-m = N
-stima[2m^2+1:4m^2, 1:2m^2] ≈ stima_ref[2m^2+1:4m^2, 1:2m^2]
+using DelimitedFiles, Test
+ijk = readdlm("./stima_pml_example_2_layer.txt",',','\n');
+lhs_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3], 20*N^2, 20*N^2);
+lhs = massma*stima;
+
+# Check first equation
+@test droptol!(lhs[1:2N^2, 2N^2+1:4N^2] - lhs_ref[1:2N^2, 2N^2+1:4N^2], 1e-3) ≈ spzeros(Float64, 2N^2, 2N^2)
+# Check stiffness matrix
+@test droptol!(lhs[2N^2+1:4N^2, 1:2N^2] - lhs_ref[2N^2+1:4N^2, 1:2N^2], 1e-3) ≈ spzeros(Float64, 2N^2, 2N^2)
+@test droptol!(lhs[2N^2+1:4N^2, 2N^2+1:4N^2] - lhs_ref[2N^2+1:4N^2, 2N^2+1:4N^2], 1e-3)
