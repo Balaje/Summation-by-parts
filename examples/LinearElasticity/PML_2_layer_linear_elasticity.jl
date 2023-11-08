@@ -17,16 +17,22 @@ c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
 """
+Density function 
+"""
+ρ₁(x) = 1.5
+ρ₂(x) = 3.0
+
+"""
 The Lamé parameters μ₁, λ₁ on Layer 1
 """
-λ₁(x) = 4.8629
-μ₁(x) = 4.86
+μ₁(x) = 1.8^2*ρ₁(x)
+λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
 
 """
 The Lamé parameters μ₁, λ₁ on Layer 2
 """
-λ₂(x) = 26.9952
-μ₂(x) = 27.0
+μ₂(x) = 3^2*ρ₂(x)
+λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
 
 
 """
@@ -49,7 +55,7 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 4π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -89,12 +95,6 @@ where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and th
 """
 𝒫₁ᴾᴹᴸ(x) = @SMatrix [-σᵥ(x)*c₁₁¹(x) + σₕ(x)*c₁₁¹(x) 0 0 0; 0 -σᵥ(x)*c₃₃¹(x) + σₕ(x)*c₃₃¹(x) 0 0; 0 0 σᵥ(x)*c₃₃¹(x) - σₕ(x)*c₃₃¹(x)  0; 0 0 0 σᵥ(x)*c₂₂¹(x) - σₕ(x)*c₂₂¹(x)];
 𝒫₂ᴾᴹᴸ(x) = @SMatrix [-σᵥ(x)*c₁₁²(x) + σₕ(x)*c₁₁²(x) 0 0 0; 0 -σᵥ(x)*c₃₃²(x) + σₕ(x)*c₃₃²(x) 0 0; 0 0 σᵥ(x)*c₃₃²(x) - σₕ(x)*c₃₃²(x)  0; 0 0 0 σᵥ(x)*c₂₂²(x) - σₕ(x)*c₂₂²(x)];
-
-"""
-Density function 
-"""
-ρ₁(x) = 1.5
-ρ₂(x) = 3.0
 
 """
 Material velocity tensors
@@ -144,12 +144,12 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   Dq, Dr = sbp_2d.D1
   Dqr = [I(2)⊗Dq, I(2)⊗Dr]
 
-   # Bulk Jacobian
-   𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
-   𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
-
   # Obtain some quantities on the grid points on Layer 1
-  𝐙₁¹ = 𝐉₁*𝐙(Z₁¹, Ω₁, 𝐪𝐫);  𝐙₂¹ = 𝐉₁*𝐙(Z₂¹, Ω₁, 𝐪𝐫);
+  # Bulk Jacobian
+  𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
+  𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
+  # Impedance matrices
+  𝐙₁₂¹ = 𝐙((Z₁¹,Z₂¹), Ω₁, 𝐪𝐫);
   𝛔ᵥ¹ = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫))));  𝛔ₕ¹ = I(2) ⊗ spdiagm(σₕ.(Ω₁.(vec(𝐪𝐫))));
   𝛒₁ = I(2) ⊗ spdiagm(ρ₁.(Ω₁.(vec(𝐪𝐫))))
   # Get the transformed gradient
@@ -158,13 +158,13 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   J_vec_diag₁ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₁];
   Dx₁, Dy₁ = J_vec_diag₁*Dqr; 
 
+  # Obtain some quantities on the grid points on Layer 1
   # Bulk Jacobian
   𝐉₂ = Jb(𝛀₂, 𝐪𝐫)
   𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
-
-  # Obtain some quantities on the grid points on Layer 2  
-  𝐙₁² = 𝐉₂*𝐙(Z₁², Ω₂, 𝐪𝐫);  𝐙₂² = 𝐉₂*𝐙(Z₂², Ω₂, 𝐪𝐫);
-  𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫))));
+  # Impedance matrices
+  𝐙₁₂² = 𝐙((Z₁²,Z₂²), Ω₂, 𝐪𝐫);
+  𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₂.(vec(𝐪𝐫))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫))));
   𝛒₂ = I(2) ⊗ spdiagm(ρ₂.(Ω₂.(vec(𝐪𝐫))))
   # Get the transformed gradient
   Jqr₂ = J⁻¹.(𝐪𝐫, Ω₂);
@@ -219,7 +219,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
 
   # PML characteristic boundary conditions
   es = [E1(2,i,(6,6)) for i=1:6];
-  PQRᵪ¹ = Pqr₁, Pᴾᴹᴸqr₁, 𝐙₁¹, 𝐙₂¹, 𝛔ᵥ¹, 𝛔ₕ¹;
+  PQRᵪ¹ = Pqr₁, Pᴾᴹᴸqr₁, 𝐙₁₂¹, 𝛔ᵥ¹, 𝛔ₕ¹, 𝐉₁;
   χq₀¹, χr₀¹, χqₙ¹, χrₙ¹ = χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [-1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,-1]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,1]).A;
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₁ = (fill(SJq₀¹,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
@@ -228,7 +228,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
   SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹));
   
-  PQRᵪ² = Pqr₂, Pᴾᴹᴸqr₂, 𝐙₁², 𝐙₂², 𝛔ᵥ², 𝛔ₕ²;
+  PQRᵪ² = Pqr₂, Pᴾᴹᴸqr₂, 𝐙₁₂², 𝛔ᵥ², 𝛔ₕ², 𝐉₂;
   χq₀², χr₀², χqₙ², χrₙ² = χᴾᴹᴸ(PQRᵪ², 𝛀₂, [-1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,-1]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,1]).A;
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₂ = (fill(SJq₀²,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
@@ -370,16 +370,22 @@ massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
   global Xref = X₀
 end   =#
 
-plt1 = scatter(Tuple.(vec(xy₁)))
-scatter!(Tuple.(vec(xy₂)))
+plt1 = scatter(Tuple.(vec(xy₁)), zcolor=vec(σᵥ.(xy₁)))
+scatter!(Tuple.(vec(xy₂)), zcolor=vec(σᵥ.(xy₂)))
 
 using DelimitedFiles, Test
-ijk = readdlm("./stima_pml_example_2_layer.txt",',','\n');
+ijk = readdlm("./examples/LinearElasticity/Test-matrices/stima_pml_example_2_layer.txt",',','\n');
 lhs_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3], 20*N^2, 20*N^2);
 lhs = massma*stima;
 
 # Check first equation
-@test droptol!(lhs[1:2N^2, 2N^2+1:4N^2] - lhs_ref[1:2N^2, 2N^2+1:4N^2], 1e-3) ≈ spzeros(Float64, 2N^2, 2N^2)
-# Check stiffness matrix
-@test droptol!(lhs[2N^2+1:4N^2, 1:2N^2] - lhs_ref[2N^2+1:4N^2, 1:2N^2], 1e-3) ≈ spzeros(Float64, 2N^2, 2N^2)
-@test droptol!(lhs[2N^2+1:4N^2, 2N^2+1:4N^2] - lhs_ref[2N^2+1:4N^2, 2N^2+1:4N^2], 1e-3)
+@test droptol!(lhs[1:2N^2, 2N^2+1:4N^2] - lhs_ref[1:2N^2, 2N^2+1:4N^2], 1e-11) ≈ spzeros(Float64, 2N^2, 2N^2)
+# Check second equation (momentum)
+@test droptol!(lhs[2N^2+1:4N^2, 1:2N^2] - lhs_ref[2N^2+1:4N^2, 1:2N^2], 1e-11) ≈ spzeros(Float64, 2N^2, 2N^2)
+@test droptol!(lhs[2N^2+1:4N^2, 2N^2+1:4N^2] - lhs_ref[2N^2+1:4N^2, 2N^2+1:4N^2], 1e-11) ≈ spzeros(Float64, 2N^2, 2N^2)
+@test droptol!(lhs[2N^2+1:4N^2, 4N^2+1:6N^2] - lhs_ref[2N^2+1:4N^2, 4N^2+1:6N^2], 1e-11) ≈ spzeros(Float64, 2N^2, 2N^2)
+@test droptol!(lhs[2N^2+1:4N^2, 12N^2+1:14N^2] - lhs_ref[2N^2+1:4N^2, 10N^2+1:12N^2], 1e-11) ≈ spzeros(Float64, 2N^2, 2N^2)
+# Check third equation
+@test droptol!(lhs[4N^2+1:6N^2, 1:2N^2] - lhs_ref[4N^2+1:6N^2, 1:2N^2], 1e-12) ≈ spzeros(Float64, 2N^2, 2N^2)
+# Check fourth equation
+@test droptol!(lhs[6N^2+1:8N^2, 1:2N^2] - lhs_ref[6N^2+1:8N^2, 1:2N^2], 1e-12) ≈ spzeros(Float64, 2N^2, 2N^2)

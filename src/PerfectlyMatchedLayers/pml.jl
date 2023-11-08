@@ -3,10 +3,11 @@ Transform the PML properties to the material grid
 """
 function P2Rᴾᴹᴸ(𝒫ᴾᴹᴸ, Ω, qr)
   x = Ω(qr)
-  invJ = J⁻¹(qr, Ω)
+  invJ = J⁻¹(qr, Ω)  
+  detJ = (det∘J)(qr, Ω)
   S = invJ ⊗ I(2)
   m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫ᴾᴹᴸ(x))
+  SMatrix{m,n,Float64}(detJ*S'*𝒫ᴾᴹᴸ(x))
 end 
 
 """
@@ -37,10 +38,10 @@ end
 Function to obtain the Impedance matrix
 """
 function 𝐙(𝒫, Ω, qr)
-  Pqr = 𝒫.(Ω.(qr))  
-  P_vec = get_property_matrix_on_grid(Pqr, 2)  
-  P_vec_diag = [spdiagm(vec(p)) for p in P_vec]  
-  [J_vec_diag[1,1] J_vec_diag[1,2]; J_vec_diag[2,1]  J_vec_diag[2,2]]*[P_vec_diag[1,1] P_vec_diag[1,2]; P_vec_diag[2,1] P_vec_diag[2,2]]
+  𝒫₁, 𝒫₂ = 𝒫
+  𝐉⁻¹(qr) = J⁻¹(qr, Ω) ⊗ I(size(𝒫₁(qr),1))
+  𝐏(qr) = (E1(1,1,(2,2)) ⊗ 𝒫₁(qr)) + (E1(2,2,(2,2)) ⊗ 𝒫₂(qr))
+  get_property_matrix_on_grid(𝐏.(qr).*𝐉⁻¹.(qr), 2)  
 end
 
 """
@@ -68,15 +69,18 @@ struct χᴾᴹᴸ
   A::Vector{SparseMatrixCSC{Float64, Int64}}
 end
 function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
-  Pqrᴱ, Pqrᴾᴹᴸ, Z₁, Z₂, σᵥqr, σₕqr, J = PQR  
-  Z₁₂ = [Z₁, Z₂]  
-  mass_p = abs(𝐧[1])*Z₁ + abs(𝐧[2])*Z₂
+  Pqrᴱ, Pqrᴾᴹᴸ, Z₁₂, σᵥqr, σₕqr, J = PQR  
+  impedance_normal = Z₁₂*(vec(abs.(𝐧))⊗[1;1])  
+  impedance_normal_vec = [spdiagm(vec(p)) for p in impedance_normal]  
+  Z₁ = blockdiag(impedance_normal_vec[1], impedance_normal_vec[2])
+  Z₂ = blockdiag(impedance_normal_vec[3], impedance_normal_vec[4])
+  mass_p = abs(𝐧[1])*J*Z₁ + abs(𝐧[2])*J*Z₂
   T_elas_u = Tᴱ(Pqrᴱ, 𝛀, 𝐧).A
   T_pml_v, T_pml_w = Tᴾᴹᴸ(Pqrᴾᴹᴸ, 𝛀, 𝐧).A
-  impedance_u = abs(𝐧[2])*Z₂*σᵥqr + abs(𝐧[1])*Z₁*σₕqr
+  impedance_u = 𝐧[1]*Z₁*σᵥqr + 𝐧[2]*Z₂*σₕqr  
   impedance_q = impedance_u
-  impedance_r = abs(𝐧[2])*Z₂*σₕqr*σᵥqr + abs(𝐧[1])*Z₁*σₕqr*σᵥqr
+  impedance_r = 𝐧[1]*Z₁*σₕqr*σᵥqr + 𝐧[2]*Z₂*σₕqr*σᵥqr
   𝐧 = reshape(𝐧, (1,2))
   JJ = Js(𝛀, 𝐧; X=I(2)) 
-  χᴾᴹᴸ([sum(𝐧)*T_elas_u + JJ\(impedance_u + impedance_r), JJ\mass_p, T_pml_v, T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
+  χᴾᴹᴸ([sum(𝐧)*T_elas_u + 0*(JJ\(impedance_u + impedance_r)), JJ\mass_p, T_pml_v, T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
 end
