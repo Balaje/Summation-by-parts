@@ -39,8 +39,8 @@ Function to obtain the Impedance matrix
 """
 function 𝐙(𝒫, Ω, qr)
   𝒫₁, 𝒫₂ = 𝒫
-  𝐉⁻¹(qr) = J⁻¹(qr, Ω) ⊗ I(size(𝒫₁(qr),1))
-  𝐏(qr) = (E1(1,1,(2,2)) ⊗ 𝒫₁(qr)) + (E1(2,2,(2,2)) ⊗ 𝒫₂(qr))
+  𝐉⁻¹(qr) = J⁻¹(qr, Ω) ⊗ I(size(𝒫₁(Ω(qr)),1))
+  𝐏(qr) = (E1(1,1,(2,2)) ⊗ 𝒫₁(Ω(qr))) + (E1(2,2,(2,2)) ⊗ 𝒫₂(Ω(qr)))  
   get_property_matrix_on_grid(𝐏.(qr).*𝐉⁻¹.(qr), 2)  
 end
 
@@ -56,8 +56,9 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 
        [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]  
   # Compute the traction
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=I(2))  
-  Pn = (𝐧*P)  
+  JJ = Js(𝛀, 𝐧; X=I(2))
+  𝐧 = abs.(𝐧)  
+  Pn = (P[1,1]*𝐧[1] + P[1,2]*𝐧[2], P[2,1]*𝐧[1] + P[2,2]*𝐧[2])
   Tr₁, Tr₂ = JJ\Pn[1], JJ\Pn[2]
   Tᴾᴹᴸ((X⊗Tr₁, X⊗Tr₂))
 end
@@ -69,18 +70,28 @@ struct χᴾᴹᴸ
   A::Vector{SparseMatrixCSC{Float64, Int64}}
 end
 function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
-  Pqrᴱ, Pqrᴾᴹᴸ, Z₁₂, σᵥqr, σₕqr, J = PQR  
+  Pqrᴱ, Pqrᴾᴹᴸ, Z₁₂, σ₁₂¹, σ₁₂², J = PQR  
+  # [Zx, Zy](∂u/∂t)
   impedance_normal = Z₁₂*(vec(abs.(𝐧))⊗[1;1])  
   impedance_normal_vec = [spdiagm(vec(p)) for p in impedance_normal]  
   Z₁ = blockdiag(impedance_normal_vec[1], impedance_normal_vec[2])
   Z₂ = blockdiag(impedance_normal_vec[3], impedance_normal_vec[4])
+  # [Zx*σy - Zx*σx*σy, Zy*σx - Zy*σx*σy] (u - q)
   mass_p = abs(𝐧[1])*J*Z₁ + abs(𝐧[2])*J*Z₂
   T_elas_u = Tᴱ(Pqrᴱ, 𝛀, 𝐧).A
   T_pml_v, T_pml_w = Tᴾᴹᴸ(Pqrᴾᴹᴸ, 𝛀, 𝐧).A
-  impedance_u = 𝐧[1]*Z₁*σᵥqr + 𝐧[2]*Z₂*σₕqr  
+  impedance_u_normal = σ₁₂¹*(vec(abs.(𝐧))⊗[1;1])
+  impedance_u_normal_vec = [spdiagm(vec(p)) for p in impedance_u_normal]  
+  σᵥqr = blockdiag(impedance_u_normal_vec[1], impedance_u_normal_vec[2])
+  σₕqr = blockdiag(impedance_u_normal_vec[3], impedance_u_normal_vec[4])
+  impedance_u = abs(𝐧[1])*J*σᵥqr + abs(𝐧[2])*J*σₕqr  
   impedance_q = impedance_u
-  impedance_r = 𝐧[1]*Z₁*σₕqr*σᵥqr + 𝐧[2]*Z₂*σₕqr*σᵥqr
+  # [Zx*σx*σy, Zy*σx*σy](u - q - r)
+  impedance_r_normal = σ₁₂²*(vec(abs.(𝐧))⊗[1;1])
+  impedance_r_normal_vec = [spdiagm(vec(p)) for p in impedance_r_normal]    
+  σₕσᵥqr = blockdiag(impedance_r_normal_vec[1], impedance_r_normal_vec[2])
+  impedance_r = abs(𝐧[1])*J*σₕσᵥqr + abs(𝐧[2])*J*σₕσᵥqr
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=I(2)) 
-  χᴾᴹᴸ([sum(𝐧)*T_elas_u + 0*(JJ\(impedance_u + impedance_r)), JJ\mass_p, T_pml_v, T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
+  JJ = Js(𝛀, 𝐧; X=I(2))  
+  χᴾᴹᴸ([sum(𝐧)*T_elas_u + (JJ\(impedance_u + impedance_r)), JJ\mass_p, T_pml_v, T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
 end
