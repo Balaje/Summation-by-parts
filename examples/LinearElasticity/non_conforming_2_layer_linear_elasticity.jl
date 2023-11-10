@@ -167,7 +167,7 @@ end
 #################################
 # Now begin solving the problem #
 #################################
-N = [21,31,41]
+N = [21]
 h1 = 1 ./(N .- 1)
 L²Error = zeros(Float64, length(N))
 const Δt = 1e-3
