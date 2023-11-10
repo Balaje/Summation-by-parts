@@ -56,9 +56,8 @@ function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 
        [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]  
   # Compute the traction
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=I(2))
-  𝐧 = abs.(𝐧)  
-  Pn = (P[1,1]*𝐧[1] + P[1,2]*𝐧[2], P[2,1]*𝐧[1] + P[2,2]*𝐧[2])
+  JJ = Js(𝛀, 𝐧; X=I(2))  
+  Pn = (P[1,1]*abs(𝐧[1]) + P[1,2]*abs(𝐧[2]), P[2,1]*abs(𝐧[1]) + P[2,2]*abs(𝐧[2]))
   Tr₁, Tr₂ = JJ\Pn[1], JJ\Pn[2]
   Tᴾᴹᴸ((X⊗Tr₁, X⊗Tr₂))
 end
@@ -93,5 +92,6 @@ function χᴾᴹᴸ(PQR, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X
   impedance_r = abs(𝐧[1])*J*σₕσᵥqr + abs(𝐧[2])*J*σₕσᵥqr
   𝐧 = reshape(𝐧, (1,2))
   JJ = Js(𝛀, 𝐧; X=I(2))  
-  χᴾᴹᴸ([sum(𝐧)*T_elas_u + (JJ\(impedance_u + impedance_r)), JJ\mass_p, T_pml_v, T_pml_w, -JJ\(impedance_q + impedance_r), -JJ\impedance_r])
+  JJ⁻¹ = sparse(JJ\I(size(JJ,1)))
+  χᴾᴹᴸ([sum(𝐧)*T_elas_u + (JJ⁻¹*(impedance_u + impedance_r)), JJ⁻¹*mass_p, 𝐧[1]*T_pml_v, 𝐧[2]*T_pml_w, -JJ⁻¹*(impedance_q + impedance_r), -JJ⁻¹*impedance_r])
 end

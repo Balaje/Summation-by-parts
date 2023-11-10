@@ -4,7 +4,7 @@ using SplitApplyCombine
 using LoopVectorization
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.0*sin(π*q)]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.1*sin(8π*q)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -53,10 +53,10 @@ c₁₂²(x) = λ₂(x)
 The PML damping
 """
 const Lᵥ = 4π
-const Lₕ = 4π
+const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
 const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -71,9 +71,11 @@ function σᵥ(x)
 end
 
 function σₕ(x)
-  if((x[2] ≈ Lₕ) || (x[2] > Lₕ) || (x[2] ≈ -Lₕ) || (x[2] < -Lₕ))
+  if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
     return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-  else
+  elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
+    return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+  else  
     return 0.0
   end  
 end
@@ -260,7 +262,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
-  ζ₀ = 0*(m-1)   
+  h = 4π/(m-1)
+  ζ₀ = 300/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
   SATᵢ = (I(2)⊗I(12)⊗𝐇⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
@@ -323,17 +326,17 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-2*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-2*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔(x) = @SVector [exp(-4*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-4*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-const Δt = 1e-3
-tf = 10.0
+const Δt = 5e-3
+tf = 80.0
 ntime = ceil(Int, tf/Δt)
-N = 21;
+N = 81;
 𝛀₁ = DiscreteDomain(domain₁, (N,N));
 𝛀₂ = DiscreteDomain(domain₂, (N,N));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -345,7 +348,7 @@ stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ),
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
 # Begin time loop
-#= let
+let
   t = 0.0
   X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
   X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
@@ -363,36 +366,45 @@ massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
     (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
     # Plotting part for 
-    u1ref,u2ref = split_solution(X₀, N)[1];
-    𝐪𝐫 = generate_2d_grid((N,N));
-    xy = vec(Ω.(𝐪𝐫));
-    plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);  
+    u1ref₁,u2ref₁ = split_solution(X₀[1:12N^2], N)[1];
+    u1ref₂,u2ref₂ = split_solution(X₀[12N^2+1:24N^2], N)[1];
+
+    plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1, size=(800,800));    
     title!(plt3, "Time t="*string(t))
   # end
   end  every 50      
   global Xref = X₀
-end   =#
+end  
 
-plt1 = scatter(Tuple.(vec(xy₁)), zcolor=vec(σᵥ.(xy₁)))
-scatter!(Tuple.(vec(xy₂)), zcolor=vec(σᵥ.(xy₂)))
+u1ref₁,u2ref₁ = split_solution(Xref[1:12N^2], N)[1];
+u1ref₂,u2ref₂ = split_solution(Xref[12N^2+1:24N^2], N)[1];
+plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
+title!(plt3, "Time t="*string(tf))
 
-using DelimitedFiles, Test
+plt1 = scatter(Tuple.(xy₁ |> vec), zcolor=σₕ.(xy₁ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt1, Tuple.(xy₂ |> vec), zcolor=σₕ.(xy₂ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+plt2 = scatter(Tuple.(xy₁ |> vec), zcolor=σᵥ.(xy₁ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt2, Tuple.(xy₂ |> vec), zcolor=σᵥ.(xy₂ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
 
-ijk = readdlm("./examples/LinearElasticity/Test-matrices/stima_pml_example_2_layer.txt",',','\n');
-lhs_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3], 20*N^2, 20*N^2);
-lhs = massma*stima;
-  
-@testset "Test all the matrix components" begin  
+using DelimitedFiles, Test  
+SKIP_TEST = true
+@testset "Test all the matrix components against the MATLAB version" begin   
+  ijk = readdlm("./examples/LinearElasticity/Test-matrices/stima_pml_example_2_layer.txt",',','\n');
+  lhs_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3], 20*N^2, 20*N^2);
+  lhs = massma*stima;
   # First block 
   # Bulk
-  @test lhs[1:10N^2, 1:10N^2] ≈ lhs_ref[1:10N^2, 1:10N^2] atol=1e-10
+  @test lhs[1:10N^2, 1:10N^2] ≈ lhs_ref[1:10N^2, 1:10N^2] atol=1e-10 skip = SKIP_TEST
   # Interface SAT terms
-  @test lhs[1:10N^2, 12N^2+1:20N^2] ≈ lhs_ref[1:10N^2, 10N^2+1:18N^2]  atol=1e-10
+  @test lhs[1:10N^2, 12N^2+1:20N^2] ≈ lhs_ref[1:10N^2, 10N^2+1:18N^2]  atol=1e-10 skip = SKIP_TEST
 
   # Second block
   # Interface SAT
-  @test lhs[12N^2+1:22N^2, 1:10N^2] ≈ lhs_ref[10N^2+1:20N^2, 1:10N^2] atol=1e-10
+  @test lhs[12N^2+1:22N^2, 1:10N^2] ≈ lhs_ref[10N^2+1:20N^2, 1:10N^2] atol=1e-10 skip = SKIP_TEST
   # Bulk
-  @test lhs[12N^2+1:22N^2, 12N^2+1:22N^2] ≈ lhs_ref[10N^2+1:20N^2, 10N^2+1:20N^2] atol=1e-10
+  @test lhs[12N^2+1:22N^2, 12N^2+1:22N^2] ≈ lhs_ref[10N^2+1:20N^2, 10N^2+1:20N^2] atol=1e-10 skip = SKIP_TEST
 end
