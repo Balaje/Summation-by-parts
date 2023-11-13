@@ -179,12 +179,13 @@ q = LinRange(0,1,N[end]); r = LinRange(0,1,N[end]);
 Uap, Vap = get_sol_vector_from_raw_vector(u₁, N[end], N[end]);
 𝐱𝐲 = vec(Ω.(𝐪𝐫));
 Ue, Ve = get_sol_vector_from_raw_vector(reduce(hcat, U.(𝐱𝐲,tf))', N[end], N[end]);
-plt1 = contourf(q, r, Uap, title="u₁ Approximate");
-plt2 = contourf(q, r, Ue, title="u₁ Exact");
-plt3 = contourf(q, r, Vap, title="v₁ Approximate");
-plt4 = contourf(q, r, Ve, title="v₁ Exact");
-plt12 = plot(plt1, plt2, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
-plt34 = plot(plt3, plt4, xlabel="x", ylabel="y", layout=(2,1), size=(700,800));
+plt1 = scatter(Tuple.(𝐱𝐲), zcolor=vec(Uap), label="", title="Approx. solution (u(x,y))", markersize=8, msw=0.1);
+plt2 = scatter(Tuple.(𝐱𝐲), zcolor=vec(Ue), label="", title="Exact solution (u(x,y))", markersize=8, msw=0.1);
+plt3 = scatter(Tuple.(𝐱𝐲), zcolor=vec(Vap), label="", title="Approx. solution (u(x,y))", markersize=8, msw=0.1);
+plt4 = scatter(Tuple.(𝐱𝐲), zcolor=vec(Ve), label="", title="Exact solution (u(x,y))", markersize=8, msw=0.1);
+plt12 = plot(plt1, plt2, layout=(2,1), size=(400,800))
+plt34 = plot(plt3, plt4, layout=(2,1), size=(400,800))
+
 
 plt5 = plot(h1, L²Error, xaxis=:log10, yaxis=:log10, label="L²Error", lw=2);
 plot!(plt5, h1, h1.^4, label="O(h⁴)", lw=1);

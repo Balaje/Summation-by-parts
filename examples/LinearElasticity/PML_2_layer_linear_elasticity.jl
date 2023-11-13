@@ -4,7 +4,7 @@ using SplitApplyCombine
 using LoopVectorization
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.1*sin(8π*q)]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.0*sin(8π*q)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -55,8 +55,8 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -334,7 +334,7 @@ Initial conditions
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 5e-3
-tf = 100.0
+tf = 20.0
 ntime = ceil(Int, tf/Δt)
 N = 81;
 𝛀₁ = DiscreteDomain(domain₁, (N,N));
@@ -371,12 +371,13 @@ let
 
     plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
     scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1, size=(800,800));    
-    scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-    scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
+    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1, size=(800,800));    
+    scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+    scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+    scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,N)]), ms=4, msw=0.1, label="", mc=:red)
     title!(plt3, "Time t="*string(t))
   # end
-  end  every 25  
+  end  every 10  
   global Xref = X₀
 end  
 
@@ -386,7 +387,7 @@ plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel
 scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
 scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
+scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
 title!(plt3, "Time t="*string(tf))
 
 plt1 = scatter(Tuple.(xy₁ |> vec), zcolor=σₕ.(xy₁ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)

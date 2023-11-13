@@ -103,7 +103,9 @@ function 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪�
   𝐉⁻¹ = 𝐉\(I(size(𝐉,1))) 
 
   # Obtain some quantities on the grid points  
-  𝐙₁ = 𝐉*𝐙(Z₁, Ω, 𝐪𝐫);  𝐙₂ = 𝐉*𝐙(Z₂, Ω, 𝐪𝐫);
+  𝐙₁₂ = 𝐙((Z₁,Z₂), Ω, 𝐪𝐫);
+  𝛔₁₂ = 𝐙((x->σₕ(x)*Z₁(x), x->σᵥ(x)*Z₂(x)), Ω, 𝐪𝐫)
+  𝛕₁₂ = 𝐙((x->σₕ(x)*σᵥ(x)*Z₁(x), x->σₕ(x)*σᵥ(x)*Z₂(x)), Ω, 𝐪𝐫)
   𝛔ᵥ = I(2) ⊗ spdiagm(σᵥ.(Ω.(vec(𝐪𝐫))));  𝛔ₕ = I(2) ⊗ spdiagm(σₕ.(Ω.(vec(𝐪𝐫))));
   𝛒 = I(2) ⊗ spdiagm(ρ.(Ω.(vec(𝐪𝐫))))
   # Get the transformed gradient
@@ -153,7 +155,7 @@ function 𝐊ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::DiscreteDomain, 𝐪�
 
   # PML characteristic boundary conditions
   es = [E1(2,i,(6,6)) for i=1:6];
-  PQRᵪ = Pqr, Pᴾᴹᴸqr, 𝐙₁, 𝐙₂, 𝛔ᵥ, 𝛔ₕ;
+  PQRᵪ = Pqr, Pᴾᴹᴸqr, 𝐙₁₂, 𝛔₁₂, 𝛕₁₂, 𝐉
   χq₀, χr₀, χqₙ, χrₙ = χᴾᴹᴸ(PQRᵪ, 𝛀, [-1,0]).A, χᴾᴹᴸ(PQRᵪ, 𝛀, [0,-1]).A, χᴾᴹᴸ(PQRᵪ, 𝛀, [1,0]).A, χᴾᴹᴸ(PQRᵪ, 𝛀, [0,1]).A;
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹ = (fill(SJq₀,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
@@ -254,7 +256,8 @@ let
     𝐪𝐫 = generate_2d_grid((N,N));
     xy = vec(Ω.(𝐪𝐫));
     plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lᵥ)*" (PML)", markercolor=:white, markersize=2, msw=0.1);  
+    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML), σ₀ᵛ = "*string(round(σ₀ᵛ,digits=3)), markercolor=:white, markersize=2, msw=0.1);  
+    scatter!(plt3, Tuple.([[q,Lᵥ] for q in LinRange(Ω([0.0,1.0])[1],Ω([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lᵥ,digits=3))*" (PML), σ₀ʰ = "*string(round(σ₀ʰ,digits=3)), markercolor=:white, markersize=4, msw=0.1)
     title!(plt3, "Time t="*string(t))
   # end
   end  every 50      
@@ -265,15 +268,21 @@ end
 u1ref,u2ref = split_solution(Xref,N)[1];
 xy = vec(xy)
 plt3 = scatter(Tuple.(xy), zcolor=vec(u1ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₕ)*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt3, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt3, Tuple.([[q,Lᵥ] for q in LinRange(Ω([0.0,1.0])[1],Ω([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1)
 title!(plt3, "Horizontal Displacement")
-plt4 = scatter(Tuple.(xy), zcolor=vec(u2ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.1, label="");
-scatter!(plt4, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(Lₕ)*" (PML)", markercolor=:white, markersize=4, msw=0.1)
+plt4 = scatter(Tuple.(xy), zcolor=vec(u2ref), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt4, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1);
+scatter!(plt4, Tuple.([[q,Lᵥ] for q in LinRange(Ω([0.0,1.0])[1],Ω([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1)
 title!(plt4, "Vertical Displacement")
 
 plt34 = plot(plt3, plt4, layout=(2,1), size=(800,800));
 
-plt5 = scatter(Tuple.(xy), zcolor=σₕ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
-scatter!(plt5, Tuple.([[q,Lᵥ] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(Lᵥ)*" (PML)")
-plt6 = scatter(Tuple.(xy), zcolor=σᵥ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
-scatter!(plt6, Tuple.([[Lₕ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(Lᵥ)*" (PML)")
+plt5 = scatter(Tuple.(xy), zcolor=σₕ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="σₕ = σₕ(y) PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt5, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)")
+scatter!(plt5, Tuple.([[q,Lₕ] for q in LinRange(Ω([0.0,1.0])[1],Ω([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1);    
+plt6 = scatter(Tuple.(xy), zcolor=σᵥ.(xy), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="σᵥ = σᵥ(x) PML Damping Function", label="", ms=4, msw=0.1)
+scatter!(plt6, Tuple.([[Lᵥ,q] for q in LinRange(Ω([0.0,0.0])[2],Ω([1.0,1.0])[2],N)]), mc=:white, label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)")
+scatter!(plt6, Tuple.([[q,Lₕ] for q in LinRange(Ω([0.0,1.0])[1],Ω([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=4, msw=0.1);    
+
+plt56 = plot(plt5, plt6, layout=(2,1), size=(800,800));

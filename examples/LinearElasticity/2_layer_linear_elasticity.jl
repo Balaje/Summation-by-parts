@@ -235,14 +235,18 @@ Ue₁, Ue₂, Ve₁, Ve₂ = get_sol_vector_from_raw_vector(vcat(reduce(hcat, U.
 # Plot the horizontal solution on the physical grid
 plt1 = scatter(Tuple.(𝐱𝐲₁), zcolor=vec(Uap₁), label="", title="Approx. solution (u(x,y))", markersize=4, msw=0.1);
 scatter!(plt1, Tuple.(𝐱𝐲₂), zcolor=vec(Uap₂), label="", markersize=4, msw=0.1);
+scatter!(plt1, Tuple.([cᵢ(q) for q in LinRange(0,1,N[end])]), ms=4, msw=0.1, label="")
 plt2 = scatter(Tuple.(𝐱𝐲₁), zcolor=vec(Ue₁), label="", title="Exact solution (u(x,y))", markersize=4, msw=0.1);
 scatter!(plt2, Tuple.(𝐱𝐲₂), zcolor=vec(Ue₂), label="", markersize=4, msw=0.1);
+scatter!(plt2, Tuple.([cᵢ(q) for q in LinRange(0,1,N[end])]), ms=4, msw=0.1, label="")
   
 # Plot the vertical solution on the physical grid
 plt3 = scatter(Tuple.(𝐱𝐲₁), zcolor=vec(Vap₁), label="", title="Approx. solution (v(x,y))", markersize=4, msw=0.1);
 scatter!(plt3, Tuple.(𝐱𝐲₂), zcolor=vec(Vap₂), label="", markersize=4, msw=0.1);
+scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,N[end])]), ms=4, msw=0.1, label="")
 plt4 = scatter(Tuple.(𝐱𝐲₁), zcolor=vec(Ve₁), label="", title="Exact solution (v(x,y))", markersize=4, msw=0.1);
 scatter!(plt4, Tuple.(𝐱𝐲₂), zcolor=vec(Ve₂), label="", markersize=4, msw=0.1);
+scatter!(plt4, Tuple.([cᵢ(q) for q in LinRange(0,1,N[end])]), ms=4, msw=0.1, label="")
   
 # Plot the exact solution and the approximate solution together.
 plt1_3 = plot(plt1, plt2, layout=(1,2), size=(800,400));
@@ -257,12 +261,6 @@ plt6_2 = scatter(Tuple.(𝐱𝐲₂), size=(800,800), markersize=2, markercolor=
 plt6_1_2 = plot(plt6_1, plt6_2, layout=(2,1))
 plt6_3 = scatter(Tuple.(𝐪𝐫 |> vec), xlabel="q", ylabel="r", label="Reference Domain", markersize=4, markercolor="white", aspect_ratio=:equal, xlims=(0,1), ylims=(0,1), msw=0.1);
 plt6 = plot(plt6_1_2, plt6_3, layout=(1,2));
-  
-#= # Run these from the Project folder
-savefig(plt13, "./Images/2-layer/horizontal-disp.png")
-savefig(plt24, "./Images/2-layer/vertical-disp.png")
-savefig(plt9, "./Images/2-layer/rate.png")
-savefig(plt10, "./Images/2-layer/domain.png") =#
   
 plt7 = scatter(Tuple.(𝐱𝐲₁ |> vec), zcolor=vec(abs.(Uap₁-Ue₁)), label="", title="ΔU", markersize=4, msw=0.1);
 scatter!(plt7, Tuple.(𝐱𝐲₂ |> vec), zcolor=vec(abs.(Uap₂-Ue₂)), label="", markersize=4, msw=0.1);
