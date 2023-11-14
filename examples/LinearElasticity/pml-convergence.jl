@@ -350,7 +350,6 @@ function 𝐌2⁻¹(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, ρ)
   ρ₁, ρ₂ = ρ
   𝛀₁, 𝛀₂ = 𝛀
   m, n = size(𝐪𝐫)
-  Id = sparse(I(2)⊗I(m)⊗I(n))
   Ω₁(qr) = S(qr, 𝛀₁.domain);
   Ω₂(qr) = S(qr, 𝛀₂.domain);
   ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ₁.(Ω₁.(𝐪𝐫))))
@@ -425,10 +424,10 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (41,41));
 𝐪𝐫ᴾᴹᴸ = generate_2d_grid((41,41))
 
-#= Ω₁(qr) = S(qr, 𝛀₁.domain);
+Ω₁(qr) = S(qr, 𝛀₁.domain);
 Ω₂(qr) = S(qr, 𝛀₂.domain);
 Ω₁ᴾᴹᴸ(qr) = S(qr, 𝛀₁ᴾᴹᴸ.domain);
-Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain); =#
+Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain);
 
 xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
 xy₁ᴾᴹᴸ = Ω₁ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ); xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ);
@@ -487,10 +486,11 @@ N = 𝛀₁ᴾᴹᴸ.mn[1];
 u1ref₁,u2ref₁ = Tuple(split_solution(Xref[1:12N^2], N, 12)[1:2]);
 u1ref₂,u2ref₂ = Tuple(split_solution(Xref[12N^2+1:24N^2], N, 12)[1:2]);
 plt3 = scatter(Tuple.(vec(xy₁ᴾᴹᴸ)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-#scatter!(plt3, Tuple.(vec(xy₂ᴾᴹᴸ)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt3, Tuple.(vec(xy₂ᴾᴹᴸ)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 #scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[2],Ω₁ᴾᴹᴸ([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
 scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁ᴾᴹᴸ([0.0,1.0])[1],Ω₁ᴾᴹᴸ([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
 #scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[1],Ω₂ᴾᴹᴸ([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
+scatter!(plt3, Tuple.([cᵢ_pml(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
 title!(plt3, "Time t="*string(tf))
 
 # Begin time loop for the full linear elasticity case
@@ -518,11 +518,13 @@ let
   # end  every 100 
 end  
 N = 𝛀₁.mn[1];
-u1ref₁,r1ref₁ = split_solution(Z₀[1:4N^2], N, 4)[1:2];
-u1ref₂,r1ref₂ = split_solution(Z₀[4N^2+1:8N^2], N, 4)[1:2];
+U = Z₀[1:4N^2];
+u1ref₁,u2ref₁ = Tuple(split_solution(U, N, 4)[1:2]);
+u1ref₂,u2ref₂ = Tuple(split_solution(U, N, 4)[3:4]);
 plt4 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-#scatter!(plt4, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt4, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+scatter!(plt4, Tuple.([cᵢ(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
 title!(plt4, "Time t="*string(tf))
 
 
-plot(plot(plt3, xlims=(0,8π), ylims=(0,8π)), plt4,size=(1600,800))
+plot(plot(plt3, xlims=(0,8π), ylims=(-4π,8π)), plot(plt4, xlims=(0,8π), ylims=(-4π,8π)),size=(1600,800))
