@@ -487,9 +487,9 @@ u1ref₁,u2ref₁ = Tuple(split_solution(Xref[1:12N^2], N, 12)[1:2]);
 u1ref₂,u2ref₂ = Tuple(split_solution(Xref[12N^2+1:24N^2], N, 12)[1:2]);
 plt3 = scatter(Tuple.(vec(xy₁ᴾᴹᴸ)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt3, Tuple.(vec(xy₂ᴾᴹᴸ)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-#scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[2],Ω₁ᴾᴹᴸ([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁ᴾᴹᴸ([0.0,1.0])[1],Ω₁ᴾᴹᴸ([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-#scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[1],Ω₂ᴾᴹᴸ([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
+scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[2],Ω₁ᴾᴹᴸ([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁ᴾᴹᴸ([0.0,1.0])[1],Ω₁ᴾᴹᴸ([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[1],Ω₂ᴾᴹᴸ([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
 scatter!(plt3, Tuple.([cᵢ_pml(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
 title!(plt3, "Time t="*string(tf))
 
