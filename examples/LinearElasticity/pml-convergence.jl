@@ -392,7 +392,7 @@ end
 
 
 # Define the domain for PML computation
-cᵢ_pml(q) = @SVector [4π*q, 0.8π*exp(-0.5*(4π*q-2π)^2)]
+cᵢ_pml(q) = @SVector [4π*q, 0.0π*exp(-0.5*(4π*q-2π)^2)]
 c₀¹_pml(r) = @SVector [0.0, 4π*r]
 c₁¹_pml(q) = cᵢ_pml(q)
 c₂¹_pml(r) = @SVector [4π, 4π*r]
@@ -405,7 +405,7 @@ c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 
 # Define the domain for full elasticity computation
-cᵢ(q) = @SVector [8π*q, 0.8π*exp(-0.5*(8π*q-2π)^2)]
+cᵢ(q) = @SVector [8π*q, 0.0π*exp(-0.5*(8π*q-2π)^2)]
 c₀¹(r) = @SVector [0.0, 8π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [8π, 8π*r]

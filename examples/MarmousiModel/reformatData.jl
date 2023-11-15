@@ -3,7 +3,7 @@
 ################################################
 
 using MAT
-
+using Plots
 
 function downSample(X,Z,rho,vp,vs,d)
   X[1:d:end,1:d:end], Z[1:d:end,1:d:end], rho[1:d:end,1:d:end], vp[1:d:end,1:d:end], vs[1:d:end,1:d:end]
