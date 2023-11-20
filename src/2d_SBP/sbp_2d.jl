@@ -175,8 +175,8 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
   m,n = 𝛀.mn
   Ω(qr) = S(qr, 𝛀.domain)
-  sbp_q = SBP_1_2_CONSTANT_0_1(n)
-  sbp_r = SBP_1_2_CONSTANT_0_1(m)
+  sbp_q = SBP_1_2_CONSTANT_0_1(m)
+  sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S

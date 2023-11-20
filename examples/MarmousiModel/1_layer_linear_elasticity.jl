@@ -14,10 +14,10 @@ eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Fl
 
 
 ## Define the physical domain
-c₀(r) = @SVector [0.0 + 0.0*sin(π*r), r] # Left boundary 
-c₁(q) = @SVector [q, 0.0 + 0.0*sin(2π*q)] # Bottom boundary
-c₂(r) = @SVector [1.0 + 0.0*sin(π*r), r] # Right boundary
-c₃(q) = @SVector [q, 1.0 + 0.0*sin(2π*q)]
+c₀(r) = @SVector [0.0 + 0.1*sin(π*r), r] # Left boundary 
+c₁(q) = @SVector [q, 0.0 + 0.1*sin(2π*q)] # Bottom boundary
+c₂(r) = @SVector [1.0 + 0.1*sin(π*r), r] # Right boundary
+c₃(q) = @SVector [q, 1.0 + 0.1*sin(2π*q)]
 domain = domain_2d(c₀, c₁, c₂, c₃)
 
 ## Define the material properties on the physical grid
@@ -92,8 +92,15 @@ function 𝐊!(𝒫, 𝛀::DiscreteDomain, 𝐪𝐫)
   𝐉\(𝐏 - SAT)
 end
 
-m = 31; n = 21;
+#= m = 31; n = 41;
 𝐪𝐫 = generate_2d_grid((m,n));
 𝛀 = DiscreteDomain(domain, (m,n));
 Ω(qr) = S(qr, 𝛀.domain);
-stima = 𝐊!(𝒫, 𝛀, 𝐪𝐫);
+stima = 𝐊!(𝒫, 𝛀, 𝐪𝐫); =#
+
+vars = matread("./examples/MarmousiModel/marmousi2_downsampled_20.mat");
+vp = vars["vp"]
+vs = vars["vs"]
+X = vars["X"]
+Z = vars["Z"]
+rho = vars["rho"]
