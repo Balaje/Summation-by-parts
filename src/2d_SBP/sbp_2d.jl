@@ -173,8 +173,6 @@ struct Tᴱ <: SBP_TYPE
 end
 function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])    
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
-  P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
-       [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]
   m,n = 𝛀.mn
   Ω(qr) = S(qr, 𝛀.domain)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
@@ -182,15 +180,14 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
-  𝛁 = [[I(2)⊗Sq] [I(2)⊗Dr];
-       [I(2)⊗Dq] [I(2)⊗Sr]]
-  # Compute the traction
-  𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=I(2))  
-  Pn = (𝐧*P)
-  ∇n = (𝐧*𝛁)
+  # Compute the traction  
+  JJ = Js(𝛀, 𝐧; X=I(2))
+  JJ⁻¹ = JJ\I(size(JJ,1))
+  Pn = ([P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]*𝐧[1] + [P_vec[3,1]   P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]*𝐧[2], 
+        [P_vec[1,3]  P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]*𝐧[1] + [P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]*𝐧[2])
+  ∇n = ((I(2)⊗Sq)*𝐧[1] + (I(2)⊗Dq)*𝐧[2], (I(2)⊗Dr)*𝐧[1] + (I(2)⊗Sr)*𝐧[2])
   𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
-  Tr = JJ\𝐓𝐧
+  Tr = JJ⁻¹*𝐓𝐧
   Tᴱ(X⊗Tr)
 end
 

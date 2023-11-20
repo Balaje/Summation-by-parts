@@ -45,7 +45,7 @@ The PML damping
 """
 const Lᵥ = 3.6π
 const Lₕ = 3.6π
-const δ = 0.1*Lᵥ
+const δ = 0.1*4π  
 const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
@@ -391,6 +391,9 @@ function split_solution(X, N, M)
 end
 
 
+##########################
+# Define the two domains #
+##########################
 # Define the domain for PML computation
 cᵢ_pml(q) = @SVector [4π*q, 0.0π*exp(-0.5*(4π*q-2π)^2)]
 c₀¹_pml(r) = @SVector [0.0, 4π*r]
@@ -403,7 +406,6 @@ c₁²_pml(q) = @SVector [4π*q, -4π]
 c₂²_pml(r) = @SVector [4π, 4π*r-4π]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
-
 # Define the domain for full elasticity computation
 cᵢ(q) = @SVector [8π*q, 0.0π*exp(-0.5*(8π*q-2π)^2)]
 c₀¹(r) = @SVector [0.0, 8π*r]
@@ -411,92 +413,31 @@ c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [8π, 8π*r]
 c₃¹(q) = @SVector [8π*q, 8π]
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [0.0, 4π*r-4π]
-c₁²(q) = @SVector [8π*q, -4π]
-c₂²(r) = @SVector [8π, 4π*r-4π]
+c₀²(r) = @SVector [0.0, 8π*r-8π]
+c₁²(q) = @SVector [8π*q, -8π]
+c₂²(r) = @SVector [8π, 8π*r-8π]
 c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
-𝛀₁ = DiscreteDomain(domain₁, (81,81));
-𝛀₂ = DiscreteDomain(domain₂, (81,81));
-𝐪𝐫 = generate_2d_grid((81,81))
-𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (41,41));
-𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (41,41));
-𝐪𝐫ᴾᴹᴸ = generate_2d_grid((41,41))
 
-Ω₁(qr) = S(qr, 𝛀₁.domain);
-Ω₂(qr) = S(qr, 𝛀₂.domain);
-Ω₁ᴾᴹᴸ(qr) = S(qr, 𝛀₁ᴾᴹᴸ.domain);
-Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain);
-
-xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
-xy₁ᴾᴹᴸ = Ω₁ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ); xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ);
-
-stima2 = 𝐊2!((𝒫₁, 𝒫₂), (𝛀₁, 𝛀₂), 𝐪𝐫);
-massma2 =  𝐌2⁻¹((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
-
-stima2_pml =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), 𝐪𝐫ᴾᴹᴸ);
-massma2_pml =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫ᴾᴹᴸ, (ρ₁, ρ₂));
-
-𝐔(x) = @SVector [exp(-4*((x[1]-3π)^2 + (x[2]-3π)^2)), -exp(-4*((x[1]-3π)^2 + (x[2]-3π)^2))]
-𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
-𝐕(x) = @SVector [0.0, 0.0]
-𝐖(x) = @SVector [0.0, 0.0]
-𝐐(x) = @SVector [0.0, 0.0]
-𝐑(x) = @SVector [0.0, 0.0]
-
-const Δt = 5e-3
-tf = 4.0
+const Δt = 1e-3
+tf = 3.0
 ntime = ceil(Int, tf/Δt)
 
-# Begin time loop
-let
-  t = 0.0
-  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₁ᴾᴹᴸ))));
-  X₀² = vcat(eltocols(vec(𝐔.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₂ᴾᴹᴸ))));
-  X₀ = vcat(X₀¹, X₀²)
-  k₁ = zeros(Float64, length(X₀))
-  k₂ = zeros(Float64, length(X₀))
-  k₃ = zeros(Float64, length(X₀))
-  k₄ = zeros(Float64, length(X₀)) 
-  M = massma2_pml*stima2_pml
-  # @gif for i=1:ntime
-  for i=1:ntime
-    sol = X₀, k₁, k₂, k₃, k₄
-    X₀ = RK4_1!(M, sol)    
-    t += Δt    
-    (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
-
-    #= # Plotting part for 
-    u1ref₁,u2ref₁ = split_solution(X₀[1:12N^2], N)[1];
-    u1ref₂,u2ref₂ = split_solution(X₀[12N^2+1:24N^2], N)[1];
-
-    plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1, size=(800,800));    
-    scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
-    scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
-    scatter!(plt3, Tuple.([cᵢ(q) for q in LinRange(0,1,N)]), ms=4, msw=0.1, label="", mc=:red)
-    title!(plt3, "Time t="*string(t)) =#
-  end
-  # end  every 10  
-  global Xref = X₀
-end  
-N = 𝛀₁ᴾᴹᴸ.mn[1];
-u1ref₁,u2ref₁ = Tuple(split_solution(Xref[1:12N^2], N, 12)[1:2]);
-u1ref₂,u2ref₂ = Tuple(split_solution(Xref[12N^2+1:24N^2], N, 12)[1:2]);
-plt3 = scatter(Tuple.(vec(xy₁ᴾᴹᴸ)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.(vec(xy₂ᴾᴹᴸ)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[2],Ω₁ᴾᴹᴸ([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁ᴾᴹᴸ([0.0,1.0])[1],Ω₁ᴾᴹᴸ([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[1],Ω₂ᴾᴹᴸ([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([cᵢ_pml(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
-title!(plt3, "Time t="*string(tf))
-
-# Begin time loop for the full linear elasticity case
-
-U₀(x) = @SVector [exp(-4*((x[1]-3π)^2 + (x[2]-3π)^2)), -exp(-4*((x[1]-3π)^2 + (x[2]-3π)^2))]
+#######################################
+# Time stepping for the Full elasticity
+#######################################
+N₁ = 161;
+𝛀₁ = DiscreteDomain(domain₁, (N₁,N₁));
+𝛀₂ = DiscreteDomain(domain₂, (N₁,N₁));
+U₀(x) = @SVector [exp(-4*((x[1]-3.6π)^2 + (x[2]-π)^2)), -exp(-4*((x[1]-3.6π)^2 + (x[2]-π)^2))]
 V₀(x) = @SVector [0.0,0.0]
+Ω₁(qr) = S(qr, 𝛀₁.domain);
+Ω₂(qr) = S(qr, 𝛀₂.domain);
+𝐪𝐫 = generate_2d_grid((N₁,N₁))
+xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
+stima2 = 𝐊2!((𝒫₁, 𝒫₂), (𝛀₁, 𝛀₂), 𝐪𝐫);
+massma2 =  𝐌2⁻¹((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 let
   t = 0.0
   X₀ = vcat(eltocols(vec(U₀.(xy₁))), eltocols(vec(U₀.(xy₂))));
@@ -518,13 +459,89 @@ let
   # end  every 100 
 end  
 N = 𝛀₁.mn[1];
-U = Z₀[1:4N^2];
-u1ref₁,u2ref₁ = Tuple(split_solution(U, N, 4)[1:2]);
-u1ref₂,u2ref₂ = Tuple(split_solution(U, N, 4)[3:4]);
+Uref = Z₀[1:4N^2];
+u1ref₁,u2ref₁ = Tuple(split_solution(Uref, N, 4)[1:2]);
+u1ref₂,u2ref₂ = Tuple(split_solution(Uref, N, 4)[3:4]);
 plt4 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt4, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
 scatter!(plt4, Tuple.([cᵢ(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
+scatter!(plt4, Tuple.([[Lᵥ,q] for q in LinRange(-4π,4π,N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt4, Tuple.([[q,Lₕ] for q in LinRange(0,4π,N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt4, Tuple.([[q,-Lₕ] for q in LinRange(0,4π,N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt4, Tuple.([[q,-Lₕ-δ] for q in LinRange(0,4π,N)]), label="", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt4, Tuple.([[q,Lₕ+δ] for q in LinRange(0,4π,N)]), label="", markercolor=:black, markersize=2, msw=0.1);    
+scatter!(plt4, Tuple.([[Lᵥ+δ,q] for q in LinRange(-4π,4π,N)]), label="", markercolor=:black, markersize=2, msw=0.1);    
 title!(plt4, "Time t="*string(tf))
+u1ref₁ᶠ = copy(u1ref₁)
+u2ref₁ᶠ = copy(u2ref₁)
 
 
-plot(plot(plt3, xlims=(0,8π), ylims=(-4π,8π)), plot(plt4, xlims=(0,8π), ylims=(-4π,8π)),size=(1600,800))
+#######################################
+# Time stepping for the PML elasticity
+#######################################
+𝐔(x) = @SVector [exp(-4*((x[1]-3.6π)^2 + (x[2]-π)^2)), -exp(-4*((x[1]-3.6π)^2 + (x[2]-π)^2))]
+𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+𝐕(x) = @SVector [0.0, 0.0]
+𝐖(x) = @SVector [0.0, 0.0]
+𝐐(x) = @SVector [0.0, 0.0]
+𝐑(x) = @SVector [0.0, 0.0]
+
+Ns = [21,41,81]
+max_err = zeros(Float64, length(Ns))
+for (Ni,i) = zip(Ns, 1:length(Ns))
+  N₂ = Ni;
+  𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (N₂,N₂));
+  𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (N₂,N₂));
+  𝐪𝐫ᴾᴹᴸ = generate_2d_grid((N₂,N₂))
+  Ω₁ᴾᴹᴸ(qr) = S(qr, 𝛀₁ᴾᴹᴸ.domain);
+  Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain);
+  xy₁ᴾᴹᴸ = Ω₁ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ); xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ);
+  stima2_pml =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), 𝐪𝐫ᴾᴹᴸ);
+  massma2_pml =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫ᴾᴹᴸ, (ρ₁, ρ₂));
+  # Begin time loop
+  let
+    t = 0.0
+    X₀¹ = vcat(eltocols(vec(𝐔.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₁ᴾᴹᴸ))));
+    X₀² = vcat(eltocols(vec(𝐔.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₂ᴾᴹᴸ))));
+    X₀ = vcat(X₀¹, X₀²)
+    k₁ = zeros(Float64, length(X₀))
+    k₂ = zeros(Float64, length(X₀))
+    k₃ = zeros(Float64, length(X₀))
+    k₄ = zeros(Float64, length(X₀)) 
+    M = massma2_pml*stima2_pml
+    # @gif for i=1:ntime
+    for i=1:ntime
+      sol = X₀, k₁, k₂, k₃, k₄
+      X₀ = RK4_1!(M, sol)    
+      t += Δt    
+      (i%100==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+    end
+    # end  every 10  
+    global Xref = X₀
+  end  
+  local N = 𝛀₁ᴾᴹᴸ.mn[1];
+  local u1ref₁, u2ref₁ = Tuple(split_solution(Xref[1:12N^2], N, 12)[1:2]);
+  local u1ref₂, u2ref₂ = Tuple(split_solution(Xref[12N^2+1:24N^2], N, 12)[1:2]);
+  global plt3 = scatter(Tuple.(vec(xy₁ᴾᴹᴸ)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+  scatter!(plt3, Tuple.(vec(xy₂ᴾᴹᴸ)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
+  scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[2],Ω₁ᴾᴹᴸ([1.0,1.0])[2],N)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+  scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁ᴾᴹᴸ([0.0,1.0])[1],Ω₁ᴾᴹᴸ([1.0,1.0])[1],N)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+  scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂ᴾᴹᴸ([0.0,0.0])[1],Ω₂ᴾᴹᴸ([1.0,0.0])[1],N)]), label="y ≤ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:black, markersize=2, msw=0.1);    
+  scatter!(plt3, Tuple.([cᵢ_pml(q) for q in LinRange(0,1,N)]), ms=2, msw=0.1, label="", mc=:red)
+  title!(plt3, "Time t="*string(tf))
+  u1ref₁ᴾ = copy(u1ref₁)
+  u2ref₁ᴾ = copy(u2ref₁)
+
+  aspect_ratio = Int64((N₁-1)/((N₂-1)*2));
+  comput_domain = Int64(((N₂)^2 - length(findnz(sparse(σᵥ.(xy₁ᴾᴹᴸ) .< 1e-8))[3]))/N₂)
+  indices = 1:aspect_ratio:Int64((N₁-1)/2)+1;
+  U_PML₁ = reshape(u1ref₁ᴾ, (N₂,N₂))[1:end-comput_domain, 1:end-comput_domain];
+  U_FULL₁ = reshape(u1ref₁ᶠ, (N₁,N₁))[indices,indices][1:end-comput_domain, 1:end-comput_domain];
+  DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
+  global plt5 = scatter(Tuple.(xy₁ᴾᴹᴸ[1:end-comput_domain, 1:end-comput_domain] |> vec), zcolor=vec(DU_FULL_PML₁), msw=0.0, ms=4)
+
+  max_err[i] = maximum(DU_FULL_PML₁)
+end 
+
+
+plot(plot(plt3, xlims=(0,8π), ylims=(-8π,8π)), plot(plt4, xlims=(0,8π), ylims=(-8π,8π)),size=(1600,800))

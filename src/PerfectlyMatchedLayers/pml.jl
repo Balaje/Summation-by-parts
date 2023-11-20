@@ -52,13 +52,13 @@ struct Tᴾᴹᴸ
 end
 function Tᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1]) 
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
-  P = [[[P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]] [[P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]]; 
-       [[P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]] [[P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]]]  
   # Compute the traction
   𝐧 = reshape(𝐧, (1,2))
-  JJ = Js(𝛀, 𝐧; X=I(2))  
-  Pn = (P[1,1]*abs(𝐧[1]) + P[1,2]*abs(𝐧[2]), P[2,1]*abs(𝐧[1]) + P[2,2]*abs(𝐧[2]))
-  Tr₁, Tr₂ = JJ\Pn[1], JJ\Pn[2]
+  JJ = Js(𝛀, 𝐧; X=I(2)) 
+  JJ⁻¹ = JJ\I(size(JJ,1)) 
+  Pn = ([P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]*abs(𝐧[1]) + [P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]*abs(𝐧[2]), 
+        [P_vec[1,3]   P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]*abs(𝐧[1]) + [P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]*abs(𝐧[2]))
+  Tr₁, Tr₂ = JJ⁻¹*Pn[1], JJ⁻¹*Pn[2]
   Tᴾᴹᴸ((X⊗Tr₁, X⊗Tr₂))
 end
 
