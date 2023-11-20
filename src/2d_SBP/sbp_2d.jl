@@ -75,8 +75,8 @@ struct Dqq <: SBP_TYPE
 end
 function Dqq(a_qr::AbstractMatrix{Float64})    
   m,n = size(a_qr)
-  D2q = [SBP_2_VARIABLE_0_1(m, a_qr[i,:]).D2 for i=1:n]
-  Er = [E1(i,i,m) for i=1:n]
+  D2q = [SBP_2_VARIABLE_0_1(n, a_qr[i,:]).D2 for i=1:m]
+  Er = [E1(i,i,(m,m)) for i=1:m]
   Dqq(sum(D2q .⊗ Er))
 end
 
@@ -91,8 +91,8 @@ struct Drr <: SBP_TYPE
 end
 function Drr(a_qr::AbstractMatrix{Float64})
   m,n = size(a_qr)
-  D2r = [SBP_2_VARIABLE_0_1(n, a_qr[:,i]).D2 for i=1:m]
-  Eq = [E1(i,i,n) for i=1:m]
+  D2r = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
+  Eq = [E1(i,i,(n,n)) for i=1:n]
   Drr(sum(Eq .⊗ D2r))
 end
 
@@ -108,8 +108,8 @@ end
 function Dqr(a_qr::AbstractMatrix{Float64})    
   A = spdiagm(vec(a_qr))    
   m,n = size(a_qr)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  sbp_q = SBP_1_2_CONSTANT_0_1(n)
+  sbp_r = SBP_1_2_CONSTANT_0_1(m)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)   
   D1q, D1r = sbp_2d.D1
   Dqr(D1q*A*D1r)
@@ -127,8 +127,8 @@ end
 function Drq(a_qr::AbstractMatrix{Float64})    
   A = spdiagm(vec(a_qr))    
   m,n = size(a_qr)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  sbp_q = SBP_1_2_CONSTANT_0_1(n)
+  sbp_r = SBP_1_2_CONSTANT_0_1(m)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   D1q, D1r = sbp_2d.D1
   Drq(D1r*A*D1q)
@@ -175,8 +175,8 @@ function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
   m,n = 𝛀.mn
   Ω(qr) = S(qr, 𝛀.domain)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
+  sbp_q = SBP_1_2_CONSTANT_0_1(n)
+  sbp_r = SBP_1_2_CONSTANT_0_1(m)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
@@ -198,7 +198,6 @@ Get the surface Jacobian matrix defined as
 """
 function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
   𝐧 = vec(𝐧)
-  m = 𝛀.mn[1]
   Ω(qr) = S(qr, 𝛀.domain) 
   qr = generate_2d_grid(𝛀.mn) 
   JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)

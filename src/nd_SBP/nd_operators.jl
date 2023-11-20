@@ -22,13 +22,14 @@ N2S(x,y,z) = Dict([(0,z), (1,x), (-1,y)])
 Surface Jacobian matrix
 """
 function _surface_jacobian(qr, Ω, 𝐧::AbstractVecOrMat{Int64}; X=[1])  
-  m = size(qr,1)
+  m1, m2 = size(qr)
   n(x) = reshape(Float64.(𝐧), (length(𝐧),1))
   nqr = n.(qr)
   Jqr = (det∘J).(qr, Ω).*J⁻¹.(qr, Ω)
   J_on_grid = spdiagm.(vec.(get_property_matrix_on_grid(Jqr, length(𝐧))))
   n_on_grid = spdiagm.(vec.(get_property_matrix_on_grid(nqr, length(𝐧))))  
-  n2s = kron(N2S(E1(m,m,m), E1(1,1,m), sparse(I(m))).(𝐧)...)
+  m2, m1 = N2S((m1,m2), 0, (m2,m1))[findall(𝐧 .!= [0,0])[1]-1]
+  n2s = kron(N2S(E1(m2,m2,m2), E1(1,1,m2), sparse(I(m1))).(𝐧)...)
   Jn_on_grid = ((J_on_grid)*(n_on_grid));
   X⊗sqrt.(sum([(Ji*n2s) for Ji in Jn_on_grid].^2))
 end
