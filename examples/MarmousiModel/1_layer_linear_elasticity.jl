@@ -15,42 +15,6 @@ Flatten the 2d function as a single vector for the time iterations.
 """
 eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
 
-## Define the material properties on the physical grid
-const E = 1.0;
-const ν = 0.33;
-
-"""
-The Lamé parameters μ, λ
-"""
-μ(x) = E/(2*(1+ν)) + 0.1*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
-λ(x) = E*ν/((1+ν)*(1-2ν)) + 0.1*(sin(2π*x[1]))^2*(sin(2π*x[2]))^2;
-
-"""
-The density of the material
-"""
-ρ(x) = 1.0
-
-"""
-Material properties coefficients of an anisotropic material
-"""
-c₁₁(x) = 2*μ(x)+λ(x)
-c₂₂(x) = 2*μ(x)+λ(x)
-c₃₃(x) = μ(x)
-c₁₂(x) = λ(x)
-
-"""
-The material property tensor in the physical coordinates
-𝒫(x) = [A(x) C(x); 
-        C(x)' B(x)]
-where A(x), B(x) and C(x) are the material coefficient matrices in the phyiscal domain. 
-"""
-𝒫(x) = @SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
-
-"""
-Cauchy Stress tensor using the displacement field.
-"""
-σ(∇u,x) = 𝒫(x)*∇u
-
 """
 Function to generate the stiffness matrices
 """
@@ -120,7 +84,7 @@ function split_solution(X, MN)
 end
 
 using MAT
-vars = matread("./examples/MarmousiModel/marmousi2_downsampled_20.mat");
+vars = matread("./examples/MarmousiModel/marmousi2_downsampled_10.mat");
 X = vars["X_e"]
 Z = vars["Z_e"]
 x = X[1,:]
@@ -161,12 +125,12 @@ C₁₁ = C₂₂ = 2*mu + lambda;
 C₃₃ = mu;
 C₁₂ = lambda;
 
-@SMatrix [c₁₁(x) 0 0 c₁₂(x); 0 c₃₃(x) c₃₃(x) 0; 0 c₃₃(x) c₃₃(x) 0; c₁₂(x) 0 0 c₂₂(x)];
 P = [@SMatrix [C₁₁[i,j] 0 0 C₁₂[i,j]; 0 C₃₃[i,j] C₃₃[i,j] 0; 0 C₃₃[i,j] C₃₃[i,j] 0; C₁₂[i,j] 0  0 C₂₂[i,j]] for i=1:m, j=1:n]
 
 stima = 𝐊!(P, 𝛀, 𝐪𝐫);
 massma = I(2) ⊗ spdiagm(vec(rho).^-1);
-U₀(p) = @SVector [exp(-1e-5*((p[1]-x[ceil(Int64,end/2)])^2 + (p[2]-z[ceil(Int64,end/2)])^2)), -exp(-1e-5*((p[1]-x[ceil(Int64,end/2)])^2 + (p[2]-z[ceil(Int64,end/2)])^2))];
+U₀(p) = @SVector [exp(-1e-3*((p[1]-8493.2)^2 + 4*(p[2]-(-1973.42))^2)) + exp(-1e-3*((p[1]-3000)^2 + 4*(p[2]-(-1000))^2)) + exp(-1e-3*((p[1]-14000)^2 + 4*(p[2]-(-3000))^2)), 
+                 -exp(-1e-3*((p[1]-8493.2)^2 + 4*(p[2]-(-1973.42))^2)) - exp(-1e-3*((p[1]-3000)^2 + 4*(p[2]-(-1000))^2)) + exp(-1e-3*((p[1]-14000)^2 + 4*(p[2]-(-3000))^2))];
 V₀(p) = @SVector [0.0,0.0]
 
 const Δt = 1e-3
@@ -201,15 +165,17 @@ let
   # end  every 10 
 end  
 
+using ColorSchemes
 u1ref₁,u2ref₁ = split_solution(Z₀, (m,n))
-plt3 = scatter(Tuple.(XZ |> vec), zcolor=vec(u1ref₁), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(3000,800), xtickfontsize=28, ytickfontsize=28, bottommargin=12*Plots.mm, topmargin=12*Plots.mm, titlefontsize=28, clims=(-0.15,0.15));  
+absu1 = sqrt.(u1ref₁.^2 + u2ref₁.^2);
+plt3 = heatmap(x, z, reshape(absu1, (m,n)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
 xlims!(plt3, (x[1], x[end]))  
 ylims!(plt3, (z[1], z[end]))  
-title!(plt3, "Time t="*string(tf))
+title!(plt3, "\$|u(x,y)|\$ at Time t="*string(tf))
 
-plt4 = scatter(Tuple.(XZ |> vec), zcolor=vec(rho), colormap=:redsblues, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(3000,800), xtickfontsize=28, ytickfontsize=28, bottommargin=12*Plots.mm, titlefontsize=28, topmargin=12*Plots.mm);   
+plt4 = heatmap(x, z, vp, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, titlefontsize=18, topmargin=15*Plots.mm, rightmargin=12*Plots.mm);   
 xlims!(plt4, (x[1], x[end]))  
 ylims!(plt4, (z[1], z[end])) 
-title!(plt4, "Density")
+title!(plt4, "Density of the material")
 
-plot(plt4, plt3, layout=(2,1), size=(3000,2000))
+plot(plt4, plt3, layout=(2,1), size=(1600,1600), rightmargin=12*Plots.mm)
