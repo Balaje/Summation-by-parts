@@ -240,17 +240,24 @@ The function only works for ::ConformingInterface
 function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface; X=[1])  
   Ω₁(qr) = S(qr, 𝛀₁.domain)
   Ω₂(qr) = S(qr, 𝛀₂.domain)
-  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
-  @assert 𝛀₁.mn == 𝛀₂.mn "The interface needs to be conforming"
-  m = 𝛀₁.mn[1]
-  qr = generate_2d_grid(𝛀₁.mn)
-  sbp = SBP_1_2_CONSTANT_0_1(m)
-  H = sbp.norm  
-  H⁻¹ = (H)\I(m) |> sparse    
-  B̂, B̃ = jump(m, 𝐧₁; X=X)
+  # @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
+  # @assert 𝛀₁.mn == 𝛀₂.mn "The interface needs to be conforming"
+  m₁, n₁ = 𝛀₁.mn
+  m₂, n₂ = 𝛀₂.mn
+  sbp_q₁, sbp_r₁ =  SBP_1_2_CONSTANT_0_1(m₁), SBP_1_2_CONSTANT_0_1(n₁)
+  sbp_q₂, sbp_r₂ =  SBP_1_2_CONSTANT_0_1(m₂), SBP_1_2_CONSTANT_0_1(n₂)
+  B̂, B̃ = jump((m₁,n₁), (m₂,n₂), 𝐧₁; X=X)
   Y = I(size(X,2))
-  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m,m,m), E1(1,1,m), H).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))      
-  (𝐃*B̂, 𝐃*B̃, (H⁻¹⊗H⁻¹)) 
+  n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧₁ .!= [0,0])[1]-1]
+  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]    
+  @assert n1==n2
+  m = n1
+  sbp = SBP_1_2_CONSTANT_0_1(m)   
+  H = sbp.norm
+  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m1,m1,m1), E1(1,1,m1), H).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m2,m2,m2), E1(1,1,m2), H).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))      
+  H₁⁻¹ = (sbp_q₁.norm\I(m₁)) ⊗ (sbp_r₁.norm\I(n₁))
+  H₂⁻¹ = (sbp_q₂.norm\I(m₂)) ⊗ (sbp_r₂.norm\I(n₂))
+  (𝐃*B̂, 𝐃*B̃, sparse(H₁⁻¹), sparse(H₂⁻¹))
 end
 
 """

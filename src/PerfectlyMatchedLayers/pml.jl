@@ -21,7 +21,7 @@ end
 function Pᴾᴹᴸ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
   P_vec = get_property_matrix_on_grid(Pqr, 2)
   P_vec_diag = [spdiagm(vec(p)) for p in P_vec]
-  m, n = size(Pqr)
+  n,m = size(Pqr)
   sbp_q = SBP_1_2_CONSTANT_0_1(m)
   sbp_r = SBP_1_2_CONSTANT_0_1(n)
   sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)

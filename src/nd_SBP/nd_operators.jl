@@ -4,11 +4,15 @@
 """
 Function to obtain the jump matrix corresponding to the normal vector
 """
-function jump(m::Int64, 𝐧::AbstractVecOrMat{Int64}; X=[1])
-  BH = [-(X ⊗ kron(N2S(E1(m,m,m), E1(1,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(m,1,m), E1(1,m,m), I(m)).(𝐧)...)); 
-        -(X ⊗ kron(N2S(E1(1,m,m), E1(m,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(1,1,m), E1(m,m,m), I(m)).(𝐧)...))]
-  BT = [-(X ⊗ kron(N2S(E1(m,m,m), E1(1,1,m), I(m)).(𝐧)...))  (X ⊗ kron(N2S(E1(m,1,m), E1(1,m,m), I(m)).(𝐧)...)); 
-        (X ⊗ kron(N2S(E1(1,m,m), E1(m,1,m), I(m)).(𝐧)...))  -(X ⊗ kron(N2S(E1(1,1,m), E1(m,m,m), I(m)).(𝐧)...))]
+function jump(mn₁, mn₂, 𝐧::AbstractVecOrMat{Int64}; X=[1])
+  m₁, n₁ = mn₁  
+  m₂, n₂ = mn₂
+  n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧 .!= [0,0])[1]-1]
+  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧 .!= [0,0])[1]-1]
+  BH = [-(X ⊗ kron(N2S(E1(m1,m1,(m1,m1)), E1(1,1,(m1,m1)), I(n1)).(𝐧)...))  (X ⊗ kron(N2S(E1(m1,1,(m1,m2)), E1(1,m2,(m1,m2)), I(n2)).(𝐧)...)); 
+        -(X ⊗ kron(N2S(E1(1,m1,(m2,m1)), E1(m2,1,(m2,m1)), I(n1)).(𝐧)...))  (X ⊗ kron(N2S(E1(1,1,(m2,m2)), E1(m2,m2,(m2,m2)), I(n2)).(𝐧)...))]
+  BT = [-(X ⊗ kron(N2S(E1(m1,m1,(m1,m1)), E1(1,1,(m1,m1)), I(n1)).(𝐧)...))  (X ⊗ kron(N2S(E1(m1,1,(m1,m2)), E1(1,m2,(m1,m2)), I(n2)).(𝐧)...)); 
+        (X ⊗ kron(N2S(E1(1,m1,(m2,m1)), E1(m2,1,(m2,m1)), I(n1)).(𝐧)...))  -(X ⊗ kron(N2S(E1(1,1,(m2,m2)), E1(m2,m2,(m2,m2)), I(n2)).(𝐧)...))]
   BH, BT
 end
 
