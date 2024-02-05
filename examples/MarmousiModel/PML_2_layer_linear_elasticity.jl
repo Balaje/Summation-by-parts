@@ -85,7 +85,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   J_vec_diag₁ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₁];
   Dx₁, Dy₁ = J_vec_diag₁*Dqr₁; 
 
-  # Obtain some quantities on the grid points on Layer 1
+  # Obtain some quantities on the grid points on Layer 2
   # Bulk Jacobian
   𝐉₂ = Jb(𝛀₂, 𝐪𝐫₂)
   𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
@@ -188,8 +188,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
-  h = 3000/(max(m₁,n₁,m₂,n₂)-1)
-  ζ₀ = 400/h  
+  h = 3/(max(m₁,n₁,m₂,n₂)-1)
+  ζ₀ = 200/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
   SATᵢ = blockdiag(I(12)⊗𝐇₁⁻¹, I(12)⊗𝐇₂⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
@@ -249,8 +249,8 @@ end
 
 using MAT
 vars1 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1_1401_downsampled_10.mat");
-X₁ = vars1["X"]
-Z₁ = vars1["Z"]
+X₁ = vars1["X_e"]/1000
+Z₁ = vars1["Z_e"]/1000
 x₁ = X₁[1,:]
 z₁ = Z₁[:,1]
 n₁, m₁ = size(X₁);
@@ -265,8 +265,8 @@ domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 
 vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_10.mat");
-X₂ = vars2["X"]
-Z₂ = vars2["Z"]
+X₂ = vars2["X"]/1000
+Z₂ = vars2["Z"]/1000
 x₂ = X₂[1,:]
 z₂ = Z₂[:,1]
 n₂, m₂ = size(X₂);
@@ -317,9 +317,9 @@ function 𝐙_t(𝒫, Ω, qr)
 end
 
 # Properties on Layer 1
-vp₁ = vars1["vp"];
-vs₁ = vars1["vs"];
-rho₁ = vars1["rho"];
+vp₁ = vars1["vp_e"]/1000;
+vs₁ = vars1["vs_e"]/1000;
+rho₁ = vars1["rho_e"]/1000;
 mu₁ = (vs₁.^2).*rho₁;
 lambda₁ = (vp₁.^2).*rho₁ - 2*mu₁;
 C₁₁¹ = C₂₂¹ = 2*mu₁ + lambda₁;
@@ -330,9 +330,9 @@ Z₁¹ = [@SMatrix [sqrt(C₁₁¹[i,j]*rho₁[i,j]) 0; 0 sqrt(C₃₃¹[i,j]*rh
 Z₂¹ = [@SMatrix [sqrt(C₃₃¹[i,j]*rho₁[i,j]) 0; 0 sqrt(C₂₂¹[i,j]*rho₁[i,j])] for i=1:n₁, j=1:m₁]
 
 # Properties on Layer 2
-vp₂ = vars2["vp"];
-vs₂ = vars2["vs"];
-rho₂ = vars2["rho"];
+vp₂ = vars2["vp"]/1000;
+vs₂ = vars2["vs"]/1000;
+rho₂ = vars2["rho"]/1000;
 mu₂ = (vs₂.^2).*rho₂;
 lambda₂ = (vp₂.^2).*rho₂ - 2*mu₂;
 C₁₁² = C₂₂² = 2*mu₂ + lambda₂;
@@ -387,10 +387,11 @@ Pᴾᴹᴸ₂ = [@SMatrix [C₁₁²[i,j]*(σₕ(Ω₂(𝐪𝐫₂[i,j])) - σ�
 𝒫ᴾᴹᴸ₁ = [Pt(Pᴾᴹᴸ₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁];
 𝒫ᴾᴹᴸ₂ = [Pt(Pᴾᴹᴸ₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂];
 
-stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫ᴾᴹᴸ₁, 𝒫ᴾᴹᴸ₂), ((Z₁¹, Z₂¹), (Z₁², Z₁²)), (rho₁, rho₂), (𝛀₁,𝛀₂), (𝐪𝐫₁,𝐪𝐫₂));
+stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫ᴾᴹᴸ₁, 𝒫ᴾᴹᴸ₂), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (rho₁, rho₂), (𝛀₁,𝛀₂), (𝐪𝐫₁,𝐪𝐫₂));
 massma =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (rho₁, rho₂));
 
-𝐔(x) = @SVector [exp(-1e-3*((x[1]-10000)^2 + (x[2]+500)^2)), -exp(-1e-3*((x[1]-10000)^2 + (x[2]+500)^2))]
+𝐔(x) = @SVector [exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2)), 
+                -exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -412,33 +413,59 @@ let
   k₃ = zeros(Float64, length(Z₀))
   k₄ = zeros(Float64, length(Z₀)) 
   M = massma*stima
-  # @gif for i=1:ntime
-  for i=1:ntime
+  @gif for i=1:ntime
+  # for i=1:ntime
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(M, sol)    
     t += Δt        
-    println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
+    (i%10 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
     u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ =  split_solution(Z₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-    plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(u1ref₁), colormap=:redsblues, ylabel="y(=r)", markersize=8, msw=0.0, label="", size=(1600,800));  
-    title!(plt3, "Time t="*string(t))
+    absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
+    absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
+
+    plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.1, label="", size=(800,800)); 
+    scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.1, label="", size=(800,800));
+    hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
+    vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+    xlims!(plt3, (x₁[1], x₁[end]))
+    ylims!(plt3, (z₂[1], z₁[end]))
+    title!(plt3, "\$|u(x,y)|\$ at Time t="*string(round(t,digits=4)));
+
+    plt4 = heatmap(x₁, z₁, vp₁, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));   
+    heatmap!(plt4, x₂, z₂, vp₂, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));
+    hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
+    vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+    title!(plt4, "Density of the material")
+
+    plot(plt3, plt4, layout=(1,2), size=(1200,800))
 
     maxvals[i] = max(maximum(abs.(u1ref₁)), maximum(abs.(u1ref₂)))
-  end
-  # end  every 10 
+  # end
+  end  every 10 
 end  
 
 using ColorSchemes
 u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-absu1 = u1ref₁;
-plt3 = heatmap(x₁, z₁, reshape(absu1, (m₁,n₁)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
+u1ref₂,u2ref₂ =  split_solution(Z₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
+absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
+# plt3 = heatmap(x₁, z₁, reshape(absu1, (m₁,n₁)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
+
+plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800)); 
+scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800));
+hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
+vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+xlims!(plt3, (x₁[1], x₁[end]))
+ylims!(plt3, (z₂[1], z₁[end]))
 title!(plt3, "\$|u(x,y)|\$ at Time t="*string(tf));
 
-# plt4 = heatmap(x, z, vp, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, titlefontsize=18, topmargin=15*Plots.mm, rightmargin=12*Plots.mm);   
-# xlims!(plt4, (x[1], x[end]))  
-# ylims!(plt4, (z[1], z[end])) 
-# title!(plt4, "Density of the material")
+plt4 = heatmap(x₁, z₁, vp₁, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));   
+heatmap!(plt4, x₂, z₂, vp₂, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));
+hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
+vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+title!(plt4, "Density of the material")
 
 # plot(plt4, plt3, layout=(2,1), size=(1600,1600), rightmargin=12*Plots.mm)
