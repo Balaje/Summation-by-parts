@@ -347,9 +347,9 @@ The PML damping
 """
 const Lᵥ = abs(z₂[1]-z₁[end])
 const Lₕ = x₁[end] - x₁[1]
-const δ = 0.1*(Lᵥ)
-const σ₀ᵛ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1*(Lₕ)
+const σ₀ᵛ = 8*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -358,6 +358,8 @@ Vertical PML strip
 function σᵥ(x)
   if((x[1] ≈ (x₁[1]+0.9*Lₕ)) || x[1] > (x₁[1]+0.9*Lₕ))
     return σ₀ᵛ*((x[1] - x₁[1] - 0.9*Lₕ)/δ)^3  
+  elseif((x[1] ≈ (x₁[1]+0.1*Lₕ)) || x[1] < (x₁[1]+0.1*Lₕ))
+    return σ₀ᵛ*((x₁[1] + 0.1*Lₕ - x[1])/δ)^3  
   else
     return 0.0
   end
@@ -390,8 +392,8 @@ Pᴾᴹᴸ₂ = [@SMatrix [C₁₁²[i,j]*(σₕ(Ω₂(𝐪𝐫₂[i,j])) - σ�
 stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫ᴾᴹᴸ₁, 𝒫ᴾᴹᴸ₂), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (rho₁, rho₂), (𝛀₁,𝛀₂), (𝐪𝐫₁,𝐪𝐫₂));
 massma =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (rho₁, rho₂));
 
-𝐔(x) = @SVector [exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2)), 
-                -exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2))]
+𝐔(x) = @SVector [exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2)) + exp(-200*((x[1]-(x₁[end]*0.25+x₁[1]*0.75))^2 + (x[2]-(0.25*z₂[end]+0.75*z₂[1]))^2)) , 
+                -exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2)) + exp(-200*((x[1]-(x₁[end]*0.25+x₁[1]*0.75))^2 + (x[2]-(0.25*z₂[end]+0.75*z₂[1]))^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -399,7 +401,7 @@ massma =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (r
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 1e-3
-tf = 4.0
+tf = 2.0
 ntime = ceil(Int, tf/Δt)
 
 let
@@ -407,7 +409,8 @@ let
   X₀ = vcat(eltocols(vec(𝐔.(XZ₁))), eltocols(vec(𝐏.(XZ₁))), eltocols(vec(𝐕.(XZ₁))), eltocols(vec(𝐖.(XZ₁))), eltocols(vec(𝐐.(XZ₁))), eltocols(vec(𝐑.(XZ₁))))
   Y₀ = vcat(eltocols(vec(𝐔.(XZ₂))), eltocols(vec(𝐏.(XZ₂))), eltocols(vec(𝐕.(XZ₂))), eltocols(vec(𝐖.(XZ₂))), eltocols(vec(𝐐.(XZ₂))), eltocols(vec(𝐑.(XZ₂))))
   global Z₀ = vcat(X₀, Y₀)
-  global maxvals = zeros(Float64, ntime)
+  global maxvals₁ = zeros(Float64, ntime)
+  global maxvals₂ = zeros(Float64, ntime)
   k₁ = zeros(Float64, length(Z₀))
   k₂ = zeros(Float64, length(Z₀))
   k₃ = zeros(Float64, length(Z₀))
@@ -418,7 +421,7 @@ let
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(M, sol)    
     t += Δt        
-    (i%10 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
+    (i%100 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
     u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
@@ -426,23 +429,26 @@ let
     absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
     absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
 
-    plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.1, label="", size=(800,800)); 
-    scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.1, label="", size=(800,800));
+    plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15)); 
+    scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15));    
     hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
     vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+    vline!(plt3, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
     xlims!(plt3, (x₁[1], x₁[end]))
     ylims!(plt3, (z₂[1], z₁[end]))
     title!(plt3, "\$|u(x,y)|\$ at Time t="*string(round(t,digits=4)));
 
-    plt4 = heatmap(x₁, z₁, vp₁, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));   
-    heatmap!(plt4, x₂, z₂, vp₂, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));
+    plt4 = heatmap(x₁, z₁, vp₁, markersize=4, msw=0.0, label="", size=(800,800));   
+    heatmap!(plt4, x₂, z₂, vp₂, markersize=4, msw=0.0, label="", size=(800,800));
     hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
     vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+    vline!(plt4, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
     title!(plt4, "Density of the material")
 
     plot(plt3, plt4, layout=(1,2), size=(1200,800))
 
-    maxvals[i] = max(maximum(abs.(u1ref₁)), maximum(abs.(u1ref₂)))
+    maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
+    maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
   # end
   end  every 10 
 end  
@@ -454,10 +460,11 @@ absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
 absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
 # plt3 = heatmap(x₁, z₁, reshape(absu1, (m₁,n₁)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
 
-plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800)); 
-scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800));
+plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15)); 
+scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15));
 hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
 vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+vline!(plt3, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
 xlims!(plt3, (x₁[1], x₁[end]))
 ylims!(plt3, (z₂[1], z₁[end]))
 title!(plt3, "\$|u(x,y)|\$ at Time t="*string(tf));
@@ -466,6 +473,13 @@ plt4 = heatmap(x₁, z₁, vp₁, ylabel="y(=r)", markersize=4, msw=0.0, label="
 heatmap!(plt4, x₂, z₂, vp₂, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800));
 hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
 vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
+vline!(plt4, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
 title!(plt4, "Density of the material")
 
-# plot(plt4, plt3, layout=(2,1), size=(1600,1600), rightmargin=12*Plots.mm)
+plot(plt3, plt4, layout=(1,2), size=(1200,800), rightmargin=12*Plots.mm)
+
+plt5_1 = plot();
+plt5_2 = plot();
+plot!(plt5_1, LinRange(0,tf,ntime), maxvals₁, yaxis = :log10, title="L²-norm Layer 1", label="PML", lw = 2)
+plot!(plt5_2, LinRange(0,tf,ntime), maxvals₂, yaxis = :log10, title="L²-norm Layer 2", label="PML", lw = 2)
+plot(plt5_1, plt5_2, layout=(1,2), size=(1200,800))

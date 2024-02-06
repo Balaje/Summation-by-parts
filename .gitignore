@@ -3,3 +3,4 @@
 *.vscode/
 Manifest.toml
 *~
+*.mat
