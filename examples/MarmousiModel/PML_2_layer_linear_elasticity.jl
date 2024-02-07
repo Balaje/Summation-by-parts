@@ -173,8 +173,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   Eᵢ¹ = E1(2,1,(6,6)) ⊗ I(2)
   Eᵢ² = E1(1,1,(6,6)) ⊗ I(2)
   # Get the jump matrices
-  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
-  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
+  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ¹)
+  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)
   # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
   Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
@@ -264,7 +264,7 @@ domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 𝛀₁ = DiscreteDomain(domain₁, (m₁,n₁));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 
-vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_10.mat");
+vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_20.mat");
 X₂ = vars2["X"]/1000
 Z₂ = vars2["Z"]/1000
 x₂ = X₂[1,:]
@@ -401,7 +401,7 @@ massma =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (r
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 1e-3
-tf = 2.0
+tf = 1.0
 ntime = ceil(Int, tf/Δt)
 
 let
@@ -416,12 +416,12 @@ let
   k₃ = zeros(Float64, length(Z₀))
   k₄ = zeros(Float64, length(Z₀)) 
   M = massma*stima
-  @gif for i=1:ntime
-  # for i=1:ntime
+  # @gif for i=1:ntime
+  for i=1:ntime
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(M, sol)    
     t += Δt        
-    (i%100 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
+    println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
     u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
@@ -449,8 +449,8 @@ let
 
     maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
     maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
-  # end
-  end  every 10 
+  end
+  # end  every 10 
 end  
 
 using ColorSchemes
@@ -460,8 +460,8 @@ absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
 absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
 # plt3 = heatmap(x₁, z₁, reshape(absu1, (m₁,n₁)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
 
-plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15)); 
-scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800), clims=(0,0.15));
+plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800)); 
+scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="", size=(800,800));
 hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
 vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
 vline!(plt3, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
@@ -478,8 +478,8 @@ title!(plt4, "Density of the material")
 
 plot(plt3, plt4, layout=(1,2), size=(1200,800), rightmargin=12*Plots.mm)
 
-plt5_1 = plot();
-plt5_2 = plot();
-plot!(plt5_1, LinRange(0,tf,ntime), maxvals₁, yaxis = :log10, title="L²-norm Layer 1", label="PML", lw = 2)
-plot!(plt5_2, LinRange(0,tf,ntime), maxvals₂, yaxis = :log10, title="L²-norm Layer 2", label="PML", lw = 2)
-plot(plt5_1, plt5_2, layout=(1,2), size=(1200,800))
+# plt5_1 = plot();
+# plt5_2 = plot();
+# plot!(plt5_1, LinRange(0,tf,ntime), maxvals₁, yaxis = :log10, title="L²-norm Layer 1", label="PML", lw = 2)
+# plot!(plt5_2, LinRange(0,tf,ntime), maxvals₂, yaxis = :log10, title="L²-norm Layer 2", label="PML", lw = 2)
+# plot(plt5_1, plt5_2, layout=(1,2), size=(1200,800))

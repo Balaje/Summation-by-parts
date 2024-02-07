@@ -70,3 +70,42 @@ function jump(m₁::Int64, m₂::Int64, 𝐧::AbstractVecOrMat{Int64}, qr₁, qr
   end
   BH, BT
 end
+
+"""
+Second version of jump() for non conforming interfaces
+"""
+function jump(mn₁, mn₂, 𝐪𝐫, 𝛀, 𝐧; X=[1])
+  @assert length(𝐧)==2 "Only Inpterpolation on 2d grids implemented for now"
+  m1, n1 = mn₁  
+  m2, n2 = mn₂
+  n₁, m₁ =  N2S((m1,n1), 0, (n1,m1))[findall(𝐧 .!= [0,0])[1]-1]
+  n₂, m₂ =  N2S((m2,n2), 0, (n2,m2))[findall(𝐧 .!= [0,0])[1]-1]
+  qr₁, qr₂ = 𝐪𝐫
+  Ω₁, Ω₂ = 𝛀
+  if(n₁ < n₂)
+    NC = n₁
+    NF = n₂
+    C2F, F2C = INTERPOLATION_4(NC)     
+    J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
+    J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))    
+    W₁ = (X ⊗ kron(N2S(E1(NC,NC,(NC,NC)), E1(1,1,(NC,NC)), sparse(I(m₁))).(𝐧)...))
+    Z₁ = (X ⊗ kron(N2S(E1(m₁,1,(m₁,m₂)), E1(1,m₂,(m₁,m₂)), J₁\(F2C*J₂) ).(𝐧)...))  
+    Z₂ = (X ⊗ kron(N2S(E1(1,m₁,(m₂,m₁)), E1(m₂,1,(m₂,m₁)), J₂\(C2F*J₁) ).(𝐧)...))
+    W₂ = (X ⊗ kron(N2S(E1(1,1,(NF,NF)), E1(NF,NF,(NF,NF)), sparse(I(m₂))).(𝐧)...))            
+    BH = [-W₁   Z₁;   -Z₂   W₂]
+    BT = [-W₁   Z₁;   Z₂   -W₂]
+  else    
+    NF = n₁
+    NC = n₂
+    C2F, F2C = INTERPOLATION_4(NC) 
+    J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
+    J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))
+    W₁ = (X ⊗ kron(N2S(E1(NF,NF,(NF,NF)), E1(1,1,(NF,NF)), sparse(I(m₁))).(𝐧)...))
+    Z₁ = (X ⊗ kron(N2S(E1(m₁,m₂,(m₁,m₂)), E1(m₁,m₂,(m₁,m₂)), J₁\(C2F*J₂) ).(𝐧)...))  
+    Z₂ = (X ⊗ kron(N2S(E1(1,m₁,(m₂,m₁)), E1(m₂,1,(m₂,m₁)), J₂\(F2C*J₁) ).(𝐧)...))
+    W₂ = (X ⊗ kron(N2S(E1(1,1,(NC,NC)), E1(NC,NC,(NC,NC)), sparse(I(m₂))).(𝐧)...))
+    BH = [-W₁   Z₁;   -Z₂   W₂]
+    BT = [-W₁   Z₁;   Z₂   -W₂]
+  end
+  BH, BT
+end

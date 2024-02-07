@@ -278,7 +278,7 @@ The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
 
 The function only works for ::NonConformingInterface
 """
-function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::NonConformingInterface; X=[1])  
+#= function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::NonConformingInterface; X=[1])  
   Ω₁(qr) = S(qr, 𝛀₁.domain)
   Ω₂(qr) = S(qr, 𝛀₂.domain)
   @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
@@ -296,4 +296,29 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   𝐃 = blockdiag(Y⊗(kron(N2S(E1(m₁,m₁,m₁), E1(1,1,m₁), H₁).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m₂,m₂,m₂), E1(1,1,m₂), H₂).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))        
   B̂, B̃ = jump(m₁, m₂, 𝐧₁, qr₁, qr₂, Ω₁, Ω₂; X=X)  
   (𝐃*B̂, 𝐃*B̃, sparse(H₁⁻¹⊗H₁⁻¹), sparse(H₂⁻¹⊗H₂⁻¹))
+end =#
+
+function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::NonConformingInterface; X=[1])  
+  Ω₁(qr) = S(qr, 𝛀₁.domain)
+  Ω₂(qr) = S(qr, 𝛀₂.domain)
+  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
+  m₁, n₁ = 𝛀₁.mn
+  m₂, n₂ = 𝛀₂.mn
+  qr₁ = generate_2d_grid(𝛀₁.mn)
+  qr₂ = generate_2d_grid(𝛀₂.mn)
+  B̂, B̃ = jump((m₁,n₁), (m₂,n₂), (qr₁, qr₂), (Ω₁, Ω₂), 𝐧₁; X=X)    
+  n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧₁ .!= [0,0])[1]-1]
+  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]
+  sbp_q₁, sbp_r₁ =  SBP_1_2_CONSTANT_0_1(m1), SBP_1_2_CONSTANT_0_1(n1)
+  sbp_q₂, sbp_r₂ =  SBP_1_2_CONSTANT_0_1(m2), SBP_1_2_CONSTANT_0_1(n2)
+  Hq₁ = sbp_q₁.norm;  Hr₁ = sbp_r₁.norm
+  Hq₂ = sbp_q₂.norm;  Hr₂ = sbp_r₂.norm    
+  Y = I(size(X,2))    
+  𝐃 = blockdiag(Y⊗(Js(𝛀₁, 𝐧₁)*kron(N2S(E1(n1,n1,(n1,n1)), E1(1,1,(n1,n1)), Hq₁).(𝐧₁)...)), Y⊗(Js(𝛀₂, 𝐧₂)*kron(N2S(E1(1,1,(n2,n2)), E1(n2,n2,(n2,n2)), Hq₂).(-𝐧₁)...)))  
+  # 𝐃 = blockdiag(Y⊗((I(m1)⊗Hr₁)*Js(𝛀₁, 𝐧₁)), Y⊗((I(m2)⊗Hr₂)*Js(𝛀₂, 𝐧₂)))
+  Hq₁⁻¹ = (sbp_q₁.norm\I(m1))
+  Hr₁⁻¹ = (sbp_r₁.norm\I(n1))
+  Hq₂⁻¹ = (sbp_q₂.norm\I(m2))
+  Hr₂⁻¹ = (sbp_r₂.norm\I(n2))
+  (𝐃*B̂, 𝐃*B̃, sparse(Hq₁⁻¹⊗Hr₁⁻¹), sparse(Hq₂⁻¹⊗Hr₂⁻¹))
 end
