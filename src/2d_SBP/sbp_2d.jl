@@ -200,7 +200,7 @@ function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
   𝐧 = vec(𝐧)
   Ω(qr) = S(qr, 𝛀.domain) 
   qr = generate_2d_grid(𝛀.mn) 
-  JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)
+  JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)  
   JJ0 = spdiagm(ones(size(JJ1,1)))  
   i,j,v = findnz(JJ1)
   for k=1:lastindex(v)
@@ -305,17 +305,16 @@ function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::Ab
   m₁, n₁ = 𝛀₁.mn
   m₂, n₂ = 𝛀₂.mn
   qr₁ = generate_2d_grid(𝛀₁.mn)
-  qr₂ = generate_2d_grid(𝛀₂.mn)
-  B̂, B̃ = jump((m₁,n₁), (m₂,n₂), (qr₁, qr₂), (Ω₁, Ω₂), 𝐧₁; X=X)    
+  qr₂ = generate_2d_grid(𝛀₂.mn)    
   n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧₁ .!= [0,0])[1]-1]
-  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]
+  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]  
+  B̂, B̃ = jump((n1,m1), (n2,m2), (qr₁, qr₂), (Ω₁, Ω₂), 𝐧₁; X=X)    
   sbp_q₁, sbp_r₁ =  SBP_1_2_CONSTANT_0_1(m1), SBP_1_2_CONSTANT_0_1(n1)
   sbp_q₂, sbp_r₂ =  SBP_1_2_CONSTANT_0_1(m2), SBP_1_2_CONSTANT_0_1(n2)
   Hq₁ = sbp_q₁.norm;  Hr₁ = sbp_r₁.norm
   Hq₂ = sbp_q₂.norm;  Hr₂ = sbp_r₂.norm    
-  Y = I(size(X,2))    
-  𝐃 = blockdiag(Y⊗(Js(𝛀₁, 𝐧₁)*kron(N2S(E1(n1,n1,(n1,n1)), E1(1,1,(n1,n1)), Hq₁).(𝐧₁)...)), Y⊗(Js(𝛀₂, 𝐧₂)*kron(N2S(E1(1,1,(n2,n2)), E1(n2,n2,(n2,n2)), Hq₂).(-𝐧₁)...)))  
-  # 𝐃 = blockdiag(Y⊗((I(m1)⊗Hr₁)*Js(𝛀₁, 𝐧₁)), Y⊗((I(m2)⊗Hr₂)*Js(𝛀₂, 𝐧₂)))
+  Y = I(size(X,2))   
+  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m1,m1,m1), E1(1,1,m1), Hr₁).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m2,m2,m2), E1(1,1,m2), Hr₂).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))  
   Hq₁⁻¹ = (sbp_q₁.norm\I(m1))
   Hr₁⁻¹ = (sbp_r₁.norm\I(n1))
   Hq₂⁻¹ = (sbp_q₂.norm\I(m2))

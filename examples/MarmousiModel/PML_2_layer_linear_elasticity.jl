@@ -248,7 +248,7 @@ function split_solution(X, MN, P)
 end
 
 using MAT
-vars1 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1_1401_downsampled_10.mat");
+vars1 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1_1401_downsampled_20.mat");
 X₁ = vars1["X_e"]/1000
 Z₁ = vars1["Z_e"]/1000
 x₁ = X₁[1,:]
@@ -264,7 +264,7 @@ domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 𝛀₁ = DiscreteDomain(domain₁, (m₁,n₁));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 
-vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_20.mat");
+vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_10.mat");
 X₂ = vars2["X"]/1000
 Z₂ = vars2["Z"]/1000
 x₂ = X₂[1,:]
@@ -348,7 +348,7 @@ The PML damping
 const Lᵥ = abs(z₂[1]-z₁[end])
 const Lₕ = x₁[end] - x₁[1]
 const δ = 0.1*(Lₕ)
-const σ₀ᵛ = 8*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -421,7 +421,7 @@ let
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(M, sol)    
     t += Δt        
-    println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
+    (i%100 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
     u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
