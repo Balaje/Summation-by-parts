@@ -51,16 +51,16 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   ρ₁, ρ₂ = 𝛒
 
   # Get the 2d SBP operators on the reference grid
-  n₁, m₁ = size(𝐪𝐫₁)
-  sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
-  sbp_r₁ = SBP_1_2_CONSTANT_0_1(n₁)
+  m₁, n₁ = size(𝐪𝐫₁)
+  sbp_q₁ = SBP_1_2_CONSTANT_0_1(n₁)
+  sbp_r₁ = SBP_1_2_CONSTANT_0_1(m₁)
   sbp_2d₁ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₁, sbp_r₁)
   𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, 𝐇r₀⁻¹₁, 𝐇rₙ⁻¹₁ = sbp_2d₁.norm
   Dq₁, Dr₁ = sbp_2d₁.D1
   Dqr₁ = [I(2)⊗Dq₁, I(2)⊗Dr₁]
-  n₂, m₂ = size(𝐪𝐫₂)
-  sbp_q₂ = SBP_1_2_CONSTANT_0_1(m₂)
-  sbp_r₂ = SBP_1_2_CONSTANT_0_1(n₂)
+  m₂, n₂ = size(𝐪𝐫₂)
+  sbp_q₂ = SBP_1_2_CONSTANT_0_1(n₂)
+  sbp_r₂ = SBP_1_2_CONSTANT_0_1(m₂)
   sbp_2d₂ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
   𝐇q₀⁻¹₂, 𝐇qₙ⁻¹₂, 𝐇r₀⁻¹₂, 𝐇rₙ⁻¹₂ = sbp_2d₂.norm
   Dq₂, Dr₂ = sbp_2d₂.D1
@@ -74,9 +74,9 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   # 𝐙₁₂¹ = 𝐙((Z₁¹,Z₂¹), Ω₁, 𝐪𝐫₁);
   # 𝛔₁₂¹ = 𝐙((x->σₕ(x)*Z₁¹(x), x->σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
   # 𝛕₁₂¹ = 𝐙((x->σₕ(x)*σᵥ(x)*Z₁¹(x), x->σₕ(x)*σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
-  𝐙₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j], Z₂¹[i,j] ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁], 2)
-  𝛔₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j]*σₕ(Ω₁(𝐪𝐫₁[i,j])), Z₂¹[i,j]*σᵥ(Ω₁(𝐪𝐫₁[i,j])) ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁], 2)
-  𝛕₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j]*σₕ(Ω₁(𝐪𝐫₁[i,j]))*σᵥ(Ω₁(𝐪𝐫₁[i,j])), Z₂¹[i,j]*σᵥ(Ω₁(𝐪𝐫₁[i,j]))*σₕ(Ω₁(𝐪𝐫₁[i,j])) ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁], 2)  
+  𝐙₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j], Z₂¹[i,j] ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:m₁, j=1:n₁], 2)
+  𝛔₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j]*σₕ(Ω₁(𝐪𝐫₁[i,j])), Z₂¹[i,j]*σᵥ(Ω₁(𝐪𝐫₁[i,j])) ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:m₁, j=1:n₁], 2)
+  𝛕₁₂¹ = get_property_matrix_on_grid([𝐙_t(( Z₁¹[i,j]*σₕ(Ω₁(𝐪𝐫₁[i,j]))*σᵥ(Ω₁(𝐪𝐫₁[i,j])), Z₂¹[i,j]*σᵥ(Ω₁(𝐪𝐫₁[i,j]))*σₕ(Ω₁(𝐪𝐫₁[i,j])) ), Ω₁, 𝐪𝐫₁[i,j]) for i=1:m₁, j=1:n₁], 2)  
   𝛔ᵥ¹ = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫₁))));  𝛔ₕ¹ = I(2) ⊗ spdiagm(σₕ.(Ω₁.(vec(𝐪𝐫₁))));
   𝛒₁ = I(2) ⊗ spdiagm(vec(ρ₁))
   # Get the transformed gradient
@@ -93,9 +93,9 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   # 𝐙₁₂² = 𝐙((Z₁²,Z₂²), Ω₂, 𝐪𝐫₂);
   # 𝛔₁₂² = 𝐙((x->σₕ(x)*Z₁²(x), x->σᵥ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)
   # 𝛕₁₂² = 𝐙((x->σᵥ(x)*σₕ(x)*Z₁²(x), x->σᵥ(x)*σₕ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)  
-  𝐙₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j], Z₂²[i,j] ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂], 2)
-  𝛔₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j]*σₕ(Ω₂(𝐪𝐫₂[i,j])), Z₂²[i,j]*σᵥ(Ω₂(𝐪𝐫₂[i,j])) ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂], 2)
-  𝛕₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j]*σₕ(Ω₂(𝐪𝐫₂[i,j]))*σᵥ(Ω₂(𝐪𝐫₂[i,j])), Z₂²[i,j]*σᵥ(Ω₂(𝐪𝐫₂[i,j]))*σₕ(Ω₂(𝐪𝐫₂[i,j])) ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂], 2) 
+  𝐙₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j], Z₂²[i,j] ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:m₂, j=1:n₂], 2)
+  𝛔₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j]*σₕ(Ω₂(𝐪𝐫₂[i,j])), Z₂²[i,j]*σᵥ(Ω₂(𝐪𝐫₂[i,j])) ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:m₂, j=1:n₂], 2)
+  𝛕₁₂² = get_property_matrix_on_grid([𝐙_t(( Z₁²[i,j]*σₕ(Ω₂(𝐪𝐫₂[i,j]))*σᵥ(Ω₂(𝐪𝐫₂[i,j])), Z₂²[i,j]*σᵥ(Ω₂(𝐪𝐫₂[i,j]))*σₕ(Ω₂(𝐪𝐫₂[i,j])) ), Ω₂, 𝐪𝐫₂[i,j]) for i=1:m₂, j=1:n₂], 2) 
   𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₂.(vec(𝐪𝐫₂))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫₂))));
   𝛒₂ = I(2) ⊗ spdiagm(vec(ρ₂))
   # Get the transformed gradient
@@ -173,8 +173,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   Eᵢ¹ = E1(2,1,(6,6)) ⊗ I(2)
   Eᵢ² = E1(1,1,(6,6)) ⊗ I(2)
   # Get the jump matrices
-  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
-  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
+  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ¹)
+  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)
   # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
   Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
@@ -189,7 +189,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
   h = 3/(max(m₁,n₁,m₂,n₂)-1)
-  ζ₀ = 200/h  
+  ζ₀ = 300/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
   SATᵢ = blockdiag(I(12)⊗𝐇₁⁻¹, I(12)⊗𝐇₂⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
@@ -207,8 +207,8 @@ function 𝐌2⁻¹ₚₘₗ(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪�
   ρ₁, ρ₂ = 𝛒
   𝛀₁, 𝛀₂ = 𝛀
   𝐪𝐫₁, 𝐪𝐫₂ = 𝐪𝐫
-  m₁, n₁ = size(𝐪𝐫₁)
-  m₂, n₂ = size(𝐪𝐫₂)
+  m₁, n₁ = 𝛀₁.mn
+  m₂, n₂ = 𝛀₂.mn
   Id₁ = sparse(I(2)⊗I(m₁)⊗I(n₁))
   Id₂ = sparse(I(2)⊗I(m₂)⊗I(n₂))
   Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -264,7 +264,7 @@ domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 𝛀₁ = DiscreteDomain(domain₁, (m₁,n₁));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 
-vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_10.mat");
+vars2 = matread("./examples/MarmousiModel/marmousi2_crop_x_7206_9608_z0_1401_2801_downsampled_20.mat");
 X₂ = vars2["X"]/1000
 Z₂ = vars2["Z"]/1000
 x₂ = X₂[1,:]
@@ -319,9 +319,9 @@ end
 # Properties on Layer 1
 vp₁ = vars1["vp_e"]/1000;
 vs₁ = vars1["vs_e"]/1000;
-rho₁ = vars1["rho_e"]/1000;
-mu₁ = (vs₁.^2).*rho₁;
-lambda₁ = (vp₁.^2).*rho₁ - 2*mu₁;
+rho₁ = (vars1["rho_e"]/1000);
+mu₁ = ((vs₁.^2).*rho₁);
+lambda₁ = ((vp₁.^2).*rho₁ - 2*mu₁);
 C₁₁¹ = C₂₂¹ = 2*mu₁ + lambda₁;
 C₃₃¹ = mu₁;
 C₁₂¹ = lambda₁;
@@ -332,9 +332,9 @@ Z₂¹ = [@SMatrix [sqrt(C₃₃¹[i,j]*rho₁[i,j]) 0; 0 sqrt(C₂₂¹[i,j]*rh
 # Properties on Layer 2
 vp₂ = vars2["vp"]/1000;
 vs₂ = vars2["vs"]/1000;
-rho₂ = vars2["rho"]/1000;
-mu₂ = (vs₂.^2).*rho₂;
-lambda₂ = (vp₂.^2).*rho₂ - 2*mu₂;
+rho₂ = (vars2["rho"]/1000);
+mu₂ = ((vs₂.^2).*rho₂);
+lambda₂ = ((vp₂.^2).*rho₂ - 2*mu₂);
 C₁₁² = C₂₂² = 2*mu₂ + lambda₂;
 C₃₃² = mu₂;
 C₁₂² = lambda₂;
@@ -348,7 +348,7 @@ The PML damping
 const Lᵥ = abs(z₂[1]-z₁[end])
 const Lₕ = x₁[end] - x₁[1]
 const δ = 0.1*(Lₕ)
-const σ₀ᵛ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 8*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^3) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -384,12 +384,13 @@ Pᴾᴹᴸ₂ = [@SMatrix [C₁₁²[i,j]*(σₕ(Ω₂(𝐪𝐫₂[i,j])) - σ�
                    0 0 0 C₂₂²[i,j]*(σᵥ(Ω₂(𝐪𝐫₂[i,j])) - σₕ(Ω₂(𝐪𝐫₂[i,j])))] 
                    for i=1:n₂, j=1:m₂]
 
-𝒫₁ = [Pt(P₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁];
-𝒫₂ = [Pt(P₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂];
-𝒫ᴾᴹᴸ₁ = [Pt(Pᴾᴹᴸ₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁];
-𝒫ᴾᴹᴸ₂ = [Pt(Pᴾᴹᴸ₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂];
+                  
+ℙ₁ = [Pt(P₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁];
+ℙ₂ = [Pt(P₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂];
+ℙᴾᴹᴸ₁ = [Pt(Pᴾᴹᴸ₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:n₁, j=1:m₁];
+ℙᴾᴹᴸ₂ = [Pt(Pᴾᴹᴸ₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:n₂, j=1:m₂];
 
-stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫ᴾᴹᴸ₁, 𝒫ᴾᴹᴸ₂), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (rho₁, rho₂), (𝛀₁,𝛀₂), (𝐪𝐫₁,𝐪𝐫₂));
+stima = 𝐊2ₚₘₗ((ℙ₁,ℙ₂), (ℙᴾᴹᴸ₁, ℙᴾᴹᴸ₂), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (rho₁, rho₂), (𝛀₁,𝛀₂), (𝐪𝐫₁,𝐪𝐫₂));
 massma =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (rho₁, rho₂));
 
 𝐔(x) = @SVector [exp(-200*((x[1]-(x₁[end]*0.75+x₁[1]*0.25))^2 + (x[2]-(0.25*z₁[end]+0.75*z₁[1]))^2)) + exp(-200*((x[1]-(x₁[end]*0.25+x₁[1]*0.75))^2 + (x[2]-(0.25*z₂[end]+0.75*z₂[1]))^2)) , 
@@ -469,8 +470,8 @@ xlims!(plt3, (x₁[1], x₁[end]))
 ylims!(plt3, (z₂[1], z₁[end]))
 title!(plt3, "\$|u(x,y)|\$ at Time t="*string(tf));
 
-plt4 = heatmap(x₁, z₁, vp₁, markersize=4, msw=0.0, label="", size=(800,800))   
-heatmap!(plt4, x₂, z₂, vp₂, markersize=4, msw=0.0, label="", size=(800,800))
+plt4 = heatmap(x₁, z₁, rho₁, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800))   
+heatmap!(plt4, x₂, z₂, rho₂, ylabel="y(=r)", markersize=4, msw=0.0, label="", size=(800,800))
 hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
 vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
 vline!(plt4, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
@@ -480,6 +481,6 @@ plt34 = plot(plt3, plt4, layout=(1,2), size=(1200,800), rightmargin=12*Plots.mm)
 
 plt5_1 = plot();
 plt5_2 = plot();
-plot!(plt5_1, LinRange(0,tf,ntime), maxvals₁, yaxis = :log10, title="L²-norm Layer 1", label="PML", lw = 2)
-plot!(plt5_2, LinRange(0,tf,ntime), maxvals₂, yaxis = :log10, title="L²-norm Layer 2", label="PML", lw = 2)
+plot!(plt5_1, LinRange(0,tf,ntime), maxvals₁, title="L²-norm Layer 1", label="PML", lw = 2)
+plot!(plt5_2, LinRange(0,tf,ntime), maxvals₂, title="L²-norm Layer 2", label="PML", lw = 2)
 plt5 = plot(plt5_1, plt5_2, layout=(1,2), size=(1200,800))
