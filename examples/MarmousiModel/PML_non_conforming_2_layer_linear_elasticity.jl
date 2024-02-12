@@ -451,7 +451,7 @@ let
     maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
     maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
   end
-  # end  every 10 
+  # end every 10 
 end  
 
 using ColorSchemes
@@ -461,8 +461,8 @@ absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
 absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
 # plt3 = heatmap(x₁, z₁, reshape(absu1, (m₁,n₁)), colormap=:matter, ylabel="y(=r)", label="", size=(800,800), xtickfontsize=18, ytickfontsize=18, bottommargin=12*Plots.mm, topmargin=15*Plots.mm, rightmargin=20*Plots.mm, titlefontsize=20, clims=(0, 0.02));  
 
-plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:matter, markersize=8, msw=0.0, label=""); 
-scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:matter, markersize=8, msw=0.0, label="");
+plt3 = heatmap(x₁, z₁, reshape(absu1, (n₁,m₁)), colormap=:matter, label=""); 
+heatmap!(x₂, z₂, reshape(absu2, (n₂,m₂)), colormap=:matter, label=""); 
 hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
 vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
 vline!(plt3, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
