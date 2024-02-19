@@ -186,6 +186,7 @@ function 𝐊3ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   EQ6₁ = sum(es .⊗ eq6s₁)
   EQ6₂ = sum(es .⊗ eq6s₂)
   EQ6₃ = sum(es .⊗ eq6s₃)
+  display("Done building the bulk equations. Applying boundary conditions.")
 
   es = [E1(2,i,(6,6)) for i=1:6];
   # PML characteristic boundary conditions  
@@ -223,11 +224,10 @@ function 𝐊3ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   # Get the jump matrices
   # Layer 1-2
   B̂₁₂,  B̃₁₂, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ¹)
-  B̂₁₂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)
+  B̂₁₂ᵀ, _, 𝐇₁⁻¹₁, 𝐇₂⁻¹₁ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)
   # Layer 2-3
   B̂₂₃,  B̃₂₃, _ = SATᵢᴱ(𝛀₂, 𝛀₃, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ¹)
-  B̂₂₃ᵀ, _, 𝐇₂⁻¹, 𝐇₃⁻¹ = SATᵢᴱ(𝛀₂, 𝛀₃, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)  
-
+  B̂₂₃ᵀ, _, 𝐇₁⁻¹₂, 𝐇₂⁻¹₂ = SATᵢᴱ(𝛀₂, 𝛀₃, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)  
   # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
   Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
@@ -258,19 +258,20 @@ function 𝐊3ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   𝐓rᵢ²³ = blockdiag(𝐓r₀², 𝐓rₙ³)      
   𝐓rᵢᵀ₂₃ = blockdiag(𝐓rᵀ₀², 𝐓rᵀₙ³)
 
-  h = 3/(max(m₁,n₁,m₂,n₂,m₃,n₃)-1)
-  ζ₀ = 300/h  
+  h = 1/(max(m₁,n₁,m₂,n₂,m₃,n₃)-1)
+  ζ₀ = 600/h  
   # Assemble the interface SAT
   𝐉₁₂ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)  
   𝐉₂₃ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₃⁻¹)  
-  SATᵢ¹² = blockdiag(blockdiag(I(12)⊗𝐇₁⁻¹, I(12)⊗𝐇₂⁻¹)*𝐉₁₂*(0.5*B̂₁₂*𝐓rᵢ¹² - 0.5*𝐓rᵢᵀ₁₂*B̂₁₂ᵀ - ζ₀*B̃₁₂), I(6)⊗zero(𝐏₃))
-  SATᵢ²³ = blockdiag(I(6)⊗zero(𝐏₁), blockdiag(I(12)⊗𝐇₂⁻¹, I(12)⊗𝐇₃⁻¹)*𝐉₂₃*(0.5*B̂₂₃*𝐓rᵢ²³ - 0.5*𝐓rᵢᵀ₂₃*B̂₂₃ᵀ - ζ₀*B̃₂₃))
+  SATᵢ¹² = blockdiag(blockdiag(I(12)⊗𝐇₁⁻¹₁, I(12)⊗𝐇₂⁻¹₁)*𝐉₁₂*(0.5*B̂₁₂*𝐓rᵢ¹² - 0.5*𝐓rᵢᵀ₁₂*B̂₁₂ᵀ - ζ₀*B̃₁₂), I(6)⊗zero(𝐏₃))
+  SATᵢ²³ = blockdiag(I(6)⊗zero(𝐏₁), blockdiag(I(12)⊗𝐇₁⁻¹₂, I(12)⊗𝐇₂⁻¹₂)*𝐉₂₃*(0.5*B̂₂₃*𝐓rᵢ²³ - 0.5*𝐓rᵢᵀ₂₃*B̂₂₃ᵀ - ζ₀*B̃₂₃))
 
   # The SBP-SAT Formulation
   bulk = blockdiag((EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁), 
                    (EQ1₂ + EQ2₂ + EQ3₂ + EQ4₂ + EQ5₂ + EQ6₂), 
                    (EQ1₃ + EQ2₃ + EQ3₃ + EQ4₃ + EQ5₃ + EQ6₃));  
   SATₙ = blockdiag(SAT₁, SAT₂, SAT₃)
+  display("Done building the LHS.")
   bulk - SATᵢ¹² - SATᵢ²³ - SATₙ;
 end
 

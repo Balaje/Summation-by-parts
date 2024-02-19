@@ -50,6 +50,7 @@ function jump(mn₁, mn₂, 𝐪𝐫, 𝛀, 𝐧; X=[1])
   if(m₁ < m₂)
     NC = m₁
     NF = m₂    
+    @assert NF == 2*NC - 1
     C2F, F2C = INTERPOLATION_4(NC)     
     J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
     J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))      
@@ -62,6 +63,7 @@ function jump(mn₁, mn₂, 𝐪𝐫, 𝛀, 𝐧; X=[1])
   else    
     NF = m₁
     NC = m₂
+    @assert NF == 2*NC - 1
     C2F, F2C = INTERPOLATION_4(NC) 
     J₁ = spdiagm(((_surface_jacobian(qr₁, Ω₁, 𝐧; X=[1]) |> diag).nzval).^(0.5))
     J₂ = spdiagm(((_surface_jacobian(qr₂, Ω₂, -𝐧; X=[1]) |> diag).nzval).^(0.5))      

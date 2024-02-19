@@ -53,28 +53,29 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 c₀³(r) = @SVector [x₂[1], z₂[1] + (cᵢ(0)[2] - z₂[1])*r] # Left boundary 
 c₁³(q) = @SVector [x₂[1] + (x₂[end]-x₂[1])*q, z₂[1]] # Bottom boundary
 c₂³(r) = @SVector [x₂[end], z₂[1] + (cᵢ(1)[2] - z₂[1])*r] # Right boundary
-c₃³(q) = cᵢ(q)
+c₃³(q) = cᵢ(q) # Top boundary
 domain₃ = domain_2d(c₀³, c₁³, c₂³, c₃³)
 
-# Reference grids on the two layers
-𝐪𝐫₁ = generate_2d_grid((51,51));
-𝐪𝐫₂ = generate_2d_grid((101,101));
-𝐪𝐫₃ = generate_2d_grid((51,51));
+M₁, N₁ = 41, 201
+M₂, N₂ = 51, 401
+M₃, N₃ = 41, 201
 
-XZ₁ = Ω₁.(𝐪𝐫₁)
-XZ₂ = Ω₂.(𝐪𝐫₂);
-XZ₃ = Ω₃.(𝐪𝐫₃);
-M₁, N₁ = size(XZ₁)
-M₂, N₂ = size(XZ₂)
-M₃, N₃ = size(XZ₃)
-
-𝛀₁ = DiscreteDomain(domain₁, size(𝐪𝐫₁));
-𝛀₂ = DiscreteDomain(domain₂, size(𝐪𝐫₂));
-𝛀₃ = DiscreteDomain(domain₃, size(𝐪𝐫₃));
+𝛀₁ = DiscreteDomain(domain₁, (N₁,M₁));
+𝛀₂ = DiscreteDomain(domain₂, (N₂,M₂));
+𝛀₃ = DiscreteDomain(domain₃, (N₃,M₃));
 
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 Ω₂(qr) = S(qr, 𝛀₂.domain);
 Ω₃(qr) = S(qr, 𝛀₃.domain);
+
+# Reference grids on the two layers
+𝐪𝐫₁ = generate_2d_grid(𝛀₁.mn);
+𝐪𝐫₂ = generate_2d_grid(𝛀₂.mn);
+𝐪𝐫₃ = generate_2d_grid(𝛀₃.mn);
+
+XZ₁ = Ω₁.(𝐪𝐫₁)
+XZ₂ = Ω₂.(𝐪𝐫₂);
+XZ₃ = Ω₃.(𝐪𝐫₃);
 
 ###################################################
 # CONSTRUCT THE MATERIAL PROPERTIES ON THE DOMAIN #
