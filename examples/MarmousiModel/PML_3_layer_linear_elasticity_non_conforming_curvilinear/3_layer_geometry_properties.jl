@@ -3,7 +3,8 @@ using StaticArrays
 using LinearAlgebra
 using SparseArrays
 using ForwardDiff
-using Plots
+# Install pyplot for this to work ....
+using PyPlot
 
 using SplitApplyCombine
 using LoopVectorization
