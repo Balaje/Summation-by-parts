@@ -20,7 +20,7 @@ function σᵥ(x)
     return 0.5*σ₀ᵛ*(1 + tanh((x[1] - x₁[1] - 0.9*Lₕ)))
   elseif((x[1] ≈ (x₁[1]+0.1*Lₕ)) || x[1] < (x₁[1]+0.1*Lₕ))
     # return σ₀ᵛ*((x₁[1] + 0.1*Lₕ - x[1])/δ)^3  
-    0.5*σ₀ᵛ*(1 + tanh((x₁[1] + 0.1*Lₕ - x[1])))
+    return 0.5*σ₀ᵛ*(1 + tanh((x₁[1] + 0.1*Lₕ - x[1])))
   else
     return 0.0
   end
@@ -53,9 +53,9 @@ Pᴾᴹᴸ₃ = [@SMatrix [C₁₁³[i,j]*(σₕ(Ω₃(𝐪𝐫₃[i,j])) - σ�
 ℙ₁ = [Pt(P₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:M₁, j=1:N₁];
 ℙ₂ = [Pt(P₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:M₂, j=1:N₂];
 ℙ₃ = [Pt(P₃[i,j], Ω₃, 𝐪𝐫₃[i,j]) for i=1:M₃, j=1:N₃];
-ℙᴾᴹᴸ₁ = [Pt(Pᴾᴹᴸ₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:M₁, j=1:N₁];
-ℙᴾᴹᴸ₂ = [Pt(Pᴾᴹᴸ₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:M₂, j=1:N₂];
-ℙᴾᴹᴸ₃ = [Pt(Pᴾᴹᴸ₃[i,j], Ω₃, 𝐪𝐫₃[i,j]) for i=1:M₃, j=1:N₃];
+ℙᴾᴹᴸ₁ = [Ptᴾᴹᴸ(Pᴾᴹᴸ₁[i,j], Ω₁, 𝐪𝐫₁[i,j]) for i=1:M₁, j=1:N₁];
+ℙᴾᴹᴸ₂ = [Ptᴾᴹᴸ(Pᴾᴹᴸ₂[i,j], Ω₂, 𝐪𝐫₂[i,j]) for i=1:M₂, j=1:N₂];
+ℙᴾᴹᴸ₃ = [Ptᴾᴹᴸ(Pᴾᴹᴸ₃[i,j], Ω₃, 𝐪𝐫₃[i,j]) for i=1:M₃, j=1:N₃];
 
 stima = 𝐊3ₚₘₗ((ℙ₁,ℙ₂,ℙ₃), (ℙᴾᴹᴸ₁, ℙᴾᴹᴸ₂, ℙᴾᴹᴸ₃), ((Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³)), (RHO₁, RHO₂, RHO₃), (𝛀₁,𝛀₂,𝛀₃), (𝐪𝐫₁,𝐪𝐫₂,𝐪𝐫₃));
 massma =  𝐌3⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃), (RHO₁, RHO₂, RHO₃));
@@ -69,7 +69,7 @@ massma =  𝐌3⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃), (𝐪𝐫₁, 𝐪�
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 1e-4
-tf = 1.0
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
 
 let
@@ -80,6 +80,7 @@ let
   global Z₀ = vcat(W₀, X₀, Y₀)
   global maxvals₁ = zeros(Float64, ntime)
   global maxvals₂ = zeros(Float64, ntime)
+  global maxvals₃ = zeros(Float64, ntime)
   k₁ = zeros(Float64, length(Z₀))
   k₂ = zeros(Float64, length(Z₀))
   k₃ = zeros(Float64, length(Z₀))
@@ -100,32 +101,9 @@ let
     absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
     absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
 
-    # plt3 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(absu1), colormap=:tempo, markersize=5, msw=0, label="", markershape=:rect); 
-    # scatter!(plt3, Tuple.(XZ₂ |> vec), zcolor=vec(absu2), colormap=:tempo, markersize=5, msw=0, label="", markershape=:rect);    
-    # scatter!(plt3, Tuple.(XZ₃ |> vec), zcolor=vec(absu3), colormap=:tempo, markersize=5, msw=0, label="", markershape=:rect)
-    # hline!(plt3, [z₁[1]], lc=:black, lw=2, label="Interface")
-    # scatter!(plt3, Tuple.(cᵢ.(LinRange(0,1,100))), mc=:black, msw=0.0, ms=4)
-    # vline!(plt3, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
-    # vline!(plt3, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
-    # xlims!(plt3, (x₁[1], x₁[end]))
-    # ylims!(plt3, (z₂[1], z₁[end]))
-    # title!(plt3, "\$|u(x,y)|\$ at Time t="*string(round(t,digits=4)));
-
-    # plt4 = scatter(Tuple.(XZ₁ |> vec), zcolor=vec(RHO₁), markersize=5, msw=0, label="", markershape=:rect); 
-    # scatter!(plt4, Tuple.(XZ₂ |> vec), zcolor=vec(RHO₂), markersize=5, msw=0, label="", markershape=:rect);    
-    # scatter!(plt4, Tuple.(XZ₃ |> vec), zcolor=vec(RHO₃), markersize=5, msw=0, label="", markershape=:rect)
-    # hline!(plt4, [z₁[1]], lc=:black, lw=2, label="Interface")
-    # scatter!(plt4, Tuple.(cᵢ.(LinRange(0,1,100))), mc=:black, msw=0.0, ms=4)
-    # vline!(plt4, [(x₁[1]+0.9*Lₕ)], lc=:darkgreen, lw=2, label="x ≥ Lₓ (PML)")
-    # vline!(plt4, [(x₁[1]+0.1*Lₕ)], lc=:darkgreen, lw=2, label="x ≤ Lₓ (PML)")
-    # xlims!(plt4, (x₁[1], x₁[end]))
-    # ylims!(plt4, (z₂[1], z₁[end]))
-    # title!(plt4, "p-wave speed of the material")
-
-    # plot(plt3, plt4, layout=(2,1), size=(1200,800))
-
     maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
     maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
+    maxvals₃[i] = sqrt(norm(u1ref₃,2)^2 + norm(u2ref₃)^2)
   end
   # end every 1000
 end  
@@ -146,39 +124,58 @@ XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
 
 pyplot()
 
-scalefontsizes(1/1.8)
+PyPlot.matplotlib[:rc]("text", usetex=true) 
+PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
+PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
-plt3 = Plots.contourf(XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:turbo,clims=(1,5))
-Plots.contourf!(plt3, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:turbo,clims=(1,5))
-Plots.contourf!(plt3, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:turbo,clims=(1,5))
-Plots.plot!(plt3, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:pink, label="Interface 1")
-Plots.plot!(plt3, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:pink, label="Interface 2")
-Plots.vline!(plt3, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≥ Lₓ (PML)")
-Plots.vline!(plt3, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≤ Lₓ (PML)", legend=:topleft, size=(1600,600), 
-             topmargin=1*Plots.cm, bottommargin=1*Plots.cm, leftmargin=1*Plots.cm)
-Plots.xlims!(plt3, (x₁[1],x₁[end]))
+# scalefontsizes(2)
+
+
+plt3 = Plots.contourf(XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:matter, clims=(1,5))
+Plots.contourf!(plt3, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:matter, clims=(1,5))
+Plots.contourf!(plt3, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:matter, clims=(1,5))
+Plots.annotate!(plt3, 10, -0.2, ("Layer 1", 20, :black))
+Plots.annotate!(plt3, 10, -1.8, ("Layer 2", 20, :black))
+Plots.annotate!(plt3, 14, -3.2, ("Layer 3", 20, :black))
+Plots.annotate!(plt3, 16.2, -2, ("\$ \\sigma_0^v = 0\$", 20, :black))
+Plots.plot!(plt3, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:black, label="")
+Plots.plot!(plt3, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:black, label="")
+Plots.vline!(plt3, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:black, ls=:dash, label="")
+Plots.vline!(plt3, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,600))
+# Plots.vspan!(plt3, [(x₁[1]+0.9*Lₕ),x₁[end]], fillalpha=0.5, fillcolor=:orange, label="")
+Plots.xlims!(plt3, (0.5*x₁[end],x₁[end]))
 Plots.ylims!(plt3, (z₂[1],z₁[end]))
+Plots.xlabel!(plt3, "\$x\$ (in km)")
+Plots.ylabel!(plt3, "\$z\$ (in km)")
 
-plt4 = Plots.contourf(XC₂, ZC₂, reshape(C₃₃², size(XC₂)...), label="", colormap=:turbo)
-Plots.contourf!(plt4, XC₃, ZC₃, reshape(C₃₃³, size(XC₃)...), label="", colormap=:turbo)
-Plots.contourf!(plt4, XC₁, ZC₁, reshape(C₃₃¹, size(XC₁)...), colormap=:turbo, label="",clims=(0.01,15))
-Plots.plot!(plt4, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:pink, label="Interface 1")
-Plots.plot!(plt4, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:pink, label="Interface 2")
-Plots.vline!(plt4, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≥ Lₓ (PML)")
-Plots.vline!(plt4, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≤ Lₓ (PML)", legend=:topleft, size=(1600,600), 
-             topmargin=1*Plots.cm, bottommargin=1*Plots.cm, leftmargin=1*Plots.cm)
+plt4 = Plots.contourf(XC₂, ZC₂, reshape(C₃₃², size(XC₂)...), label="", colormap=:matter)
+Plots.contourf!(plt4, XC₃, ZC₃, reshape(C₃₃³, size(XC₃)...), label="", colormap=:matter)
+Plots.contourf!(plt4, XC₁, ZC₁, reshape(C₃₃¹, size(XC₁)...), colormap=:matter, label="", clims=(0.01,15))
+Plots.annotate!(plt4, 3, -0.2, ("Layer 1", 10, :black))
+Plots.annotate!(plt4, 3, -1.8, ("Layer 2", 10, :black))
+Plots.annotate!(plt4, 14, -3.2, ("Layer 3", 10, :black))
+Plots.plot!(plt4, [0,x₁[end]],[-3.34,-2.47], lw=3, lc=:white, label="", xtickfont=:black)
+Plots.plot!(plt4, [0,x₁[end]],[z₁[1],z₁[1]], lw=3, lc=:black, label="", xtickfont=:black)
+Plots.vline!(plt4, [(x₁[1]+0.9*Lₕ)], lw=2, lc=:black, ls=:dash, label="")
+Plots.vline!(plt4, [(x₁[1]+0.1*Lₕ)], lw=2, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,300))
+Plots.vspan!(plt4, [(x₁[1]+0.9*Lₕ),x₁[end]], fillalpha=0.5, fillcolor=:orange, label="")
+Plots.vspan!(plt4, [x₁[1],(x₁[1]+0.1*Lₕ)], fillalpha=0.5, fillcolor=:orange, label="")
 Plots.xlims!(plt4, (x₁[1],x₁[end]))
 Plots.ylims!(plt4, (z₂[1],z₁[end]))
+Plots.xlabel!(plt4, "\$x\$ (in km)")
+Plots.ylabel!(plt4, "\$z\$ (in km)")
 
-plt5 = Plots.contourf(XC₂, ZC₂, reshape(σᵥ.(Ω₂.(𝐪𝐫₂)), size(XC₂)...), label="", colormap=:turbo)
-Plots.contourf!(plt5, XC₃, ZC₃, reshape(σᵥ.(Ω₃.(𝐪𝐫₃)), size(XC₃)...), label="", colormap=:turbo)
-Plots.contourf!(plt5, XC₁, ZC₁, reshape(σᵥ.(Ω₁.(𝐪𝐫₁)), size(XC₁)...), colormap=:turbo, label="")
-Plots.plot!(plt5, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:pink, label="Interface 1")
-Plots.plot!(plt5, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:pink, label="Interface 2")
-Plots.vline!(plt5, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≥ Lₓ (PML)")
-Plots.vline!(plt5, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:pink, ls=:dash, label="x ≤ Lₓ (PML)", legend=:topleft, size=(1600,600), 
-             topmargin=1*Plots.cm, bottommargin=1*Plots.cm, leftmargin=1*Plots.cm)
+plt5 = Plots.contourf(XC₂, ZC₂, reshape(σᵥ.(Ω₂.(𝐪𝐫₂)), size(XC₂)...), label="", colormap=:matter)
+Plots.contourf!(plt5, XC₃, ZC₃, reshape(σᵥ.(Ω₃.(𝐪𝐫₃)), size(XC₃)...), label="", colormap=:matter)
+Plots.contourf!(plt5, XC₁, ZC₁, reshape(σᵥ.(Ω₁.(𝐪𝐫₁)), size(XC₁)...), colormap=:matter, label="")
+Plots.annotate!(plt5, 3, -0.2, "Layer 1", :black)
+Plots.annotate!(plt5, 3, -1.8, "Layer 2", :black)
+Plots.annotate!(plt5, 12, -3.2, "Layer 3", :black)
+Plots.plot!(plt5, [0,x₁[end]],[-3.34,-2.47], lw=3, lc=:black, label="")
+Plots.plot!(plt5, [0,x₁[end]],[z₁[1],z₁[1]], lw=3, lc=:black, label="")
+Plots.vline!(plt5, [(x₁[1]+0.9*Lₕ)], lw=2, lc=:black, ls=:dash, label="")
+Plots.vline!(plt5, [(x₁[1]+0.1*Lₕ)], lw=2, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,300))
 Plots.xlims!(plt5, (x₁[1],x₁[end]))
 Plots.ylims!(plt5, (z₂[1],z₁[end]))
-
-# Plots.plot(plt3, plt4, layout=(2,1), size=(1600,1200))
+Plots.xlabel!(plt5, "\$x\$ (in km)")
+Plots.ylabel!(plt5, "\$z\$ (in km)")
