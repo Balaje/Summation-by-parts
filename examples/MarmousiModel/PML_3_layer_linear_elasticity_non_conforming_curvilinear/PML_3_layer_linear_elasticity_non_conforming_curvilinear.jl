@@ -68,10 +68,11 @@ massma =  𝐌3⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃), (𝐪𝐫₁, 𝐪�
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-const Δt = 1e-4
-tf = 1.0
+const Δt = 8e-4
+tf = 80.0
 ntime = ceil(Int, tf/Δt)
 
+# scalefontsizes()
 let
   t = 0.0
   W₀ = vcat(eltocols(vec(𝐔.(XZ₁))), eltocols(vec(𝐏.(XZ₁))), eltocols(vec(𝐕.(XZ₁))), eltocols(vec(𝐖.(XZ₁))), eltocols(vec(𝐐.(XZ₁))), eltocols(vec(𝐑.(XZ₁))))
@@ -86,8 +87,8 @@ let
   k₃ = zeros(Float64, length(Z₀))
   k₄ = zeros(Float64, length(Z₀)) 
   M = massma*stima
-  # @gif for i=1:ntime
-  for i=1:ntime
+  @gif for i=1:ntime
+  # for i=1:ntime
     sol = Z₀, k₁, k₂, k₃, k₄
     Z₀ = RK4_1!(M, sol)    
     t += Δt        
@@ -101,11 +102,33 @@ let
     absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
     absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
 
+    # Add code to plot to generate the GIFs
+    XC₁ = getX.(XZ₁); ZC₁ = getY.(XZ₁) 
+    XC₂ = getX.(XZ₂); ZC₂ = getY.(XZ₂) 
+    XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
+
+    plt3 = Plots.contourf(XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:matter)
+    Plots.contourf!(plt3, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:matter)
+    Plots.contourf!(plt3, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:matter, cbar=:none)
+    Plots.annotate!(plt3, 10, -0.2, ("Layer 1", 10, :black))
+    Plots.annotate!(plt3, 10, -1.8, ("Layer 2", 10, :black))
+    Plots.annotate!(plt3, 14, -3.2, ("Layer 3", 10, :black))
+    Plots.annotate!(plt3, 16.2, -2, ("\$ \\sigma_0^v = 8\$", 10, :black))
+    Plots.plot!(plt3, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:black, label="")
+    Plots.plot!(plt3, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:black, label="")
+    Plots.vline!(plt3, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:black, ls=:dash, label="")
+    Plots.vline!(plt3, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,300))
+    # Plots.vspan!(plt3, [(x₁[1]+0.9*Lₕ),x₁[end]], fillalpha=0.5, fillcolor=:orange, label="")
+    Plots.xlims!(plt3, (0.0,x₁[end]))
+    Plots.ylims!(plt3, (z₂[1],z₁[end]))
+    Plots.xlabel!(plt3, "\$x\$ (in km)")
+    Plots.ylabel!(plt3, "\$z\$ (in km)")
+
     maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
     maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
     maxvals₃[i] = sqrt(norm(u1ref₃,2)^2 + norm(u2ref₃)^2)
-  end
-  # end every 1000
+  # end
+  end every 100
 end  
 
 u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
@@ -115,22 +138,12 @@ absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
 absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
 absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
 
-getX(ARR) = ARR[1]
-getY(ARR) = ARR[2]
-
+# Get the x-and-y coordinates separately
 XC₁ = getX.(XZ₁); ZC₁ = getY.(XZ₁) 
 XC₂ = getX.(XZ₂); ZC₂ = getY.(XZ₂) 
 XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
 
-using Plots
-pyplot()
-
-PyPlot.matplotlib[:rc]("text", usetex=true) 
-PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
-PyPlot.matplotlib[:rc]("font",family="serif",size=20)
-
 # scalefontsizes()
-
 
 plt3 = Plots.contourf(XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:matter, clims=(1,5))
 Plots.contourf!(plt3, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:matter, clims=(1,5))
@@ -166,3 +179,10 @@ Plots.xlims!(plt4, (x₁[1],x₁[end]))
 Plots.ylims!(plt4, (z₂[1],z₁[end]))
 Plots.xlabel!(plt4, "\$x\$ (in km)")
 Plots.ylabel!(plt4, "\$z\$ (in km)")
+
+# scalefontsizes(3)
+plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals₁, label="Layer 1", lw=2)
+Plots.plot!(LinRange(0,tf,ntime), maxvals₂, label="Layer 2", lw=2)
+Plots.plot!(LinRange(0,tf,ntime), maxvals₃, label="Layer 3", lw=2, size=(1000,600))
+Plots.xlabel!(plt5, "Time \$t\$")
+Plots.ylabel!(plt5, "\$ \\| u \\|_{l^2(\\Omega_{i})} \$")

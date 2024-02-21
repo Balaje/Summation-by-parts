@@ -5,6 +5,13 @@ using SparseArrays
 using ForwardDiff
 # Install pyplot for this to work ....
 using PyPlot
+using Plots
+pyplot()
+using LaTeXStrings
+
+PyPlot.matplotlib[:rc]("text", usetex=true) 
+PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
+PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
 using LoopVectorization

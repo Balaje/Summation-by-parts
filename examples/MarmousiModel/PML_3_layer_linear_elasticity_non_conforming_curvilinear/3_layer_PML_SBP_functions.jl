@@ -329,6 +329,12 @@ function split_solution(X, MN, P)
   (u1,u2)
 end
 
+"""
+Functions to get the X and Y grids
+"""
+getX(A) = A[1]
+getY(A) = A[2]
+
 ##### ##### ##### ##### ##### ##### ##### ##### ##### ##
 #   Transform material properties to reference grid    #
 ##### ##### ##### ##### ##### ##### ##### ##### ##### ##
