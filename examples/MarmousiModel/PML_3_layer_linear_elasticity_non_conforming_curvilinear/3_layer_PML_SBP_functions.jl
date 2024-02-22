@@ -303,7 +303,7 @@ end
 """
 A non-allocating implementation of the RK4 scheme
 """
-function RK4_1!(M, sol)  
+function RK4_1!(Δt, M, sol)  
   X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
   mul!(k₁, M, X₀);

@@ -68,8 +68,8 @@ massma =  𝐌3⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃), (𝐪𝐫₁, 𝐪�
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-const Δt = 8e-4
-tf = 80.0
+const Δt = 5e-4
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
 
 # scalefontsizes()
@@ -87,10 +87,10 @@ let
   k₃ = zeros(Float64, length(Z₀))
   k₄ = zeros(Float64, length(Z₀)) 
   M = massma*stima
-  @gif for i=1:ntime
-  # for i=1:ntime
+  # @gif for i=1:ntime
+  for i=1:ntime
     sol = Z₀, k₁, k₂, k₃, k₄
-    Z₀ = RK4_1!(M, sol)    
+    Z₀ = RK4_1!(Δt, M, sol)    
     t += Δt        
     (i%100 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
@@ -102,7 +102,7 @@ let
     absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
     absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
 
-    # Add code to plot to generate the GIFs
+    #= # Add code to plot to generate the GIFs
     XC₁ = getX.(XZ₁); ZC₁ = getY.(XZ₁) 
     XC₂ = getX.(XZ₂); ZC₂ = getY.(XZ₂) 
     XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
@@ -122,13 +122,13 @@ let
     Plots.xlims!(plt3, (0.0,x₁[end]))
     Plots.ylims!(plt3, (z₂[1],z₁[end]))
     Plots.xlabel!(plt3, "\$x\$ (in km)")
-    Plots.ylabel!(plt3, "\$z\$ (in km)")
+    Plots.ylabel!(plt3, "\$z\$ (in km)") =#
 
     maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
     maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
     maxvals₃[i] = sqrt(norm(u1ref₃,2)^2 + norm(u2ref₃)^2)
-  # end
-  end every 100
+  end
+  # end every 100
 end  
 
 u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
@@ -162,19 +162,17 @@ Plots.ylims!(plt3, (z₂[1],z₁[end]))
 Plots.xlabel!(plt3, "\$x\$ (in km)")
 Plots.ylabel!(plt3, "\$z\$ (in km)")
 
-plt4 = Plots.contourf(XC₂, ZC₂, reshape(C₃₃², size(XC₂)...), label="", colormap=:matter)
-Plots.contourf!(plt4, XC₃, ZC₃, reshape(C₃₃³, size(XC₃)...), label="", colormap=:matter)
-Plots.contourf!(plt4, XC₁, ZC₁, reshape(C₃₃¹, size(XC₁)...), colormap=:matter, label="", clims=(0.01,15))
-Plots.contourf!(plt4, XC₂, ZC₂, reshape(σᵥ.(Ω₂.(𝐪𝐫₂)), size(XC₂)...), label="", colormap=:grays, alpha=0.5)
-Plots.contourf!(plt4, XC₃, ZC₃, reshape(σᵥ.(Ω₃.(𝐪𝐫₃)), size(XC₃)...), label="", colormap=:grays, alpha=0.5)
-Plots.contourf!(plt4, XC₁, ZC₁, reshape(σᵥ.(Ω₁.(𝐪𝐫₁)), size(XC₁)...), colormap=:grays, label="", alpha=0.5, cbar=true)
-Plots.annotate!(plt4, 3, -0.2, ("Layer 1", 10, :black))
-Plots.annotate!(plt4, 3, -1.8, ("Layer 2", 10, :black))
-Plots.annotate!(plt4, 14, -3.2, ("Layer 3", 10, :white))
-Plots.plot!(plt4, [0,x₁[end]],[-3.34,-2.47], lw=3, lc=:white, label="", xtickfont=:black)
-Plots.plot!(plt4, [0,x₁[end]],[z₁[1],z₁[1]], lw=3, lc=:black, label="", xtickfont=:black)
-Plots.vline!(plt4, [(x₁[1]+0.9*Lₕ)], lw=2, lc=:black, ls=:dash, label="")
-Plots.vline!(plt4, [(x₁[1]+0.1*Lₕ)], lw=2, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,300))
+plt4 = Plots.contourf(X₂, Z₂, vs₂, label="", colormap=:matter)
+Plots.contourf!(plt4, X₁, Z₁, vs₁, label="", colormap=:matter)
+Plots.annotate!(plt4, 16.2, -1.5, ("\\textbf{PML}", 10, :black))
+Plots.annotate!(plt4, 0.8, -1.5, ("\\textbf{PML}", 10, :black))
+Plots.annotate!(plt4, 3, -0.2, ("\\textbf{Layer 1}", 10, :black))
+Plots.annotate!(plt4, 3, -1.5, ("\\textbf{Layer 2}", 10, :black))
+Plots.annotate!(plt4, 14, -3.2, ("\\textbf{Layer 3}", 10, :white))
+Plots.plot!(plt4, [0,x₁[end]],[-3.34,-2.47], lw=1, lc=:white, label="", xtickfont=:black)
+Plots.plot!(plt4, [0,x₁[end]],[z₁[1],z₁[1]], lw=1, lc=:black, label="", xtickfont=:black)
+Plots.vline!(plt4, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:black, ls=:dash, label="")
+Plots.vline!(plt4, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,300))
 Plots.xlims!(plt4, (x₁[1],x₁[end]))
 Plots.ylims!(plt4, (z₂[1],z₁[end]))
 Plots.xlabel!(plt4, "\$x\$ (in km)")
