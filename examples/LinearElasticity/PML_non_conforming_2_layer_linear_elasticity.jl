@@ -1,7 +1,33 @@
-include("2d_elasticity_problem.jl");
+# include("2d_elasticity_problem.jl");
+using SBP
+using StaticArrays
+using LinearAlgebra
+using SparseArrays
+using ForwardDiff
+
+# Needs pyplot() for this to work ...
+using PyPlot
+using Plots
+pyplot()
+using LaTeXStrings
+using ColorSchemes
+PyPlot.matplotlib[:rc]("text", usetex=true) 
+PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
+PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
 using LoopVectorization
+
+"""
+Flatten the 2d function as a single vector for the time iterations.
+  (...Basically convert vector of vectors to matrix...)
+"""
+eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+
+"""
+Get the x-and-y coordinates from coordinates
+"""
+getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
 cᵢ(q) = @SVector [4.4π*q, 4π*0.1*sin(8π*q)]
@@ -64,7 +90,8 @@ Vertical PML strip
 """
 function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
-    return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
+    # return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
+    return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
   else
     return 0.0
   end
@@ -72,9 +99,11 @@ end
 
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
-    return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
+    # return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
+    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
-    return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+    # return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   else  
     return 0.0
   end  
@@ -325,21 +354,16 @@ end
 """
 Function to split the solution into the corresponding variables
 """
-function split_solution(X, N)  
-  res = splitdimsview(reshape(X, (N^2, 12)))
+function split_solution(X, MN, P)    
+  res = splitdimsview(reshape(X, (prod(MN), P)))
   u1, u2 = res[1:2]
-  p1, p2 = res[3:4]
-  v1, v2 = res[5:6]
-  w1, w2 = res[7:8]
-  q1, q2 = res[9:10]
-  r1, r2 = res[11:12]
-  (u1,u2), (p1,p2), (v1, v2), (w1,w2), (q1,q2), (r1,r2)
+  (u1,u2)
 end
 
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-4*((x[1]-2.2π)^2 + (x[2]-2.2π)^2)), -exp(-4*((x[1]-2.2π)^2 + (x[2]-2.2π)^2))]
+𝐔(x) = @SVector [exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2)), -exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -347,7 +371,7 @@ Initial conditions
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 5e-3
-tf = 100.0
+tf = 3.0
 ntime = ceil(Int, tf/Δt)
 N₁ = 81;
 N₂ = 41;
@@ -373,38 +397,34 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀)) 
   M = massma*stima
-  @gif for i=1:ntime
-  # for i=1:ntime
+  # @gif for i=1:ntime
+  for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M, sol)    
     t += Δt    
     (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
-    # Plotting part for 
-    u1ref₁,u2ref₁ = split_solution(X₀[1:12N₁^2], N₁)[1];
-    u1ref₂,u2ref₂ = split_solution(X₀[12N₁^2+1:12N₁^2+12N₂^2], N₂)[1];
-
-    plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-    scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N₁)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1, size=(800,800));    
-    scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N₁)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-    scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N₁)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-    title!(plt3, "Time t="*string(t))
-  # end
-  end  every 25  
+  end
+  # end  every 25  
   global Xref = X₀
 end  
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:12N₁^2], N₁)[1];
-u1ref₂,u2ref₂ = split_solution(Xref[12N₁^2+1:12N₁^2+12N₂^2], N₂)[1];
-plt3 = scatter(Tuple.(vec(xy₁)), zcolor=vec(u1ref₁), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.(vec(xy₂)), zcolor=vec(u1ref₂), colormap=:turbo, ylabel="y(=r)", markersize=4, msw=0.01, label="");
-scatter!(plt3, Tuple.([[Lᵥ,q] for q in LinRange(Ω₂([0.0,0.0])[2],Ω₁([1.0,1.0])[2],N₁)]), label="x ≥ "*string(round(Lᵥ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1, size=(800,800));    
-scatter!(plt3, Tuple.([[q,Lₕ] for q in LinRange(Ω₁([0.0,1.0])[1],Ω₁([1.0,1.0])[1],N₁)]), label="y ≥ "*string(round(Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);    
-scatter!(plt3, Tuple.([[q,-Lₕ] for q in LinRange(Ω₂([0.0,0.0])[1],Ω₂([1.0,0.0])[1],N₁)]), label="y ≥ "*string(round(-Lₕ,digits=3))*" (PML)", markercolor=:white, markersize=2, msw=0.1);       
-title!(plt3, "Time t="*string(tf))
+u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-plt1 = scatter(Tuple.(xy₁ |> vec), zcolor=σₕ.(xy₁ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
-scatter!(plt1, Tuple.(xy₂ |> vec), zcolor=σₕ.(xy₂ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
-plt2 = scatter(Tuple.(xy₁ |> vec), zcolor=σᵥ.(xy₁ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
-scatter!(plt2, Tuple.(xy₂ |> vec), zcolor=σᵥ.(xy₂ |> vec), colormap=:turbo, xlabel="x(=q)", ylabel="y(=r)", title="PML Damping Function", label="", ms=4, msw=0.1)
+plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
+Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
+Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
+xlims!((0,Lᵥ+δ))
+ylims!((-Lₕ-δ,Lₕ+δ))
+title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+
+plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.0, ms=2, label="Layer 1")
+Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.0, ms=2, label="Layer 2", size=(400,500))
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:green, lw=1, size=(400,500))
+xlims!((0,Lᵥ+δ))
+ylims!((-Lₕ-δ,Lₕ+δ))
+title!(plt4, "Finite Difference Mesh")
