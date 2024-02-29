@@ -57,7 +57,7 @@ const Lₕ = 3.6π
 const δ = 0.1*4π  
 const δ′ = 0.1*4π # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = (δ > 0.0) ? 0*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -67,7 +67,8 @@ function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
     return (δ > 0.0) ? σ₀ᵛ*((x[1] - Lᵥ)/δ)^3 : 0.0
   elseif((x[1] ≈ δ) || x[1] < δ)
-    return (δ > 0.0) ? σ₀ᵛ*((δ - x[1])/δ)^3 : 0.0
+    # return (δ > 0.0) ? σ₀ᵛ*((δ - x[1])/δ)^3 : 0.0
+    0.0
   else 
     return 0.0      
   end
@@ -110,76 +111,16 @@ Z₂¹(x) = @SMatrix [√(c₃₃¹(x)*ρ₁(x))  0;  0 √(c₂₂¹(x)*ρ₁(x
 Z₁²(x) = @SMatrix [√(c₁₁²(x)*ρ₂(x))  0;  0 √(c₃₃²(x)*ρ₂(x))]
 Z₂²(x) = @SMatrix [√(c₃₃²(x)*ρ₂(x))  0;  0 √(c₂₂²(x)*ρ₂(x))]
 
-"""
-Function to obtain the stiffness matrix corresponding to the 2-layer linear elasticity
-"""
-function 𝐊2!(𝒫, 𝛀::Tuple{DiscreteDomain, DiscreteDomain},  𝐪𝐫)
-  𝒫¹, 𝒫² = 𝒫
-  𝛀₁, 𝛀₂ = 𝛀
-  Ω₁(qr) = S(qr, 𝛀₁.domain)
-  Ω₂(qr) = S(qr, 𝛀₂.domain)
-  @assert 𝛀₁.mn == 𝛀₂.mn "Grid size need to be equal"
-  (size(𝐪𝐫) != 𝛀₁.mn) && begin
-    @warn "Grid not same size. Using the grid size in DiscreteDomain and overwriting the reference grid.."
-    𝐪𝐫 = generate_2d_grid(𝛀.mn)
-  end
-  # Get the bulk and the traction operator for the 1st layer
-  detJ₁(x) = (det∘J)(x, Ω₁)
-  Pqr₁ = P2R.(𝒫¹, Ω₁, 𝐪𝐫) # Property matrix evaluated at grid points
-  𝐏₁ = Pᴱ(Pqr₁) # Elasticity bulk differential operator
-  # Elasticity traction operators
-  𝐓q₀¹, 𝐓r₀¹, 𝐓qₙ¹, 𝐓rₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [-1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,-1]).A, Tᴱ(Pqr₁, 𝛀₁, [1,0]).A, Tᴱ(Pqr₁, 𝛀₁, [0,1]).A 
-  
-  # Get the bulk and the traction operator for the 2nd layer
-  detJ₂(x) = (det∘J)(x, Ω₂)    
-  Pqr₂ = P2R.(𝒫², Ω₂, 𝐪𝐫) # Property matrix evaluated at grid points
-  𝐏₂ = Pᴱ(Pqr₂) # Elasticity bulk differential operator
-  # Elasticity traction operators
-  𝐓q₀², 𝐓r₀², 𝐓qₙ², 𝐓rₙ² = Tᴱ(Pqr₂, 𝛀₂, [-1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,-1]).A, Tᴱ(Pqr₂, 𝛀₂, [1,0]).A, Tᴱ(Pqr₂, 𝛀₂, [0,1]).A 
-  
-  # Get the norm matrices (Same for both layers)
-  m, n = size(𝐪𝐫)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
-  𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
-  
-  # Determinants of the transformation
-  𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
-  𝐉₂ = Jb(𝛀₂, 𝐪𝐫) 
-  𝐉 = blockdiag(𝐉₁, 𝐉₂)
-  𝐉⁻¹ = sparse(𝐉\I(size(𝐉,1)))
-  
-  # Surface Jacobians of the outer boundaries
-  # - Layer 1  
-  _, SJq₀¹, SJrₙ¹, SJqₙ¹ = Js(𝛀₁, [0,-1]; X=I(2)), Js(𝛀₁, [-1,0]; X=I(2)), Js(𝛀₁, [0,1]; X=I(2)), Js(𝛀₁, [1,0]; X=I(2))   
-  # - Layer 2
-  SJr₀², SJq₀², _, SJqₙ² = Js(𝛀₂, [0,-1]; X=I(2)), Js(𝛀₂, [-1,0]; X=I(2)), Js(𝛀₂, [0,1]; X=I(2)), Js(𝛀₂, [1,0]; X=I(2))   
-
-  # Combine the operators    
-  𝐏 = blockdiag(𝐏₁.A, 𝐏₂.A)
-  𝐓 = blockdiag(-(I(2)⊗𝐇q₀⁻¹)*SJq₀¹*(𝐓q₀¹) + (I(2)⊗𝐇qₙ⁻¹)*SJqₙ¹*(𝐓qₙ¹) + (I(2)⊗𝐇rₙ⁻¹)*SJrₙ¹*(𝐓rₙ¹),
-                -(I(2)⊗𝐇q₀⁻¹)*SJq₀²*(𝐓q₀²) + (I(2)⊗𝐇qₙ⁻¹)*SJqₙ²*(𝐓qₙ²) + -(I(2)⊗𝐇r₀⁻¹)*SJr₀²*(𝐓r₀²))
-  𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)            
-  
-  # Get the Interface SAT for Conforming Interface
-  B̂, B̃, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=I(2))
-  
-  h = 1/(m-1)
-  ζ₀ = 40/h
-  𝐓ᵢ = (I(2)⊗I(2)⊗𝐇⁻¹)*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢ'*B̂ - ζ₀*B̃)
-  
-  𝐉⁻¹*(𝐏 - 𝐓 - 𝐓ᵢ)
-end
 
 """
-Function to obtain the PML stiffness matrix corresponding to the 2-layer linear elasticity
+Function to obtain the PML stiffness matrix
 """
-function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫)
+function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, 𝛔, Z₁₂, 𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, α)
   # Extract domains
   𝛀₁, 𝛀₂ = 𝛀
   Ω₁(qr) = S(qr, 𝛀₁.domain);
   Ω₂(qr) = S(qr, 𝛀₂.domain);
+  𝐪𝐫₁, 𝐪𝐫₂ = 𝐪𝐫
 
   # Extract the material property functions
   # (Z₁¹, Z₂¹), (Z₁², Z₂²) = Z₁₂
@@ -189,59 +130,67 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
 
   𝒫₁, 𝒫₂ = 𝒫
   𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ = 𝒫ᴾᴹᴸ
+  σᵥ, σₕ = 𝛔
 
   # Get the bulk terms for layer 1
-  Pqr₁ = P2R.(𝒫₁,Ω₁,𝐪𝐫);
-  Pᴾᴹᴸqr₁ = P2Rᴾᴹᴸ.(𝒫₁ᴾᴹᴸ, Ω₁, 𝐪𝐫);  
+  Pqr₁ = P2R.(𝒫₁,Ω₁,𝐪𝐫₁);
+  Pᴾᴹᴸqr₁ = P2Rᴾᴹᴸ.(𝒫₁ᴾᴹᴸ, Ω₁, 𝐪𝐫₁);  
   𝐏₁ = Pᴱ(Pqr₁).A;
   𝐏₁ᴾᴹᴸ₁, 𝐏₁ᴾᴹᴸ₂ = Pᴾᴹᴸ(Pᴾᴹᴸqr₁).A;
 
   # Get the bulk terms for layer 2
-  Pqr₂ = P2R.(𝒫₂,Ω₂,𝐪𝐫);
-  Pᴾᴹᴸqr₂ = P2Rᴾᴹᴸ.(𝒫₂ᴾᴹᴸ, Ω₂, 𝐪𝐫);  
+  Pqr₂ = P2R.(𝒫₂,Ω₂,𝐪𝐫₂);
+  Pᴾᴹᴸqr₂ = P2Rᴾᴹᴸ.(𝒫₂ᴾᴹᴸ, Ω₂, 𝐪𝐫₂);  
   𝐏₂ = Pᴱ(Pqr₂).A;
   𝐏₂ᴾᴹᴸ₁, 𝐏₂ᴾᴹᴸ₂ = Pᴾᴹᴸ(Pᴾᴹᴸqr₂).A;
 
   # Get the 2d SBP operators on the reference grid
-  m, n = size(𝐪𝐫)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)
-  𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = sbp_2d.norm
-  Dq, Dr = sbp_2d.D1
-  Dqr = [I(2)⊗Dq, I(2)⊗Dr]
+  n₁, m₁ = size(𝐪𝐫₁)
+  sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
+  sbp_r₁ = SBP_1_2_CONSTANT_0_1(n₁)
+  sbp_2d₁ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₁, sbp_r₁)
+  𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, 𝐇r₀⁻¹₁, 𝐇rₙ⁻¹₁ = sbp_2d₁.norm
+  Dq₁, Dr₁ = sbp_2d₁.D1
+  Dqr₁ = [I(2)⊗Dq₁, I(2)⊗Dr₁]
+  n₂, m₂ = size(𝐪𝐫₂)
+  sbp_q₂ = SBP_1_2_CONSTANT_0_1(m₂)
+  sbp_r₂ = SBP_1_2_CONSTANT_0_1(n₂)
+  sbp_2d₂ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
+  𝐇q₀⁻¹₂, 𝐇qₙ⁻¹₂, 𝐇r₀⁻¹₂, 𝐇rₙ⁻¹₂ = sbp_2d₂.norm
+  Dq₂, Dr₂ = sbp_2d₂.D1
+  Dqr₂ = [I(2)⊗Dq₂, I(2)⊗Dr₂]
 
   # Obtain some quantities on the grid points on Layer 1
   # Bulk Jacobian
-  𝐉₁ = Jb(𝛀₁, 𝐪𝐫)
+  𝐉₁ = Jb(𝛀₁, 𝐪𝐫₁)
   𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
   # Impedance matrices
-  𝐙₁₂¹ = 𝐙((Z₁¹,Z₂¹), Ω₁, 𝐪𝐫);
-  𝛔₁₂¹ = 𝐙((x->σₕ(x)*Z₁¹(x), x->σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫)
-  𝛕₁₂¹ = 𝐙((x->σₕ(x)*σᵥ(x)*Z₁¹(x), x->σₕ(x)*σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫)
-  𝛔ᵥ¹ = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫))));  𝛔ₕ¹ = I(2) ⊗ spdiagm(σₕ.(Ω₁.(vec(𝐪𝐫))));
-  𝛒₁ = I(2) ⊗ spdiagm(ρ₁.(Ω₁.(vec(𝐪𝐫))))
+  𝐙₁₂¹ = 𝐙((Z₁¹,Z₂¹), Ω₁, 𝐪𝐫₁);
+  𝛔₁₂¹ = 𝐙((x->σₕ(x)*Z₁¹(x), x->σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
+  𝛕₁₂¹ = 𝐙((x->σₕ(x)*σᵥ(x)*Z₁¹(x), x->σₕ(x)*σᵥ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
+  𝛔ᵥ¹ = I(2) ⊗ spdiagm(σᵥ.(Ω₁.(vec(𝐪𝐫₁))));  𝛔ₕ¹ = I(2) ⊗ spdiagm(σₕ.(Ω₁.(vec(𝐪𝐫₁))));
+  𝛒₁ = I(2) ⊗ spdiagm(ρ₁.(Ω₁.(vec(𝐪𝐫₁))))
   # Get the transformed gradient
-  Jqr₁ = J⁻¹.(𝐪𝐫, Ω₁);
+  Jqr₁ = J⁻¹.(𝐪𝐫₁, Ω₁);
   J_vec₁ = get_property_matrix_on_grid(Jqr₁, 2);
   J_vec_diag₁ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₁];
-  Dx₁, Dy₁ = J_vec_diag₁*Dqr; 
+  Dx₁, Dy₁ = J_vec_diag₁*Dqr₁; 
 
   # Obtain some quantities on the grid points on Layer 1
   # Bulk Jacobian
-  𝐉₂ = Jb(𝛀₂, 𝐪𝐫)
+  𝐉₂ = Jb(𝛀₂, 𝐪𝐫₂)
   𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
   # Impedance matrices
-  𝐙₁₂² = 𝐙((Z₁²,Z₂²), Ω₂, 𝐪𝐫);
-  𝛔₁₂² = 𝐙((x->σₕ(x)*Z₁²(x), x->σᵥ(x)*Z₂²(x)), Ω₂, 𝐪𝐫)
-  𝛕₁₂² = 𝐙((x->σᵥ(x)*σₕ(x)*Z₁²(x), x->σᵥ(x)*σₕ(x)*Z₂²(x)), Ω₂, 𝐪𝐫)  
-  𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₂.(vec(𝐪𝐫))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫))));
-  𝛒₂ = I(2) ⊗ spdiagm(ρ₂.(Ω₂.(vec(𝐪𝐫))))
+  𝐙₁₂² = 𝐙((Z₁²,Z₂²), Ω₂, 𝐪𝐫₂);
+  𝛔₁₂² = 𝐙((x->σₕ(x)*Z₁²(x), x->σᵥ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)
+  𝛕₁₂² = 𝐙((x->σᵥ(x)*σₕ(x)*Z₁²(x), x->σᵥ(x)*σₕ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)  
+  𝛔ᵥ² = I(2) ⊗ spdiagm(σᵥ.(Ω₂.(vec(𝐪𝐫₂))));  𝛔ₕ² = I(2) ⊗ spdiagm(σₕ.(Ω₂.(vec(𝐪𝐫₂))));
+  𝛒₂ = I(2) ⊗ spdiagm(ρ₂.(Ω₂.(vec(𝐪𝐫₂))))
   # Get the transformed gradient
-  Jqr₂ = J⁻¹.(𝐪𝐫, Ω₂);
+  Jqr₂ = J⁻¹.(𝐪𝐫₂, Ω₂);
   J_vec₂ = get_property_matrix_on_grid(Jqr₂, 2);
   J_vec_diag₂ = [I(2)⊗spdiagm(vec(p)) for p in J_vec₂];
-  Dx₂, Dy₂ = J_vec_diag₂*Dqr;
+  Dx₂, Dy₂ = J_vec_diag₂*Dqr₂;
 
   # Surface Jacobian Matrices on Layer 1
   SJr₀¹, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
@@ -250,8 +199,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
 
   # We build the governing equations on both layer simultaneously
   # Equation 1: ∂u/∂t = p
-  EQ1₁ = E1(1,2,(6,6)) ⊗ (I(2)⊗I(m)⊗I(m))
-  EQ1₂ = E1(1,2,(6,6)) ⊗ (I(2)⊗I(m)⊗I(m))
+  EQ1₁ = E1(1,2,(6,6)) ⊗ (I(2)⊗I(m₁)⊗I(n₁))
+  EQ1₂ = E1(1,2,(6,6)) ⊗ (I(2)⊗I(m₂)⊗I(n₂))
 
   # Equation 2 (Momentum Equation): ρ(∂p/∂t) = ∇⋅(σ(u)) + σᴾᴹᴸ - ρ(σᵥ+σₕ)p + ρ(σᵥ+σₕ)α(u-q) - ρ(σᵥσₕ)(u-q-r)
   es = [E1(2,i,(6,6)) for i=1:6];
@@ -262,29 +211,29 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
 
   # Equation 3: ∂v/∂t = -(α+σᵥ)v + ∂u/∂x
   es = [E1(3,i,(6,6)) for i=[1,3]];
-  eq3s₁ = [Dx₁, -(α*(I(2)⊗I(m)⊗I(n)) + 𝛔ᵥ¹)];
-  eq3s₂ = [Dx₂, -(α*(I(2)⊗I(m)⊗I(n)) + 𝛔ᵥ²)];
+  eq3s₁ = [Dx₁, -(α*(I(2)⊗I(m₁)⊗I(n₁)) + 𝛔ᵥ¹)];
+  eq3s₂ = [Dx₂, -(α*(I(2)⊗I(m₂)⊗I(n₂)) + 𝛔ᵥ²)];
   EQ3₁ = sum(es .⊗ eq3s₁);
   EQ3₂ = sum(es .⊗ eq3s₂);
 
   # Equation 4 ∂w/∂t = -(α+σᵥ)w + ∂u/∂y
   es = [E1(4,i,(6,6)) for i=[1,4]]
-  eq4s₁ = [Dy₁, -(α*(I(2)⊗I(m)⊗I(n)) + 𝛔ₕ¹)]
-  eq4s₂ = [Dy₂, -(α*(I(2)⊗I(m)⊗I(n)) + 𝛔ₕ²)]
+  eq4s₁ = [Dy₁, -(α*(I(2)⊗I(m₁)⊗I(n₁)) + 𝛔ₕ¹)]
+  eq4s₂ = [Dy₂, -(α*(I(2)⊗I(m₂)⊗I(n₂)) + 𝛔ₕ²)]
   EQ4₁ = sum(es .⊗ eq4s₁)
   EQ4₂ = sum(es .⊗ eq4s₂)
 
   # Equation 5 ∂q/∂t = α(u-q)
   es = [E1(5,i,(6,6)) for i=[1,5]]
-  eq5s₁ = [α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n))]
-  eq5s₂ = [α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n))]
+  eq5s₁ = [α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁))]
+  eq5s₂ = [α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂))]
   EQ5₁ = sum(es .⊗ eq5s₁)#=  =#
   EQ5₂ = sum(es .⊗ eq5s₂)
 
   # Equation 6 ∂q/∂t = α(u-q-r)
   es = [E1(6,i,(6,6)) for i=[1,5,6]]
-  eq6s₁ = [α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n))]
-  eq6s₂ = [α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n)), -α*(I(2)⊗I(m)⊗I(n))]
+  eq6s₁ = [α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁))]
+  eq6s₂ = [α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂))]
   EQ6₁ = sum(es .⊗ eq6s₁)
   EQ6₂ = sum(es .⊗ eq6s₂)
 
@@ -293,19 +242,19 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   PQRᵪ¹ = Pqr₁, Pᴾᴹᴸqr₁, 𝐙₁₂¹, 𝛔₁₂¹, 𝛕₁₂¹, 𝐉₁;
   χq₀¹, χr₀¹, χqₙ¹, χrₙ¹ = χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [-1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,-1]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,1]).A;
   # The SAT Terms on the boundary 
-  SJ_𝐇q₀⁻¹₁ = (fill(SJq₀¹,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
-  SJ_𝐇qₙ⁻¹₁ = (fill(SJqₙ¹,6).*fill((I(2)⊗𝐇qₙ⁻¹),6));
-  SJ_𝐇r₀⁻¹₁ = (fill(SJr₀¹,6).*fill((I(2)⊗𝐇r₀⁻¹),6));
-  SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
+  SJ_𝐇q₀⁻¹₁ = (fill(SJq₀¹,6).*fill((I(2)⊗𝐇q₀⁻¹₁),6));
+  SJ_𝐇qₙ⁻¹₁ = (fill(SJqₙ¹,6).*fill((I(2)⊗𝐇qₙ⁻¹₁),6));
+  SJ_𝐇r₀⁻¹₁ = (fill(SJr₀¹,6).*fill((I(2)⊗𝐇r₀⁻¹₁),6));
+  SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,6).*fill((I(2)⊗𝐇rₙ⁻¹₁),6));
   SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹));
   
   PQRᵪ² = Pqr₂, Pᴾᴹᴸqr₂, 𝐙₁₂², 𝛔₁₂², 𝛕₁₂², 𝐉₂;
   χq₀², χr₀², χqₙ², χrₙ² = χᴾᴹᴸ(PQRᵪ², 𝛀₂, [-1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,-1]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,1]).A;
   # The SAT Terms on the boundary 
-  SJ_𝐇q₀⁻¹₂ = (fill(SJq₀²,6).*fill((I(2)⊗𝐇q₀⁻¹),6));
-  SJ_𝐇qₙ⁻¹₂ = (fill(SJqₙ²,6).*fill((I(2)⊗𝐇qₙ⁻¹),6));
-  SJ_𝐇r₀⁻¹₂ = (fill(SJr₀²,6).*fill((I(2)⊗𝐇r₀⁻¹),6));
-  SJ_𝐇rₙ⁻¹₂ = (fill(SJrₙ²,6).*fill((I(2)⊗𝐇rₙ⁻¹),6));
+  SJ_𝐇q₀⁻¹₂ = (fill(SJq₀²,6).*fill((I(2)⊗𝐇q₀⁻¹₂),6));
+  SJ_𝐇qₙ⁻¹₂ = (fill(SJqₙ²,6).*fill((I(2)⊗𝐇qₙ⁻¹₂),6));
+  SJ_𝐇r₀⁻¹₂ = (fill(SJr₀²,6).*fill((I(2)⊗𝐇r₀⁻¹₂),6));
+  SJ_𝐇rₙ⁻¹₂ = (fill(SJrₙ²,6).*fill((I(2)⊗𝐇rₙ⁻¹₂),6));
   SAT₂ = sum(es.⊗(SJ_𝐇q₀⁻¹₂.*χq₀²)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₂.*χqₙ²)) + sum(es.⊗(SJ_𝐇r₀⁻¹₂.*χr₀²));
 
   # The interface part
@@ -313,7 +262,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   Eᵢ² = E1(1,1,(6,6)) ⊗ I(2)
   # Get the jump matrices
   B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
-  B̂ᵀ, _, 𝐇⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
+  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
   # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
   Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
@@ -327,17 +276,18 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
-  h = 4π/(m-1)
-  ζ₀ = 300/h  
+  h = 4π/(max(m₁,n₁,m₂,n₂)-1)
+  ζ₀ = 400/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
-  SATᵢ = (I(2)⊗I(12)⊗𝐇⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
+  SATᵢ = blockdiag(I(12)⊗𝐇₁⁻¹, I(12)⊗𝐇₂⁻¹)*𝐉*(0.5*B̂*𝐓rᵢ - 0.5*𝐓rᵢᵀ*B̂ᵀ - ζ₀*B̃)
 
   # The SBP-SAT Formulation
   bulk = blockdiag((EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁), (EQ1₂ + EQ2₂ + EQ3₂ + EQ4₂ + EQ5₂ + EQ6₂));  
   SATₙ = blockdiag(SAT₁, SAT₂)
   bulk - SATᵢ - SATₙ;
 end
+
 
 """
 Inverse of the mass matrix for the PML case
@@ -397,8 +347,10 @@ eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Fl
 """
 Function to split the solution into the corresponding variables
 """
-function split_solution(X, N, M)  
-  splitdimsview(reshape(X, (N^2, M)))
+function split_solution(X, MN, P)    
+  res = splitdimsview(reshape(X, (prod(MN), P)))
+  u1, u2 = res[1:2]
+  (u1,u2)
 end
 
 """
@@ -423,81 +375,82 @@ c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ+δ′)*r-(Lᵥ+δ′)]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 # Define the domain for full elasticity computation
-cᵢ(q) = @SVector [-(Lₕ+δ′) + 4(Lₕ+δ′)*q, 0.0]
-c₀¹(r) = @SVector [-(Lₕ+δ′), 2(Lᵥ+δ′)*r]
+cᵢ(q) = @SVector [3(Lₕ+δ′)*q, 0.0]
+c₀¹(r) = @SVector [0.0, (Lᵥ+δ′)*r]
 c₁¹(q) = cᵢ(q)
-c₂¹(r) = @SVector [2(Lₕ+δ′), 2(Lᵥ+δ′)*r]
-c₃¹(q) = @SVector [-(Lₕ+δ′) + 4(Lᵥ+δ′)*q, 2(Lᵥ+δ′)]
+c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ+δ′)*r]
+c₃¹(q) = @SVector [3(Lᵥ+δ′)*q, (Lᵥ+δ′)]
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [-(Lₕ+δ′), 2(Lᵥ+δ′)*r-2(Lᵥ+δ′)]
-c₁²(q) = @SVector [-(Lₕ+δ′) + 4(Lₕ+δ′)*q, -2(Lᵥ+δ′)]
-c₂²(r) = @SVector [2(Lₕ+δ′), 2(Lᵥ+δ′)*r-2(Lᵥ+δ′)]
+c₀²(r) = @SVector [0.0, (Lᵥ+δ′)*r-(Lᵥ+δ′)]
+c₁²(q) = @SVector [3(Lₕ+δ′)*q, -(Lᵥ+δ′)]
+c₂²(r) = @SVector [3(Lₕ+δ′), (Lᵥ+δ′)*r-(Lᵥ+δ′)]
 c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
 
 const Δt = 1e-3
-tf = 3.4
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
 max_abs_error = zeros(Float64, ntime)
 
 #######################################
-# Linear system for the Full elasticity
-#######################################
-U₀(x) = @SVector [exp(-4*((x[1]-2π)^2 + (x[2]-1.6π)^2)), -exp(-4*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
-V₀(x) = @SVector [0.0,0.0]
-
-N₁ = 161;
-𝛀₁ = DiscreteDomain(domain₁, (N₁,N₁));
-𝛀₂ = DiscreteDomain(domain₂, (N₁,N₁));
-Ω₁(qr) = S(qr, 𝛀₁.domain);
-Ω₂(qr) = S(qr, 𝛀₂.domain);
-𝐪𝐫 = generate_2d_grid((N₁,N₁))
-xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
-stima2 = 𝐊2!((𝒫₁, 𝒫₂), (𝛀₁, 𝛀₂), 𝐪𝐫);
-massma2 =  𝐌2⁻¹((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
-
-#######################################
 # Linear system for the PML elasticity
 #######################################
-𝐔(x) = @SVector [exp(-4*((x[1]-2π)^2 + (x[2]-1.6π)^2)), -exp(-4*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), -exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N₂ = 41;
+N₂ = 161;
 𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (N₂,N₂));
 𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (N₂,N₂));
 𝐪𝐫ᴾᴹᴸ = generate_2d_grid((N₂,N₂))
 Ω₁ᴾᴹᴸ(qr) = S(qr, 𝛀₁ᴾᴹᴸ.domain);
 Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain);
 xy₁ᴾᴹᴸ = Ω₁ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ); xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ);
-stima2_pml =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), 𝐪𝐫ᴾᴹᴸ);
-massma2_pml =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫ᴾᴹᴸ, (ρ₁, ρ₂));
+stima2_pml =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), (σᵥ, σₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), (𝐪𝐫ᴾᴹᴸ, 𝐪𝐫ᴾᴹᴸ), α);
+massma2_pml =  𝐌2⁻¹ₚₘₗ((𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), 𝐪𝐫ᴾᴹᴸ, (ρ₁, ρ₂));
 
-aspect_ratio = Int64((N₁-1)/((N₂-1))/2)
-comput_domain = Int64(((N₂)^2 - length(findnz(sparse(σᵥ.(xy₁ᴾᴹᴸ) .< 1e-8))[3]))/N₂)
-indices_x = 1 : aspect_ratio : Int64((N₁-1))+1-Int64((N₁-1)/2)
-indices_y = 1+Int64((N₁-1)/4) : Int64(aspect_ratio/2) : Int64((N₁-1)/2)+1
-xy_PML₁ = xy₁ᴾᴹᴸ[1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain]
-xy_FULL₁ = xy₁[indices_x, indices_y][1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain]
+#######################################
+# Linear system for the Full elasticity
+#######################################
+N₁ = 481;
+𝛀₁ = DiscreteDomain(domain₁, (N₁,N₂));
+𝛀₂ = DiscreteDomain(domain₂, (N₁,N₂));
+Ω₁(qr) = S(qr, 𝛀₁.domain);
+Ω₂(qr) = S(qr, 𝛀₂.domain);
+𝐪𝐫 = generate_2d_grid((N₁,N₂))
+xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
+
+ℙ₁ᴾᴹᴸ(x) = 0*𝒫₁ᴾᴹᴸ(x)
+ℙ₂ᴾᴹᴸ(x) = 0*𝒫₂ᴾᴹᴸ(x)
+τₕ(x) = 0*σₕ(x)
+τᵥ(x) = 0*σᵥ(x)
+stima2 =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫, 𝐪𝐫), 0.0);
+massma2 =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
+
+
+comput_domain = Int64((N₂-1)/10)
+indices_x = 1:N₂
+indices_y = 1:N₂
+xy_PML₁ = xy₁ᴾᴹᴸ[:, 1:end-comput_domain]
+xy_FULL₁ = xy₁[indices_x, indices_y][:, 1:end-comput_domain]
 @assert xy_PML₁ ≈ xy_FULL₁
 # Begin time loop
 let
   t = 0.0
 
   # Linear Elasticity vectors
-  X₀¹ = vcat(eltocols(vec(U₀.(xy₁))), eltocols(vec(U₀.(xy₂))));
-  X₀² = vcat(eltocols(vec(V₀.(xy₁))), eltocols(vec(V₀.(xy₂))));
+  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
+  X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
   global X₀ = vcat(X₀¹, X₀²)
   k₁ = zeros(Float64, length(X₀))
   k₂ = zeros(Float64, length(X₀))
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀)) 
-  M = massma2*stima2
-  K = [zero(M) I(size(M,1)); M zero(M)]
+  K = massma2*stima2
 
   # PML vectors
   X₀¹_pml = vcat(eltocols(vec(𝐔.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₁ᴾᴹᴸ))));
@@ -516,20 +469,19 @@ let
     t += Δt        
 
     # Extract elasticity solutions
-    u1ref₁,u2ref₁ = Tuple(split_solution(X₀[1:4N₁^2], N₁, 4)[1:2]);
-    u1ref₂,u2ref₂ = Tuple(split_solution(X₀[1:4N₁^2], N₁, 4)[3:4]);
+    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+    u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
     # Extract PML solutions
-    u1ref₁_pml, u2ref₁_pml = Tuple(split_solution(X₀_pml[1:12N₂^2], N₂, 12)[1:2]);
-    u1ref₂_pml, u2ref₂_pml = Tuple(split_solution(X₀_pml[12N₂^2+1:24N₂^2], N₂, 12)[1:2]);
+    u1ref₁_pml,u2ref₁_pml = split_solution(X₀_pml[1:12*(prod(𝛀₁ᴾᴹᴸ.mn))], 𝛀₁ᴾᴹᴸ.mn, 12);
+    u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
 
     # Get the domain of interest i.e., Ω - Ωₚₘₗ
-    aspect_ratio = Int64((N₁-1)/((N₂-1))/2)
-    comput_domain = Int64(((N₂)^2 - length(findnz(sparse(σᵥ.(xy₁ᴾᴹᴸ) .< 1e-8))[3]))/N₂)
-    indices_x = 1 : aspect_ratio : Int64((N₁-1))+1-Int64((N₁-1)/2)
-    indices_y = 1+Int64((N₁-1)/4) : Int64(aspect_ratio/2) : Int64((N₁-1)/2)+1
-    U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain];
-    U_FULL₁ = reshape(u1ref₁, (N₁,N₁))[indices_x, indices_y][1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain];
+    comput_domain = Int64((N₂-1)/10)
+    indices_x = 1:N₂
+    indices_y = 1:N₂
+    U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[:, 1:end-comput_domain]
+    U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[indices_x, indices_y][:, 1:end-comput_domain]
     DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 
     max_abs_error[i] = maximum(DU_FULL_PML₁)
@@ -539,66 +491,50 @@ let
 end
 
 # Extract elasticity solutions
-u1ref₁,u2ref₁ = Tuple(split_solution(X₀[1:4N₁^2], N₁, 4)[1:2]);
-u1ref₂,u2ref₂ = Tuple(split_solution(X₀[1:4N₁^2], N₁, 4)[3:4]);
+u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
 # Extract PML solutions
-u1ref₁_pml, u2ref₁_pml = Tuple(split_solution(X₀_pml[1:12N₂^2], N₂, 12)[1:2]);
-u1ref₂_pml, u2ref₂_pml = Tuple(split_solution(X₀_pml[12N₂^2+1:24N₂^2], N₂, 12)[1:2]);
+u1ref₁_pml,u2ref₁_pml = split_solution(X₀_pml[1:12*(prod(𝛀₁ᴾᴹᴸ.mn))], 𝛀₁ᴾᴹᴸ.mn, 12);
+u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
 
-aspect_ratio = Int64((N₁-1)/((N₂-1))/2)
-comput_domain = Int64(((N₂)^2 - length(findnz(sparse(σᵥ.(xy₁ᴾᴹᴸ) .< 1e-8))[3]))/N₂)
-indices_x = 1 : aspect_ratio : Int64((N₁-1))+1-Int64((N₁-1)/2)
-indices_y = 1+Int64((N₁-1)/4) : Int64(aspect_ratio/2) : Int64((N₁-1)/2)+1
-U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain];
-U_FULL₁ = reshape(u1ref₁, (N₁,N₁))[indices_x, indices_y][1+comput_domain:end-comput_domain, 1+comput_domain:end-comput_domain];
+# Get the domain of interest i.e., Ω - Ωₚₘₗ
+comput_domain = Int64((N₂-1)/10)
+indices_x = 1:N₂
+indices_y = 1:N₂
+U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[:, 1:N₂-comput_domain]
+U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[1:N₂, 1:N₂-comput_domain]
 DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 
 plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(u1ref₁_pml,size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
 Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
-  Plots.vline!([δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-  Plots.vline!([Lᵥ], label="\$ x \\le "*string(round(δ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
+  Plots.vline!([Lᵥ], label="PML Domain", lc=:black, lw=1, ls=:dash)  
 else
-  Plots.vline!([δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.vline!([Lᵥ+δ′], label="", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([Lₕ+δ′], label="", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([-Lₕ-δ′], label="Absorbing BC", lc=:black, lw=1, legend=:bottomright, ls=:dash)  
+  Plots.vline!([Lᵥ+δ′], label="ABC", lc=:black, lw=1, ls=:dash)
 end
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
-xlims!((0-1,cᵢ_pml(1.0)[1]+1))
-ylims!((c₀²_pml(0.0)[2]-1, c₀¹_pml(1.0)[2]+1))
+xlims!((0,cᵢ_pml(1.0)[1]))
+ylims!((c₀²_pml(0.0)[2], c₀¹_pml(1.0)[2]))
 # title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
 
-plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=40,cbar=:none, legend=:none)
+plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=40, cbar=:none)
 Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=40)
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((cᵢ(0)[1],cᵢ(1.0)[1]))
 ylims!((c₀²(0.0)[2], c₀¹(1.0)[2]))
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
-  Plots.plot!([0,Lᵥ+δ], [-Lₕ-δ, -Lₕ-δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.plot!([0,Lᵥ+δ], [Lₕ+δ, Lₕ+δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.plot!([Lᵥ+δ,Lᵥ+δ], [-Lₕ-δ, Lₕ+δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.plot!([0,0], [-Lₕ-δ, Lₕ+δ], label="PML Computational Domain", lc=:black, lw=1, ls=:dash)
+  Plots.plot!([Lᵥ+δ′,Lᵥ+δ′], [-Lₕ-δ′, Lₕ+δ′], label="PML", lc=:black, lw=1, ls=:dash)  
 end
-Plots.plot!([δ,Lᵥ], [-Lₕ, -Lₕ], label="", lc=:green, lw=1, ls=:solid)
-Plots.plot!([δ,Lᵥ], [Lₕ, Lₕ], label="", lc=:green, lw=1, ls=:solid)
-Plots.plot!([Lᵥ,Lᵥ], [-Lₕ, Lₕ], label="", lc=:green, lw=1, ls=:solid)
-Plots.plot!([δ,δ], [-Lₕ, Lₕ], label="Truncated Region", lc=:green, lw=1, ls=:solid)
-# title!("Full domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
+Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
 plt34 = Plots.plot(plt4, plt3, size=(80,30))
-# scalefontsizes(2.2)
 
-# plt5 = Plots.plot()
+plt5 = Plots.plot()
 if (δ > 0)
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2, size=(400,500))
 else
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=2, size=(400,500))
 end
-ylims!(plt5, (10^-4, 1))
+ylims!(plt5, (10^-8, 1))
 xlabel!(plt5, "Time \$ t \$")
 ylabel!(plt5, "Maximum Error")
-# scalefontsizes(2.2)
