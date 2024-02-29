@@ -54,7 +54,8 @@ The PML damping
 """
 const Lᵥ = 3.6π
 const Lₕ = 3.6π
-const δ = 0.0*4π  
+const δ = 0.1*4π  
+const δ′ = 0.1*4π # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
@@ -410,33 +411,33 @@ getY(C) = C[2];
 # Define the two domains #
 ##########################
 # Define the domain for PML computation
-cᵢ_pml(q) = @SVector [(Lₕ+δ)*q, 0.0]
-c₀¹_pml(r) = @SVector [0.0, (Lᵥ+δ)*r]
+cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q, 0.0]
+c₀¹_pml(r) = @SVector [0.0, (Lᵥ+δ′)*r]
 c₁¹_pml(q) = cᵢ_pml(q)
-c₂¹_pml(r) = @SVector [(Lₕ+δ), (Lᵥ+δ)*r]
-c₃¹_pml(q) = @SVector [(Lₕ+δ)*q, (Lᵥ+δ)]
+c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ+δ′)*r]
+c₃¹_pml(q) = @SVector [(Lₕ+δ′)*q, (Lᵥ+δ′)]
 domain₁_pml = domain_2d(c₀¹_pml, c₁¹_pml, c₂¹_pml, c₃¹_pml)
-c₀²_pml(r) = @SVector [0.0, (Lᵥ+δ)*r-(Lᵥ+δ)]
-c₁²_pml(q) = @SVector [(Lₕ+δ)*q, -(Lᵥ+δ)]
-c₂²_pml(r) = @SVector [(Lₕ+δ), (Lᵥ+δ)*r-(Lᵥ+δ)]
+c₀²_pml(r) = @SVector [0.0, (Lᵥ+δ′)*r-(Lᵥ+δ′)]
+c₁²_pml(q) = @SVector [(Lₕ+δ′)*q, -(Lᵥ+δ′)]
+c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ+δ′)*r-(Lᵥ+δ′)]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 # Define the domain for full elasticity computation
-cᵢ(q) = @SVector [-(Lₕ+δ) + 4(Lₕ+δ)*q, 0.0]
-c₀¹(r) = @SVector [-(Lₕ+δ), 2(Lᵥ+δ)*r]
+cᵢ(q) = @SVector [-(Lₕ+δ′) + 4(Lₕ+δ′)*q, 0.0]
+c₀¹(r) = @SVector [-(Lₕ+δ′), 2(Lᵥ+δ′)*r]
 c₁¹(q) = cᵢ(q)
-c₂¹(r) = @SVector [2(Lₕ+δ), 2(Lᵥ+δ)*r]
-c₃¹(q) = @SVector [-(Lₕ+δ) + 4(Lᵥ+δ)*q, 2(Lᵥ+δ)]
+c₂¹(r) = @SVector [2(Lₕ+δ′), 2(Lᵥ+δ′)*r]
+c₃¹(q) = @SVector [-(Lₕ+δ′) + 4(Lᵥ+δ′)*q, 2(Lᵥ+δ′)]
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [-(Lₕ+δ), 2(Lᵥ+δ)*r-2(Lᵥ+δ)]
-c₁²(q) = @SVector [-(Lₕ+δ) + 4(Lₕ+δ)*q, -2(Lᵥ+δ)]
-c₂²(r) = @SVector [2(Lₕ+δ), 2(Lᵥ+δ)*r-2(Lᵥ+δ)]
+c₀²(r) = @SVector [-(Lₕ+δ′), 2(Lᵥ+δ′)*r-2(Lᵥ+δ′)]
+c₁²(q) = @SVector [-(Lₕ+δ′) + 4(Lₕ+δ′)*q, -2(Lᵥ+δ′)]
+c₂²(r) = @SVector [2(Lₕ+δ′), 2(Lᵥ+δ′)*r-2(Lᵥ+δ′)]
 c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
 
 const Δt = 1e-3
-tf = 10.0
+tf = 3.4
 ntime = ceil(Int, tf/Δt)
 max_abs_error = zeros(Float64, ntime)
 
@@ -554,7 +555,7 @@ U_FULL₁ = reshape(u1ref₁, (N₁,N₁))[indices_x, indices_y][1+comput_domain
 DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 
 plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(u1ref₁_pml,size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
-Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40, clims=(-0.01,0.01))
+Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.vline!([δ], label="", lc=:black, lw=1, ls=:dash)
   Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
@@ -563,17 +564,17 @@ if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
 else
   Plots.vline!([δ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.vline!([Lᵥ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([Lₕ], label="", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([-Lₕ], label="Absorbing BC", lc=:black, lw=1, legend=:bottomright, ls=:dash)  
+  Plots.vline!([Lᵥ+δ′], label="", lc=:black, lw=1, ls=:dash)
+  Plots.hline!([Lₕ+δ′], label="", lc=:black, lw=1, ls=:dash)
+  Plots.hline!([-Lₕ-δ′], label="Absorbing BC", lc=:black, lw=1, legend=:bottomright, ls=:dash)  
 end
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
-xlims!((0,cᵢ_pml(1.0)[1]))
-ylims!((c₀²_pml(0.0)[2], c₀¹_pml(1.0)[2]))
-title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
+xlims!((0-1,cᵢ_pml(1.0)[1]+1))
+ylims!((c₀²_pml(0.0)[2]-1, c₀¹_pml(1.0)[2]+1))
+# title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
 
-plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=40)
-Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=40, clims=(-0.01,0.01))
+plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=40,cbar=:none, legend=:none)
+Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=40)
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((cᵢ(0)[1],cᵢ(1.0)[1]))
 ylims!((c₀²(0.0)[2], c₀¹(1.0)[2]))
@@ -583,19 +584,21 @@ if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.plot!([Lᵥ+δ,Lᵥ+δ], [-Lₕ-δ, Lₕ+δ], label="", lc=:black, lw=1, ls=:dash)
   Plots.plot!([0,0], [-Lₕ-δ, Lₕ+δ], label="PML Computational Domain", lc=:black, lw=1, ls=:dash)
 end
-Plots.plot!([δ,Lᵥ], [-Lₕ, -Lₕ], label="", lc=:gray, lw=1, ls=:solid)
-Plots.plot!([δ,Lᵥ], [Lₕ, Lₕ], label="", lc=:gray, lw=1, ls=:solid)
-Plots.plot!([Lᵥ,Lᵥ], [-Lₕ, Lₕ], label="", lc=:gray, lw=1, ls=:solid)
-Plots.plot!([δ,δ], [-Lₕ, Lₕ], label="Truncated Region", lc=:gray, lw=1, ls=:solid)
-title!("Full domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
-plt34 = Plots.plot(plt4, plt3, size=(800,400))
+Plots.plot!([δ,Lᵥ], [-Lₕ, -Lₕ], label="", lc=:green, lw=1, ls=:solid)
+Plots.plot!([δ,Lᵥ], [Lₕ, Lₕ], label="", lc=:green, lw=1, ls=:solid)
+Plots.plot!([Lᵥ,Lᵥ], [-Lₕ, Lₕ], label="", lc=:green, lw=1, ls=:solid)
+Plots.plot!([δ,δ], [-Lₕ, Lₕ], label="Truncated Region", lc=:green, lw=1, ls=:solid)
+# title!("Full domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
+plt34 = Plots.plot(plt4, plt3, size=(80,30))
+# scalefontsizes(2.2)
 
 # plt5 = Plots.plot()
 if (δ > 0)
-  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML")
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2, size=(400,500))
 else
-  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC")
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=2, size=(400,500))
 end
 ylims!(plt5, (10^-4, 1))
 xlabel!(plt5, "Time \$ t \$")
 ylabel!(plt5, "Maximum Error")
+# scalefontsizes(2.2)

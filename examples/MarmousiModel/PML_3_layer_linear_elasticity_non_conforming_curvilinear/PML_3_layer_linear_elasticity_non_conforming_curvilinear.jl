@@ -7,7 +7,7 @@ The PML damping
 const Lᵥ = abs(z₂[1]-z₁[end])
 const Lₕ = x₁[end] - x₁[1]
 const δ = 0.1*(Lₕ)
-const σ₀ᵛ = 8*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 20*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(√(max(maximum(vp₁), maximum(vp₂))))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -69,7 +69,7 @@ massma =  𝐌3⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃), (𝐪𝐫₁, 𝐪�
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 5e-4
-tf = 10.0
+tf = 1.5
 ntime = ceil(Int, tf/Δt)
 
 # scalefontsizes()
@@ -145,19 +145,19 @@ XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
 
 # scalefontsizes()
 
-plt3 = Plots.contourf(XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:matter, clims=(1,5))
-Plots.contourf!(plt3, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:matter, clims=(1,5))
-Plots.contourf!(plt3, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:matter, clims=(1,5))
-Plots.annotate!(plt3, 10, -0.2, ("Layer 1", 20, :black))
-Plots.annotate!(plt3, 10, -1.8, ("Layer 2", 20, :black))
-Plots.annotate!(plt3, 14, -3.2, ("Layer 3", 20, :black))
-Plots.annotate!(plt3, 16.2, -2, ("\$ \\sigma_0^v = 8\$", 20, :black))
+plt3 = Plots.contourf(XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:matter)
+Plots.contourf!(plt3, XC₁, ZC₁, reshape(absu1, size(XC₁)...), colormap=:matter,clims=(1,5))
+Plots.contourf!(plt3, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:matter)
+Plots.annotate!(plt3, 10, -0.2, ("Layer 1", 15, :black))
+Plots.annotate!(plt3, 10, -1.8, ("Layer 2", 15, :black))
+Plots.annotate!(plt3, 14, -3.2, ("Layer 3", 15, :black))
+Plots.annotate!(plt3, 16.2, -2, ("\$ \\sigma_0^v = 0\$", 15, :black))
 Plots.plot!(plt3, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:black, label="")
 Plots.plot!(plt3, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:black, label="")
 Plots.vline!(plt3, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:black, ls=:dash, label="")
-Plots.vline!(plt3, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(800,600))
+Plots.vline!(plt3, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(600,300))
 # Plots.vspan!(plt3, [(x₁[1]+0.9*Lₕ),x₁[end]], fillalpha=0.5, fillcolor=:orange, label="")
-Plots.xlims!(plt3, (0.5*x₁[end],x₁[end]))
+Plots.xlims!(plt3, (x₁[1],x₁[end]))
 Plots.ylims!(plt3, (z₂[1],z₁[end]))
 Plots.xlabel!(plt3, "\$x\$ (in km)")
 Plots.ylabel!(plt3, "\$z\$ (in km)")
