@@ -30,7 +30,7 @@ Get the x-and-y coordinates from coordinates
 getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.1*sin(π*q)]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.2*exp(-10*4π*(q - 0.5)^2)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -42,6 +42,29 @@ c₂²(r) = @SVector [4.4π, 4π*r-4π]
 c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
+
+##### ##### ##### ##### ##### ##### 
+# EXAMPLE OF AN ANISOTROPIC DOMAIN
+##### ##### ##### ##### ##### ##### 
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 4.0
+# c₂₂¹(x) = 20.0
+# c₃₃¹(x) = 2.0
+# c₁₂¹(x) = 3.8
+
+# c₁₁²(x) = 4*c₁₁¹(x)
+# c₂₂²(x) = 4*c₂₂¹(x)
+# c₃₃²(x) = 4*c₃₃¹(x)
+# c₁₂²(x) = 4*c₁₂¹(x)
+
+# ρ₁(x) = 1.0
+# ρ₂(x) = 0.25
+
+##### ##### ##### ##### ##### ##### 
+# EXAMPLE OF AN ISOTROPIC DOMAIN
+##### ##### ##### ##### ##### ##### 
 """
 Density function 
 """
@@ -69,10 +92,10 @@ c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
 c₃₃¹(x) = μ₁(x)
 c₁₂¹(x) = λ₁(x)
 
-c₁₁²(x) = 2*μ₂(x)+λ₂(x)
-c₂₂²(x) = 2*μ₂(x)+λ₂(x)
-c₃₃²(x) = μ₂(x)
-c₁₂²(x) = λ₂(x)
+# c₁₁²(x) = 2*μ₂(x)+λ₂(x)
+# c₂₂²(x) = 2*μ₂(x)+λ₂(x)
+# c₃₃²(x) = μ₂(x)
+# c₁₂²(x) = λ₂(x)
 
 
 """
@@ -81,8 +104,8 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 8*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -90,8 +113,8 @@ Vertical PML strip
 """
 function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
-    # return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
-    return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
+    return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
+    # return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
   else
     return 0.0
   end
@@ -99,11 +122,11 @@ end
 
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
-    # return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
+    return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
+    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
-    # return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
-    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
+    return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   else  
     return 0.0
   end  
@@ -361,7 +384,7 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2)), -exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-3.4π)^2 + (x[2]-2.2π)^2)), -exp(-20*((x[1]-3.4π)^2 + (x[2]-2.2π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -369,9 +392,10 @@ Initial conditions
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 5e-3
-tf = 20.0
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
-N = 61;
+l2norm = zeros(Float64, ntime)
+N = 81;
 𝛀₁ = DiscreteDomain(domain₁, (N,N));
 𝛀₂ = DiscreteDomain(domain₂, (N,N));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -394,6 +418,9 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀)) 
   M = massma*stima
+  Hq = SBP_1_2_CONSTANT_0_1(N).norm; 
+  Hr = SBP_1_2_CONSTANT_0_1(N).norm;
+  𝐇 = Hq ⊗ Hr
   # @gif for i=1:ntime
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
@@ -405,6 +432,8 @@ let
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
+    l2norm[i] = sqrt(vcat(u1ref₁,u2ref₁)'*blockdiag(𝐇,𝐇)*vcat(u1ref₁,u2ref₁)) + 
+                sqrt(vcat(u1ref₂,u2ref₂)'*blockdiag(𝐇,𝐇)*vcat(u1ref₂,u2ref₂))
   end
   # end  every 10  
   global Xref = X₀
@@ -415,22 +444,32 @@ u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁
 
 plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
 Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
+if(σ₀ᵛ > 0.0)
+  Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+elseif(σ₀ʰ > 0.0)
+  Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+  Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
+end
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
 xlims!((0,Lᵥ+δ))
 ylims!((-Lₕ-δ,Lₕ+δ))
-title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+xlabel!("\$x\$")
+ylabel!("\$y\$")
+# title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+# c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
+# plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
 
-plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="Layer 1")
-Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="Layer 2", size=(400,500))
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:green, lw=1, size=(400,500))
-xlims!((0,Lᵥ+δ))
-ylims!((-Lₕ-δ,Lₕ+δ))
-title!(plt4, "Finite Difference Mesh")
+plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
+Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="", lc=:green, lw=1, size=(400,500))
+xlims!(plt4, (0-0.4π, 4π+0.8π))
+ylims!(plt4, (-4π-0.8π, 4π+0.8π))
+xlabel!(plt4, "\$ x \$")
+ylabel!(plt4, "\$ y \$")
 
-Plots.plot(plt3, plt4)
+plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=2, yaxis=:log10)
+Plots.xlabel!(plt5, "Time \$t\$")
+Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
 
 
 
@@ -452,3 +491,16 @@ SKIP_TEST = true
   # Bulk
   @test lhs[12N^2+1:22N^2, 12N^2+1:22N^2] ≈ lhs_ref[10N^2+1:20N^2, 10N^2+1:20N^2] atol=1e-10 skip = SKIP_TEST
 end
+
+plt6 = Plots.plot([0, 0], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
+Plots.plot!(plt6, [0, Lₕ+2δ], [Lᵥ, Lᵥ], lw=2, lc=:black, label="")
+Plots.plot!(plt6, [Lₕ+2δ, Lₕ+2δ], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
+Plots.plot!(plt6, [Lₕ+δ, Lₕ+δ], [Lᵥ, -Lᵥ], lw=1, lc=:black, label="", ls=:dash)
+Plots.plot!(plt6, [0, Lₕ+2δ], [-Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
+Plots.plot!(plt6, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), lw=2, lc=:red, label="", size=(400,500))
+xlims!(plt6, (0-0.4π, 4π+0.8π))
+ylims!(plt6, (-4π-0.8π, 4π+0.8π))
+Plots.annotate!(plt6, 2.2π, 2π, ("\$ \\Omega_1 \$", 15, :black))
+Plots.annotate!(plt6, 2.2π, -2π, ("\$ \\Omega_2 \$", 15, :black))
+xlabel!(plt6, "\$ x \$")
+ylabel!(plt6, "\$ y \$")

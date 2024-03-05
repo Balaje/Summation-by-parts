@@ -48,13 +48,31 @@ c₂₂²(x) = 2*μ₂(x)+λ₂(x)
 c₃₃²(x) = μ₂(x)
 c₁₂²(x) = λ₂(x)
 
+##### ##### ##### ##### ##### ##### 
+# EXAMPLE OF AN ANISOTROPIC DOMAIN
+##### ##### ##### ##### ##### ##### 
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 4.0
+# c₂₂¹(x) = 20.0
+# c₃₃¹(x) = 2.0
+# c₁₂¹(x) = 3.8
+
+# c₁₁²(x) = 4*c₁₁¹(x)
+# c₂₂²(x) = 4*c₂₂¹(x)
+# c₃₃²(x) = 4*c₃₃¹(x)
+# c₁₂²(x) = 4*c₁₂¹(x)
+
+# ρ₁(x) = 1.0
+# ρ₂(x) = 0.25
 
 """
 The PML damping
 """
 const Lᵥ = 3.6π
 const Lₕ = 3.6π
-const δ = 0.1*4π  
+const δ = 0.0*4π  
 const δ′ = 0.1*4π # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 0*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -529,11 +547,11 @@ end
 Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
 plt34 = Plots.plot(plt4, plt3, size=(80,30))
 
-plt5 = Plots.plot()
+# plt5 = Plots.plot()
 if (δ > 0)
-  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2, size=(400,500))
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
 else
-  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=2, size=(400,500))
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=0.5, legendfontsize=5, ls=:dash)
 end
 ylims!(plt5, (10^-8, 1))
 xlabel!(plt5, "Time \$ t \$")

@@ -30,7 +30,7 @@ Get the x-and-y coordinates from coordinates
 getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.1*sin(8π*q)]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.2*exp(-10*4π*(q - 0.5)^2)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -82,7 +82,7 @@ const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
 const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -90,8 +90,8 @@ Vertical PML strip
 """
 function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
-    # return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
-    return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
+    return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
+    # return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
   else
     return 0.0
   end
@@ -99,11 +99,11 @@ end
 
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
-    # return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
+    return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
+    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
-    # return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
-    return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
+    return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   else  
     return 0.0
   end  
@@ -371,8 +371,9 @@ Initial conditions
 𝐑(x) = @SVector [0.0, 0.0]
 
 const Δt = 5e-3
-tf = 3.0
+tf = 100.0
 ntime = ceil(Int, tf/Δt)
+l2norm = zeros(Float64, ntime)
 N₁ = 81;
 N₂ = 41;
 𝛀₁ = DiscreteDomain(domain₁, (N₁,N₁));
@@ -385,7 +386,12 @@ xy₁ = Ω₁.(𝐪𝐫₁);
 xy₂ = Ω₂.(𝐪𝐫₂);
 stima = 𝐊2_NCₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂));
 massma = 𝐌2_NC⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
-
+Hq₁ = SBP_1_2_CONSTANT_0_1(N₁).norm; 
+Hr₁ = SBP_1_2_CONSTANT_0_1(N₁).norm;
+𝐇₁ = Hq₁ ⊗ Hr₁
+Hq₂ = SBP_1_2_CONSTANT_0_1(N₂).norm; 
+Hr₂ = SBP_1_2_CONSTANT_0_1(N₂).norm;
+𝐇₂ = Hq₂ ⊗ Hr₂
 # Begin time loop
 let
   t = 0.0
@@ -404,6 +410,12 @@ let
     t += Δt    
     (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
+    # Plotting part for 
+    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+    u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+
+    l2norm[i] = sqrt(vcat(u1ref₁,u2ref₁)'*blockdiag(𝐇₁,𝐇₁)*vcat(u1ref₁,u2ref₁)) + 
+                sqrt(vcat(u1ref₂,u2ref₂)'*blockdiag(𝐇₂,𝐇₂)*vcat(u1ref₂,u2ref₂))
   end
   # end  every 25  
   global Xref = X₀
@@ -414,17 +426,29 @@ u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁
 
 plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
 Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
+if(σ₀ᵛ > 0.0)
+  Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+elseif(σ₀ʰ > 0.0)
+  Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+  Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
+end
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
 xlims!((0,Lᵥ+δ))
 ylims!((-Lₕ-δ,Lₕ+δ))
-title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+xlabel!("\$x\$")
+ylabel!("\$y\$")
+# title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+# c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
+# plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
 
-plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.0, ms=2, label="Layer 1")
-Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.0, ms=2, label="Layer 2", size=(400,500))
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:green, lw=1, size=(400,500))
-xlims!((0,Lᵥ+δ))
-ylims!((-Lₕ-δ,Lₕ+δ))
-title!(plt4, "Finite Difference Mesh")
+plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
+Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="", lc=:green, lw=1, size=(400,500))
+xlims!(plt4, (0-0.4π, 4π+0.8π))
+ylims!(plt4, (-4π-0.8π, 4π+0.8π))
+xlabel!(plt4, "\$ x \$")
+ylabel!(plt4, "\$ y \$")
+
+plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=2, yaxis=:log10)
+Plots.xlabel!(plt5, "Time \$t\$")
+Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
