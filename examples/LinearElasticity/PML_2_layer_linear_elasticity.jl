@@ -404,9 +404,11 @@ stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ),
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
 # Define the time stepping
 const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
-tf = 50.0
+tf = 100.0
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
+
+plt3 = Vector{Plots.Plot}(undef,3);
 
 # Begin time loop
 let
@@ -419,9 +421,7 @@ let
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀)) 
   M = massma*stima
-  Hq = SBP_1_2_CONSTANT_0_1(N).norm; 
-  Hr = SBP_1_2_CONSTANT_0_1(N).norm;
-  𝐇 = Hq ⊗ Hr
+  count = 1;
   # @gif for i=1:ntime
   Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
   Hr = SBP_1_2_CONSTANT_0_1(N).norm;
@@ -434,6 +434,18 @@ let
 
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+    
+    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)))
+      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
+      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
+      Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+      xlims!(plt3[count], (0,Lᵥ+δ))
+      ylims!(plt3[count], (-Lₕ-δ,Lₕ+δ))
+      xlabel!(plt3[count], "\$x\$")
+      ylabel!(plt3[count], "\$y\$")
+      count += 1
+    end
 
     maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
   end
@@ -441,19 +453,17 @@ let
   global Xref = X₀
 end  
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+# u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+# u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
-Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-# Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-# Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
-xlims!((0,Lᵥ+δ))
-ylims!((-Lₕ-δ,Lₕ+δ))
-xlabel!("\$x\$")
-ylabel!("\$y\$")
+# Plots.contourf!(plt3, getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet)
+# Plots.contourf!(plt3, etX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet)
+# Plots.vline!(plt3, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+# Plots.plot!(plt3, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+# xlims!(plt3, (0,Lᵥ+δ))
+# ylims!(plt3, (-Lₕ-δ,Lₕ+δ))
+# xlabel!(plt3, "\$x\$")
+# ylabel!(plt3, "\$y\$")
 # title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
 # c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
 # plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
@@ -466,7 +476,7 @@ ylims!(plt4, (-4π-0.8π, 4π+0.8π))
 xlabel!(plt4, "\$ x \$")
 ylabel!(plt4, "\$ y \$")
 
-plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=2, yaxis=:log10)
+plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=2, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
 
