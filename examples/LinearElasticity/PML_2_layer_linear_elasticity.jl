@@ -30,7 +30,7 @@ Get the x-and-y coordinates from coordinates
 getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.2*exp(-10*4π*(q - 0.5)^2)]
+cᵢ(q) = @SVector [4.4π*q, 4π*0.0*sin(π*q)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -104,8 +104,8 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 8*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*((max(3.118, 5.196)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*((max(3.118, 5.196)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -322,7 +322,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
-  h = 4π/(max(m₁,n₁,m₂,n₂)-1)
+  h = norm(xy₁[1,2] - xy₁[1,1])
   ζ₀ = 400/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
@@ -355,7 +355,7 @@ end
 """
 A non-allocating implementation of the RK4 scheme
 """
-function RK4_1!(M, sol)  
+function RK4_1!(M, sol, Δt)  
   X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
   mul!(k₁, M, X₀);
@@ -384,28 +384,29 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-20*((x[1]-3.4π)^2 + (x[2]-2.2π)^2)), -exp(-20*((x[1]-3.4π)^2 + (x[2]-2.2π)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-const Δt = 5e-3
-tf = 10.0
-ntime = ceil(Int, tf/Δt)
-l2norm = zeros(Float64, ntime)
-N = 81;
-𝛀₁ = DiscreteDomain(domain₁, (N,N));
-𝛀₂ = DiscreteDomain(domain₂, (N,N));
+N = 151;
+𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),N));
+𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),N));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 Ω₂(qr) = S(qr, 𝛀₂.domain);
-𝐪𝐫₁ = generate_2d_grid((N,N));
-𝐪𝐫₂ = generate_2d_grid((N,N));
+𝐪𝐫₁ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
+𝐪𝐫₂ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
 xy₁ = Ω₁.(𝐪𝐫₁);
 xy₂ = Ω₂.(𝐪𝐫₂);
 stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂));
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
+# Define the time stepping
+const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
+tf = 50.0
+ntime = ceil(Int, tf/Δt)
+maxvals = zeros(Float64, ntime)
 
 # Begin time loop
 let
@@ -422,18 +423,19 @@ let
   Hr = SBP_1_2_CONSTANT_0_1(N).norm;
   𝐇 = Hq ⊗ Hr
   # @gif for i=1:ntime
+  Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
+  Hr = SBP_1_2_CONSTANT_0_1(N).norm;
+  Hqr = Hq ⊗ Hr
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
-    X₀ = RK4_1!(M, sol)    
+    X₀ = RK4_1!(M, sol, Δt)    
     t += Δt    
     (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
-    # Plotting part for 
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-    l2norm[i] = sqrt(vcat(u1ref₁,u2ref₁)'*blockdiag(𝐇,𝐇)*vcat(u1ref₁,u2ref₁)) + 
-                sqrt(vcat(u1ref₂,u2ref₂)'*blockdiag(𝐇,𝐇)*vcat(u1ref₂,u2ref₂))
+    maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
   end
   # end  every 10  
   global Xref = X₀
@@ -444,13 +446,10 @@ u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁
 
 plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
 Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-if(σ₀ᵛ > 0.0)
-  Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-elseif(σ₀ʰ > 0.0)
-  Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
-end
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+# Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+# Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((0,Lᵥ+δ))
 ylims!((-Lₕ-δ,Lₕ+δ))
 xlabel!("\$x\$")
