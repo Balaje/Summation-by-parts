@@ -75,14 +75,28 @@ c₃₃²(x) = μ₂(x)
 c₁₂²(x) = λ₂(x)
 
 
+cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
+cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
+csx₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+csy₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+cp₁ = max(cpx₁, cpy₁)
+cs₁ = max(csx₁, csy₁)
+
+cpx₂ = √(c₁₁²(1.0)/ρ₂(1.0))
+cpy₂ = √(c₂₂²(1.0)/ρ₂(1.0))
+csx₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+csy₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+cp₂ = max(cpx₂, cpy₂)
+cs₂ = max(csx₂, csy₂)
+
 """
 The PML damping
 """
 const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*(√(4*1))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -91,7 +105,6 @@ Vertical PML strip
 function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
     return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
-    # return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
   else
     return 0.0
   end
@@ -100,10 +113,8 @@ end
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
     return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
     return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
-    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   else  
     return 0.0
   end  
@@ -363,19 +374,15 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2)), -exp(-4*((x[1]-3.4π)^2 + (x[2]-2.2π)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-const Δt = 5e-3
-tf = 100.0
-ntime = ceil(Int, tf/Δt)
-l2norm = zeros(Float64, ntime)
-N₁ = 81;
-N₂ = 41;
+N₁ = 201;
+N₂ = 101;
 𝛀₁ = DiscreteDomain(domain₁, (N₁,N₁));
 𝛀₂ = DiscreteDomain(domain₂, (N₂,N₂));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -392,6 +399,10 @@ Hr₁ = SBP_1_2_CONSTANT_0_1(N₁).norm;
 Hq₂ = SBP_1_2_CONSTANT_0_1(N₂).norm; 
 Hr₂ = SBP_1_2_CONSTANT_0_1(N₂).norm;
 𝐇₂ = Hq₂ ⊗ Hr₂
+const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
+tf = 4.0
+ntime = ceil(Int, tf/Δt)
+l2norm = zeros(Float64, ntime)
 # Begin time loop
 let
   t = 0.0
@@ -424,19 +435,19 @@ end
 u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
 u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-plt3 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
-Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-if(σ₀ᵛ > 0.0)
-  Plots.vline!([Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-elseif(σ₀ʰ > 0.0)
-  Plots.hline!([Lₕ], label="\$ y \\ge "*string(round(Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-  Plots.hline!([-Lₕ], label="\$ y \\le "*string(round(-Lₕ, digits=3))*"\$ (PML)", lc=:black, lw=1, legend=:bottomright, ls=:dash)
-end
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-xlims!((0,Lᵥ+δ))
-ylims!((-Lₕ-δ,Lₕ+δ))
-xlabel!("\$x\$")
-ylabel!("\$y\$")
+absu₁ = sqrt.(u1ref₁.^2 + u2ref₁.^2) 
+absu₂ = sqrt.(u1ref₂.^2 + u2ref₂.^2) 
+
+plt3_new = Plots.plot()
+Plots.contourf!(plt3_new, getX.(xy₁), getY.(xy₁), reshape(absu₁,size(xy₁)...), colormap=:jet)
+Plots.contourf!(plt3_new, getX.(xy₂), getY.(xy₂), reshape(absu₂, size(xy₂)...), colormap=:jet)
+Plots.vline!(plt3_new, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:white, lw=1, ls=:dash)
+Plots.plot!(plt3_new, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), 
+                    label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+xlims!(plt3_new, (0,Lᵥ+δ))
+ylims!(plt3_new, (-Lₕ-δ,Lₕ+δ))
+xlabel!(plt3_new, "\$x\$")
+ylabel!(plt3_new, "\$y\$")
 # title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
 # c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
 # plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)

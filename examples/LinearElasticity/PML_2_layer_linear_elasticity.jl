@@ -92,11 +92,24 @@ c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
 c₃₃¹(x) = μ₁(x)
 c₁₂¹(x) = λ₁(x)
 
-# c₁₁²(x) = 2*μ₂(x)+λ₂(x)
-# c₂₂²(x) = 2*μ₂(x)+λ₂(x)
-# c₃₃²(x) = μ₂(x)
-# c₁₂²(x) = λ₂(x)
+c₁₁²(x) = 2*μ₂(x)+λ₂(x)
+c₂₂²(x) = 2*μ₂(x)+λ₂(x)
+c₃₃²(x) = μ₂(x)
+c₁₂²(x) = λ₂(x)
 
+cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
+cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
+csx₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+csy₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+cp₁ = max(cpx₁, cpy₁)
+cs₁ = max(csx₁, csy₁)
+
+cpx₂ = √(c₁₁²(1.0)/ρ₂(1.0))
+cpy₂ = √(c₂₂²(1.0)/ρ₂(1.0))
+csx₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+csy₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+cp₂ = max(cpx₂, cpy₂)
+cs₂ = max(csx₂, csy₂)
 
 """
 The PML damping
@@ -104,8 +117,8 @@ The PML damping
 const Lᵥ = 4π
 const Lₕ = 3.6π
 const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*((max(3.118, 5.196)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*((max(3.118, 5.196)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -114,7 +127,6 @@ Vertical PML strip
 function σᵥ(x)
   if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
     return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
-    # return σ₀ᵛ/2 + σ₀ᵛ/2*tanh(x[1] - Lᵥ)
   else
     return 0.0
   end
@@ -123,10 +135,8 @@ end
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
     return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
     return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
-    # return σ₀ʰ/2 + σ₀ʰ/2*tanh(x[2] - Lₕ)
   else  
     return 0.0
   end  
@@ -395,7 +405,7 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 151;
+N = 201;
 𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),N));
 𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),N));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -412,7 +422,7 @@ tf = 2.0
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
 
-plt3 = Vector{Plots.Plot}(undef,3);
+# plt3 = Vector{Plots.Plot}(undef,3);
 
 # Begin time loop
 let
@@ -439,17 +449,17 @@ let
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
     
-    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)))
-      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
-      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-      Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-      Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-      xlims!(plt3[count], (0,Lᵥ+δ))
-      ylims!(plt3[count], (-Lₕ-δ,Lₕ+δ))
-      xlabel!(plt3[count], "\$x\$")
-      ylabel!(plt3[count], "\$y\$")
-      count += 1
-    end
+    # if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)))
+    #   plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
+    #   Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
+    #   Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+    #   Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+    #   xlims!(plt3[count], (0,Lᵥ+δ))
+    #   ylims!(plt3[count], (-Lₕ-δ,Lₕ+δ))
+    #   xlabel!(plt3[count], "\$x\$")
+    #   ylabel!(plt3[count], "\$y\$")
+    #   count += 1
+    # end
 
     maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
   end
@@ -457,6 +467,8 @@ let
   global Xref = X₀
 end  
 
+u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
 u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 

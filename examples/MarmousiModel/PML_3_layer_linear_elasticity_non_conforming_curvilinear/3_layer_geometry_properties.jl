@@ -20,7 +20,7 @@ using Interpolations
 
 using MAT
 
-vars1 = matread("./examples/MarmousiModel/marmousi2_downsampled_40.mat");
+vars1 = matread("./examples/MarmousiModel/marmousi2_downsampled_10.mat");
 
 ###########################################################
 # CONSTRUCT THE GEOMETRY OF THE DOMAIN USING THE RAW DATA #
