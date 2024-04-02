@@ -70,10 +70,10 @@ c₁₂²(x) = λ₂(x)
 """
 The PML damping
 """
-const Lᵥ = 3.6π
-const Lₕ = 3.6π
-const δ = 0.0*4π  
-const δ′ = 0.1*4π # For constructing the geometry
+const Lᵥ = 4π
+const Lₕ = 4π
+const δ = 0.1*4π  
+const δ′ = δ # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 0*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
@@ -82,8 +82,8 @@ const α = σ₀ᵛ*0.05; # The frequency shift parameter
 Vertical PML strip
 """
 function σᵥ(x)
-  if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
-    return (δ > 0.0) ? σ₀ᵛ*((x[1] - Lᵥ)/δ)^3 : 0.0
+  if((x[1] ≈ Lₕ) || x[1] > Lₕ)
+    return (δ > 0.0) ? σ₀ᵛ*((x[1] - Lₕ)/δ)^3 : 0.0
   elseif((x[1] ≈ δ) || x[1] < δ)
     # return (δ > 0.0) ? σ₀ᵛ*((δ - x[1])/δ)^3 : 0.0
     0.0
@@ -93,10 +93,10 @@ function σᵥ(x)
 end
 
 function σₕ(x)
-  if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
-    return (δ > 0.0) ? σ₀ʰ*((x[2] - Lₕ)/δ)^3 : 0.0
-  elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
-    return (δ > 0.0) ? σ₀ʰ*abs((x[2] + Lₕ)/δ)^3 : 0.0
+  if((x[2] ≈ Lᵥ) || (x[2] > Lᵥ))
+    return (δ > 0.0) ? σ₀ʰ*((x[2] - Lᵥ)/δ)^3 : 0.0
+  elseif( (x[2] ≈ -Lᵥ) || (x[2] < -Lᵥ) )
+    return (δ > 0.0) ? σ₀ʰ*abs((x[2] + Lᵥ)/δ)^3 : 0.0
   else  
     return 0.0
   end  
@@ -328,7 +328,6 @@ Inverse of the mass matrix without the PML
 function 𝐌2⁻¹(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, ρ)
   ρ₁, ρ₂ = ρ
   𝛀₁, 𝛀₂ = 𝛀
-  m, n = size(𝐪𝐫)
   Ω₁(qr) = S(qr, 𝛀₁.domain);
   Ω₂(qr) = S(qr, 𝛀₂.domain);
   ρᵥ¹ = I(2)⊗spdiagm(vec(1 ./ρ₁.(Ω₁.(𝐪𝐫))))
@@ -339,7 +338,7 @@ end
 """
 A non-allocating implementation of the RK4 scheme
 """
-function RK4_1!(M, sol)  
+function RK4_1!(M, sol, Δt)  
   X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
   mul!(k₁, M, X₀);
@@ -351,7 +350,7 @@ function RK4_1!(M, sol)
   mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
   # Final step
   @turbo for i=1:lastindex(X₀)
-    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i])
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
   end
   X₀
 end
@@ -382,46 +381,41 @@ getY(C) = C[2];
 ##########################
 # Define the domain for PML computation
 cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q, 0.0]
-c₀¹_pml(r) = @SVector [0.0, (Lᵥ+δ′)*r]
+c₀¹_pml(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹_pml(q) = cᵢ_pml(q)
-c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ+δ′)*r]
-c₃¹_pml(q) = @SVector [(Lₕ+δ′)*q, (Lᵥ+δ′)]
+c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r]
+c₃¹_pml(q) = @SVector [(Lₕ+δ′)*q, (Lᵥ)]
 domain₁_pml = domain_2d(c₀¹_pml, c₁¹_pml, c₂¹_pml, c₃¹_pml)
-c₀²_pml(r) = @SVector [0.0, (Lᵥ+δ′)*r-(Lᵥ+δ′)]
-c₁²_pml(q) = @SVector [(Lₕ+δ′)*q, -(Lᵥ+δ′)]
-c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ+δ′)*r-(Lᵥ+δ′)]
+c₀²_pml(r) = @SVector [0.0, (Lᵥ)*r-(Lᵥ)]
+c₁²_pml(q) = @SVector [(Lₕ+δ′)*q, -(Lᵥ)]
+c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 # Define the domain for full elasticity computation
 cᵢ(q) = @SVector [3(Lₕ+δ′)*q, 0.0]
-c₀¹(r) = @SVector [0.0, (Lᵥ+δ′)*r]
+c₀¹(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹(q) = cᵢ(q)
-c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ+δ′)*r]
-c₃¹(q) = @SVector [3(Lᵥ+δ′)*q, (Lᵥ+δ′)]
+c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r]
+c₃¹(q) = @SVector [3(Lₕ+δ′)*q, (Lᵥ)]
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [0.0, (Lᵥ+δ′)*r-(Lᵥ+δ′)]
-c₁²(q) = @SVector [3(Lₕ+δ′)*q, -(Lᵥ+δ′)]
-c₂²(r) = @SVector [3(Lₕ+δ′), (Lᵥ+δ′)*r-(Lᵥ+δ′)]
+c₀²(r) = @SVector [0.0, (Lᵥ)*r-(Lᵥ)]
+c₁²(q) = @SVector [3(Lₕ+δ′)*q, -(Lᵥ)]
+c₂²(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
 c₃²(q) = cᵢ(q)
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
 
-const Δt = 1e-3
-tf = 10.0
-ntime = ceil(Int, tf/Δt)
-max_abs_error = zeros(Float64, ntime)
-
 #######################################
 # Linear system for the PML elasticity
 #######################################
-𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), -exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
+𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N₂ = 161;
+N₂ = 81;
 𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (N₂,N₂));
 𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (N₂,N₂));
 𝐪𝐫ᴾᴹᴸ = generate_2d_grid((N₂,N₂))
@@ -434,7 +428,7 @@ massma2_pml =  𝐌2⁻¹ₚₘₗ((𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), 𝐪�
 #######################################
 # Linear system for the Full elasticity
 #######################################
-N₁ = 481;
+N₁ = 3N₂-2
 𝛀₁ = DiscreteDomain(domain₁, (N₁,N₂));
 𝛀₂ = DiscreteDomain(domain₂, (N₁,N₂));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -449,12 +443,17 @@ xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
 stima2 =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫, 𝐪𝐫), 0.0);
 massma2 =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
+const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
+tf = 5.0
+ntime = ceil(Int, tf/Δt)
+max_abs_error = zeros(Float64, ntime)
 
-comput_domain = Int64((N₂-1)/10)
+
+comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0)
 indices_x = 1:N₂
 indices_y = 1:N₂
-xy_PML₁ = xy₁ᴾᴹᴸ[:, 1:end-comput_domain]
-xy_FULL₁ = xy₁[indices_x, indices_y][:, 1:end-comput_domain]
+xy_PML₁ = xy₁ᴾᴹᴸ[comput_domain]
+xy_FULL₁ = xy₁[indices_x, indices_y][comput_domain]
 @assert xy_PML₁ ≈ xy_FULL₁
 # Begin time loop
 let
@@ -481,8 +480,8 @@ let
   K_pml = massma2_pml*stima2_pml  
 
   for i=1:ntime
-    X₀ = RK4_1!(K, (X₀, k₁, k₂, k₃, k₄))    
-    X₀_pml = RK4_1!(K_pml, (X₀_pml, k₁_pml, k₂_pml, k₃_pml, k₄_pml))    
+    X₀ = RK4_1!(K, (X₀, k₁, k₂, k₃, k₄), Δt)    
+    X₀_pml = RK4_1!(K_pml, (X₀_pml, k₁_pml, k₂_pml, k₃_pml, k₄_pml), Δt)    
 
     t += Δt        
 
@@ -495,14 +494,27 @@ let
     u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
 
     # Get the domain of interest i.e., Ω - Ωₚₘₗ
-    comput_domain = Int64((N₂-1)/10)
+    comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0)
     indices_x = 1:N₂
     indices_y = 1:N₂
-    U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[:, 1:end-comput_domain]
-    U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[indices_x, indices_y][:, 1:end-comput_domain]
+    
+    U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[comput_domain]
+    U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[indices_x, indices_y][comput_domain]
     DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 
-    max_abs_error[i] = maximum(DU_FULL_PML₁)
+    U_PML₂ = reshape(u1ref₂_pml, (N₂,N₂))[comput_domain]
+    U_FULL₂ = reshape(u1ref₂, (N₂,N₁))[indices_x, indices_y][comput_domain]
+    DU_FULL_PML₂ = abs.(U_PML₂-U_FULL₂);
+
+    V_PML₁ = reshape(u2ref₁_pml, (N₂,N₂))[comput_domain]
+    V_FULL₁ = reshape(u2ref₁, (N₂,N₁))[indices_x, indices_y][comput_domain]
+    DV_FULL_PML₁ = abs.(V_PML₁-V_FULL₁);
+
+    V_PML₂ = reshape(u2ref₂_pml, (N₂,N₂))[comput_domain]
+    V_FULL₂ = reshape(u2ref₂, (N₂,N₁))[indices_x, indices_y][comput_domain]
+    DV_FULL_PML₂ = abs.(V_PML₂-V_FULL₂);
+
+    max_abs_error[i] = max(maximum(DU_FULL_PML₁), maximum(DU_FULL_PML₂), maximum(DV_FULL_PML₁), maximum(DV_FULL_PML₂))
 
     (i%100==0) && println("Done t = "*string(t)*"\t Error = "*string(max_abs_error[i]))
   end
@@ -547,7 +559,7 @@ end
 Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
 plt34 = Plots.plot(plt4, plt3, size=(80,30))
 
-# plt5 = Plots.plot()
+plt5 = Plots.plot()
 if (δ > 0)
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
 else

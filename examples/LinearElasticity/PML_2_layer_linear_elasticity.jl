@@ -358,16 +358,20 @@ A non-allocating implementation of the RK4 scheme
 function RK4_1!(M, sol, Δt)  
   X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
+  # k₁ .= M*X₀
   mul!(k₁, M, X₀);
   # k2 step
+  # k₂ .= M*(X₀ + 0.5*Δt*k₁)
   mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
   # k3 step
+  # k₃ .= M*(X₀ + 0.5*Δt*k₂)
   mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
   # k4 step
+  # k₄ .= M*(X₀ + Δt*k₃)
   mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
   # Final step
   @turbo for i=1:lastindex(X₀)
-    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + k₂[i] + k₃[i] + k₄[i])
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
   end
   X₀
 end
@@ -404,7 +408,7 @@ stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ),
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
 # Define the time stepping
 const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
-tf = 100.0
+tf = 2.0
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
 
@@ -453,18 +457,19 @@ let
   global Xref = X₀
 end  
 
-# u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-# u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-# Plots.contourf!(plt3, getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet)
-# Plots.contourf!(plt3, etX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet)
-# Plots.vline!(plt3, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-# Plots.plot!(plt3, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-# xlims!(plt3, (0,Lᵥ+δ))
-# ylims!(plt3, (-Lₕ-δ,Lₕ+δ))
-# xlabel!(plt3, "\$x\$")
-# ylabel!(plt3, "\$y\$")
-# title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
+plt3 = Plots.plot();
+Plots.contourf!(plt3, getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet, levels=100)
+Plots.contourf!(plt3, getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet, levels=100)
+Plots.vline!(plt3, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.plot!(plt3, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+xlims!(plt3, (0,Lᵥ+δ))
+ylims!(plt3, (-Lₕ-δ,Lₕ+δ))
+xlabel!(plt3, "\$x\$")
+ylabel!(plt3, "\$y\$")
+title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
 # c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
 # plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
 
