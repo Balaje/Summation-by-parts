@@ -30,7 +30,7 @@ Get the x-and-y coordinates from coordinates
 getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
-cᵢ(q) = @SVector [4.4π*q, 4π*0.0*sin(π*q)]
+cᵢ(q) = @SVector [4.4π*q, 0.0π*exp(-40π*(q-0.5)^2)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [4.4π, 4π*r]
@@ -46,56 +46,56 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 ##### ##### ##### ##### ##### ##### 
 # EXAMPLE OF AN ANISOTROPIC DOMAIN
 ##### ##### ##### ##### ##### ##### 
-# """
-# Material properties coefficients of an anisotropic material
-# """
-# c₁₁¹(x) = 4.0
-# c₂₂¹(x) = 20.0
-# c₃₃¹(x) = 2.0
-# c₁₂¹(x) = 3.8
+"""
+Material properties coefficients of an anisotropic material
+"""
+c₁₁¹(x) = 4.0
+c₂₂¹(x) = 20.0
+c₃₃¹(x) = 2.0
+c₁₂¹(x) = 3.8
 
-# c₁₁²(x) = 4*c₁₁¹(x)
-# c₂₂²(x) = 4*c₂₂¹(x)
-# c₃₃²(x) = 4*c₃₃¹(x)
-# c₁₂²(x) = 4*c₁₂¹(x)
+c₁₁²(x) = 4*c₁₁¹(x)
+c₂₂²(x) = 4*c₂₂¹(x)
+c₃₃²(x) = 4*c₃₃¹(x)
+c₁₂²(x) = 4*c₁₂¹(x)
 
-# ρ₁(x) = 1.0
-# ρ₂(x) = 0.25
+ρ₁(x) = 1.0
+ρ₂(x) = 0.25
 
 ##### ##### ##### ##### ##### ##### 
 # EXAMPLE OF AN ISOTROPIC DOMAIN
 ##### ##### ##### ##### ##### ##### 
-"""
-Density function 
-"""
-ρ₁(x) = 1.5
-ρ₂(x) = 3.0
+# """
+# Density function 
+# """
+# ρ₁(x) = 1.5
+# ρ₂(x) = 3.0
 
-"""
-The Lamé parameters μ₁, λ₁ on Layer 1
-"""
-μ₁(x) = 1.8^2*ρ₁(x)
-λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
+# """
+# The Lamé parameters μ₁, λ₁ on Layer 1
+# """
+# μ₁(x) = 1.8^2*ρ₁(x)
+# λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
 
-"""
-The Lamé parameters μ₁, λ₁ on Layer 2
-"""
-μ₂(x) = 3^2*ρ₂(x)
-λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
+# """
+# The Lamé parameters μ₁, λ₁ on Layer 2
+# """
+# μ₂(x) = 3^2*ρ₂(x)
+# λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
 
 
-"""
-Material properties coefficients of an anisotropic material
-"""
-c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
-c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
-c₃₃¹(x) = μ₁(x)
-c₁₂¹(x) = λ₁(x)
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
+# c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
+# c₃₃¹(x) = μ₁(x)
+# c₁₂¹(x) = λ₁(x)
 
-c₁₁²(x) = 2*μ₂(x)+λ₂(x)
-c₂₂²(x) = 2*μ₂(x)+λ₂(x)
-c₃₃²(x) = μ₂(x)
-c₁₂²(x) = λ₂(x)
+# c₁₁²(x) = 2*μ₂(x)+λ₂(x)
+# c₂₂²(x) = 2*μ₂(x)+λ₂(x)
+# c₃₃²(x) = μ₂(x)
+# c₁₂²(x) = λ₂(x)
 
 cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
 cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
@@ -115,7 +115,7 @@ cs₂ = max(csx₂, csy₂)
 The PML damping
 """
 const Lᵥ = 4π
-const Lₕ = 3.6π
+const Lₕ = 4π
 const δ = 0.1*Lᵥ
 const σ₀ᵛ = 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -132,6 +132,9 @@ function σᵥ(x)
   end
 end
 
+"""
+Horizontal PML strip
+"""
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
     return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
@@ -417,12 +420,12 @@ xy₂ = Ω₂.(𝐪𝐫₂);
 stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂));
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
 # Define the time stepping
-const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
-tf = 2.0
+const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
+tf = 100.0
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
 
-# plt3 = Vector{Plots.Plot}(undef,3);
+plt3 = Vector{Plots.Plot}(undef,3);
 
 # Begin time loop
 let
@@ -448,18 +451,20 @@ let
 
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+    U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
+    U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
     
-    # if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)))
-    #   plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=400)
-    #   Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=400)
-    #   Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-    #   Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-    #   xlims!(plt3[count], (0,Lᵥ+δ))
-    #   ylims!(plt3[count], (-Lₕ-δ,Lₕ+δ))
-    #   xlabel!(plt3[count], "\$x\$")
-    #   ylabel!(plt3[count], "\$y\$")
-    #   count += 1
-    # end
+    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 2/Δt)) || (i == ceil(Int64, 3/Δt)))
+      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
+      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
+      Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+      xlims!(plt3[count], (0,Lᵥ+δ))
+      ylims!(plt3[count], (-Lₕ,Lₕ))
+      xlabel!(plt3[count], "\$x\$")
+      ylabel!(plt3[count], "\$y\$")
+      count += 1
+    end
 
     maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
   end
@@ -471,19 +476,20 @@ u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12
 u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
 u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2);
+U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2);
 
-plt3 = Plots.plot();
-Plots.contourf!(plt3, getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet, levels=100)
-Plots.contourf!(plt3, getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet, levels=100)
-Plots.vline!(plt3, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.plot!(plt3, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-xlims!(plt3, (0,Lᵥ+δ))
-ylims!(plt3, (-Lₕ-δ,Lₕ+δ))
-xlabel!(plt3, "\$x\$")
-ylabel!(plt3, "\$y\$")
-title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
-# c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
-# plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
+plt3_1 = Plots.plot();
+Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
+Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet)
+Plots.vline!(plt3_1, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.plot!(plt3_1, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
+xlims!(plt3_1, (0,Lᵥ+δ))
+ylims!(plt3_1, (-Lₕ,Lₕ))
+xlabel!(plt3_1, "\$x\$")
+ylabel!(plt3_1, "\$y\$")
+c_ticks = (LinRange(1.01e-7,7.01e-7,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
+Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
 
 plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
 Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
@@ -496,6 +502,7 @@ ylabel!(plt4, "\$ y \$")
 plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=2, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
+Plots.xlims!(plt5, (0,tf))
 
 
 

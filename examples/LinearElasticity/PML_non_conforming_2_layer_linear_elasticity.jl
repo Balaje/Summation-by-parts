@@ -93,7 +93,7 @@ cs₂ = max(csx₂, csy₂)
 The PML damping
 """
 const Lᵥ = 4π
-const Lₕ = 3.6π
+const Lₕ = 4π
 const δ = 0.1*Lᵥ
 const σ₀ᵛ = 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -110,6 +110,9 @@ function σᵥ(x)
   end
 end
 
+"""
+Horizontal PML strip
+"""
 function σₕ(x)
   if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
     return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
@@ -400,7 +403,7 @@ Hq₂ = SBP_1_2_CONSTANT_0_1(N₂).norm;
 Hr₂ = SBP_1_2_CONSTANT_0_1(N₂).norm;
 𝐇₂ = Hq₂ ⊗ Hr₂
 const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 4.0
+tf = 100.0
 ntime = ceil(Int, tf/Δt)
 l2norm = zeros(Float64, ntime)
 # Begin time loop
@@ -445,12 +448,12 @@ Plots.vline!(plt3_new, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*
 Plots.plot!(plt3_new, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), 
                     label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
 xlims!(plt3_new, (0,Lᵥ+δ))
-ylims!(plt3_new, (-Lₕ-δ,Lₕ+δ))
+ylims!(plt3_new, (-Lₕ,Lₕ))
 xlabel!(plt3_new, "\$x\$")
 ylabel!(plt3_new, "\$y\$")
 # title!("Solution at \$ t = "*string(round(tf,digits=3))*"\$")
-# c_ticks = (LinRange(-1.5e-7,5e-8,5), string.(round.(LinRange(-1.5,0.5,5), digits=4)).*"\$ \\times 10^{-7}\$");
-# plt3 = Plots.plot(plt3, colorbar_ticks=c_ticks)
+c_ticks = (LinRange(1.01e-6,4.01e-6,5), string.(round.(LinRange(1.01,4.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
+Plots.plot!(plt3_new, colorbar_ticks=c_ticks)
 
 plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
 Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
@@ -463,3 +466,4 @@ ylabel!(plt4, "\$ y \$")
 plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=2, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
+Plots.xlims!(plt5, (0,tf))
