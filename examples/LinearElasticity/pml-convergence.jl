@@ -67,6 +67,20 @@ c₁₂²(x) = λ₂(x)
 # ρ₁(x) = 1.0
 # ρ₂(x) = 0.25
 
+cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
+cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
+csx₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+csy₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
+cp₁ = max(cpx₁, cpy₁)
+cs₁ = max(csx₁, csy₁)
+
+cpx₂ = √(c₁₁²(1.0)/ρ₂(1.0))
+cpy₂ = √(c₂₂²(1.0)/ρ₂(1.0))
+csx₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+csy₂ = √(c₃₃²(1.0)/ρ₂(1.0))
+cp₂ = max(cpx₂, cpy₂)
+cs₂ = max(csx₂, csy₂)
+
 """
 The PML damping
 """
@@ -74,8 +88,8 @@ const Lᵥ = 4π
 const Lₕ = 4π
 const δ = 0.1*4π  
 const δ′ = δ # For constructing the geometry
-const σ₀ᵛ = (δ > 0.0) ? 4*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = (δ > 0.0) ? 0*(5.196*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = (δ > 0.0) ? 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = (δ > 0.0) ? 0*((max(cs₁, cs₂))*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
@@ -349,7 +363,7 @@ function RK4_1!(M, sol, Δt)
   # k4 step
   mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
   # Final step
-  @turbo for i=1:lastindex(X₀)
+  for i=1:lastindex(X₀)
     X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
   end
   X₀
@@ -415,7 +429,7 @@ domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N₂ = 81;
+N₂ = 161;
 𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (N₂,N₂));
 𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (N₂,N₂));
 𝐪𝐫ᴾᴹᴸ = generate_2d_grid((N₂,N₂))
@@ -443,8 +457,8 @@ xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
 stima2 =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫, 𝐪𝐫), 0.0);
 massma2 =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
-const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(3.118, 5.196)^2 + max(1.8,3)^2)
-tf = 5.0
+const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
+tf = 2.0
 ntime = ceil(Int, tf/Δt)
 max_abs_error = zeros(Float64, ntime)
 
@@ -559,7 +573,7 @@ end
 Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
 plt34 = Plots.plot(plt4, plt3, size=(80,30))
 
-plt5 = Plots.plot()
+# plt5 = Plots.plot()
 if (δ > 0)
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
 else

@@ -421,7 +421,7 @@ stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ),
 massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
 # Define the time stepping
 const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 100.0
+tf = 5.0
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
 
@@ -454,7 +454,7 @@ let
     U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
     U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
     
-    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 2/Δt)) || (i == ceil(Int64, 3/Δt)))
+    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 2/Δt)) || (i == ceil(Int64, 5/Δt)))
       plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
       Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
@@ -488,7 +488,7 @@ xlims!(plt3_1, (0,Lᵥ+δ))
 ylims!(plt3_1, (-Lₕ,Lₕ))
 xlabel!(plt3_1, "\$x\$")
 ylabel!(plt3_1, "\$y\$")
-c_ticks = (LinRange(1.01e-7,7.01e-7,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
+c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
 Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
 
 plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
