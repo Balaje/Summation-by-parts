@@ -16,56 +16,56 @@ PyPlot.matplotlib[:rc]("text", usetex=true)
 PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
-"""
-Density function 
-"""
-ρ₁(x) = 1.5
-ρ₂(x) = 3.0
+# """
+# Density function 
+# """
+# ρ₁(x) = 1.5
+# ρ₂(x) = 3.0
 
-"""
-The Lamé parameters μ₁, λ₁ on Layer 1
-"""
-μ₁(x) = 1.8^2*ρ₁(x)
-λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
+# """
+# The Lamé parameters μ₁, λ₁ on Layer 1
+# """
+# μ₁(x) = 1.8^2*ρ₁(x)
+# λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
 
-"""
-The Lamé parameters μ₁, λ₁ on Layer 2
-"""
-μ₂(x) = 3^2*ρ₂(x)
-λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
+# """
+# The Lamé parameters μ₁, λ₁ on Layer 2
+# """
+# μ₂(x) = 3^2*ρ₂(x)
+# λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
 
 
-"""
-Material properties coefficients of an anisotropic material
-"""
-c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
-c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
-c₃₃¹(x) = μ₁(x)
-c₁₂¹(x) = λ₁(x)
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
+# c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
+# c₃₃¹(x) = μ₁(x)
+# c₁₂¹(x) = λ₁(x)
 
-c₁₁²(x) = 2*μ₂(x)+λ₂(x)
-c₂₂²(x) = 2*μ₂(x)+λ₂(x)
-c₃₃²(x) = μ₂(x)
-c₁₂²(x) = λ₂(x)
+# c₁₁²(x) = 2*μ₂(x)+λ₂(x)
+# c₂₂²(x) = 2*μ₂(x)+λ₂(x)
+# c₃₃²(x) = μ₂(x)
+# c₁₂²(x) = λ₂(x)
 
 ##### ##### ##### ##### ##### ##### 
 # EXAMPLE OF AN ANISOTROPIC DOMAIN
 ##### ##### ##### ##### ##### ##### 
-# """
-# Material properties coefficients of an anisotropic material
-# """
-# c₁₁¹(x) = 4.0
-# c₂₂¹(x) = 20.0
-# c₃₃¹(x) = 2.0
-# c₁₂¹(x) = 3.8
+"""
+Material properties coefficients of an anisotropic material
+"""
+c₁₁¹(x) = 4.0
+c₂₂¹(x) = 20.0
+c₃₃¹(x) = 2.0
+c₁₂¹(x) = 3.8
 
-# c₁₁²(x) = 4*c₁₁¹(x)
-# c₂₂²(x) = 4*c₂₂¹(x)
-# c₃₃²(x) = 4*c₃₃¹(x)
-# c₁₂²(x) = 4*c₁₂¹(x)
+c₁₁²(x) = 4*c₁₁¹(x)
+c₂₂²(x) = 4*c₂₂¹(x)
+c₃₃²(x) = 4*c₃₃¹(x)
+c₁₂²(x) = 4*c₁₂¹(x)
 
-# ρ₁(x) = 1.0
-# ρ₂(x) = 0.25
+ρ₁(x) = 1.0
+ρ₂(x) = 0.25
 
 cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
 cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
@@ -86,7 +86,7 @@ The PML damping
 """
 const Lᵥ = 4π
 const Lₕ = 4π
-const δ = 0.1*4π  
+const δ = 0.0*4π  
 const δ′ = δ # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 0*((max(cs₁, cs₂))*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -394,7 +394,7 @@ getY(C) = C[2];
 # Define the two domains #
 ##########################
 # Define the domain for PML computation
-cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q, 0.0]
+cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q,  0.8π*exp(-40π*(q-0.5)^2)]
 c₀¹_pml(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹_pml(q) = cᵢ_pml(q)
 c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r]
@@ -406,7 +406,7 @@ c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 # Define the domain for full elasticity computation
-cᵢ(q) = @SVector [3(Lₕ+δ′)*q, 0.0]
+cᵢ(q) = @SVector [3(Lₕ+δ′)*q,  0.8π*exp(-40*9*π*(q-1/6)^2)]
 c₀¹(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r]
@@ -457,8 +457,8 @@ xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
 stima2 =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫, 𝐪𝐫), 0.0);
 massma2 =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
-const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 2.0
+const Δt = 0.15*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
 max_abs_error = zeros(Float64, ntime)
 
@@ -543,28 +543,28 @@ u1ref₁_pml,u2ref₁_pml = split_solution(X₀_pml[1:12*(prod(𝛀₁ᴾᴹᴸ.
 u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
 
 # Get the domain of interest i.e., Ω - Ωₚₘₗ
-comput_domain = Int64((N₂-1)/10)
-indices_x = 1:N₂
-indices_y = 1:N₂
-U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[:, 1:N₂-comput_domain]
-U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[1:N₂, 1:N₂-comput_domain]
+comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0);
+indices_x = 1:N₂;
+indices_y = 1:N₂;
+U_PML₁ = reshape(u1ref₁_pml, (N₂,N₂))[comput_domain]
+U_FULL₁ = reshape(u1ref₁, (N₂,N₁))[comput_domain]
 DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 
-plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(u1ref₁_pml,size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
-Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:matter, levels=40)
+plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(u1ref₁_pml,size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
+Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.vline!([Lᵥ], label="PML Domain", lc=:black, lw=1, ls=:dash)  
 else
   Plots.vline!([Lᵥ+δ′], label="ABC", lc=:black, lw=1, ls=:dash)
 end
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,N₂))), getY.(cᵢ.(LinRange(0,1,N₂))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((0,cᵢ_pml(1.0)[1]))
 ylims!((c₀²_pml(0.0)[2], c₀¹_pml(1.0)[2]))
 # title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
 
-plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:matter, levels=40, cbar=:none)
-Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:matter, levels=40)
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500))
+plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet, levels=40, cbar=:none)
+Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet, levels=40)
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,N₁))), getY.(cᵢ.(LinRange(0,1,N₁))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((cᵢ(0)[1],cᵢ(1.0)[1]))
 ylims!((c₀²(0.0)[2], c₀¹(1.0)[2]))
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
