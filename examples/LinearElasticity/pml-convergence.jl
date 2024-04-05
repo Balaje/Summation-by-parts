@@ -16,56 +16,56 @@ PyPlot.matplotlib[:rc]("text", usetex=true)
 PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
-# """
-# Density function 
-# """
-# ρ₁(x) = 1.5
-# ρ₂(x) = 3.0
+"""
+Density function 
+"""
+ρ₁(x) = 1.5
+ρ₂(x) = 3.0
 
-# """
-# The Lamé parameters μ₁, λ₁ on Layer 1
-# """
-# μ₁(x) = 1.8^2*ρ₁(x)
-# λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
+"""
+The Lamé parameters μ₁, λ₁ on Layer 1
+"""
+μ₁(x) = 1.8^2*ρ₁(x)
+λ₁(x) = 3.118^2*ρ₁(x) - 2μ₁(x)
 
-# """
-# The Lamé parameters μ₁, λ₁ on Layer 2
-# """
-# μ₂(x) = 3^2*ρ₂(x)
-# λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
+"""
+The Lamé parameters μ₁, λ₁ on Layer 2
+"""
+μ₂(x) = 3^2*ρ₂(x)
+λ₂(x) = 5.196^2*ρ₂(x) - 2μ₂(x)
 
 
-# """
-# Material properties coefficients of an anisotropic material
-# """
-# c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
-# c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
-# c₃₃¹(x) = μ₁(x)
-# c₁₂¹(x) = λ₁(x)
+"""
+Material properties coefficients of an anisotropic material
+"""
+c₁₁¹(x) = 2*μ₁(x)+λ₁(x)
+c₂₂¹(x) = 2*μ₁(x)+λ₁(x)
+c₃₃¹(x) = μ₁(x)
+c₁₂¹(x) = λ₁(x)
 
-# c₁₁²(x) = 2*μ₂(x)+λ₂(x)
-# c₂₂²(x) = 2*μ₂(x)+λ₂(x)
-# c₃₃²(x) = μ₂(x)
-# c₁₂²(x) = λ₂(x)
+c₁₁²(x) = 2*μ₂(x)+λ₂(x)
+c₂₂²(x) = 2*μ₂(x)+λ₂(x)
+c₃₃²(x) = μ₂(x)
+c₁₂²(x) = λ₂(x)
 
 ##### ##### ##### ##### ##### ##### 
 # EXAMPLE OF AN ANISOTROPIC DOMAIN
 ##### ##### ##### ##### ##### ##### 
-"""
-Material properties coefficients of an anisotropic material
-"""
-c₁₁¹(x) = 4.0
-c₂₂¹(x) = 20.0
-c₃₃¹(x) = 2.0
-c₁₂¹(x) = 3.8
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 4.0
+# c₂₂¹(x) = 20.0
+# c₃₃¹(x) = 2.0
+# c₁₂¹(x) = 3.8
 
-c₁₁²(x) = 4*c₁₁¹(x)
-c₂₂²(x) = 4*c₂₂¹(x)
-c₃₃²(x) = 4*c₃₃¹(x)
-c₁₂²(x) = 4*c₁₂¹(x)
+# c₁₁²(x) = 4*c₁₁¹(x)
+# c₂₂²(x) = 4*c₂₂¹(x)
+# c₃₃²(x) = 4*c₃₃¹(x)
+# c₁₂²(x) = 4*c₁₂¹(x)
 
-ρ₁(x) = 1.0
-ρ₂(x) = 0.25
+# ρ₁(x) = 1.0
+# ρ₂(x) = 0.25
 
 cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
 cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
@@ -457,8 +457,8 @@ xy₁ = Ω₁.(𝐪𝐫); xy₂ = Ω₂.(𝐪𝐫);
 stima2 =  𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫, 𝐪𝐫), 0.0);
 massma2 =  𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), 𝐪𝐫, (ρ₁, ρ₂));
 
-const Δt = 0.15*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 10.0
+const Δt = 0.15*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
+tf = 5.0;
 ntime = ceil(Int, tf/Δt)
 max_abs_error = zeros(Float64, ntime)
 
@@ -571,7 +571,7 @@ if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.plot!([Lᵥ+δ′,Lᵥ+δ′], [-Lₕ-δ′, Lₕ+δ′], label="PML", lc=:black, lw=1, ls=:dash)  
 end
 Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
-plt34 = Plots.plot(plt4, plt3, size=(80,30))
+# plt34 = Plots.plot(plt4, plt3, size=(800,300))
 
 # plt5 = Plots.plot()
 if (δ > 0)
