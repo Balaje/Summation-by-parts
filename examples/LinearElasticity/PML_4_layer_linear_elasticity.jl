@@ -550,7 +550,25 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
                    (EQ1₃ + EQ2₃ + EQ3₃ + EQ4₃ + EQ5₃ + EQ6₃),
                    (EQ1₄ + EQ2₄ + EQ3₄ + EQ4₄ + EQ5₄ + EQ6₄));  
   SATₙ = blockdiag(SAT₁, SAT₂, SAT₃, SAT₄)
-  bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ;
+  stima = bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ;
+  MN = prod(𝛀₁.mn)
+  res1 = hcat(stima[1:10*MN, 1:10MN],
+              stima[1:10*MN, 12*MN+1:10*MN+12*MN],
+              stima[1:10*MN, 12*MN+12*MN+1:12*MN+12*MN+10*MN],
+              stima[1:10*MN, 12*MN+12*MN+12*MN+1:12*MN+12*MN+12*MN+10*MN])
+  res2 = hcat(stima[12*MN+1:10*MN+12*MN, 1:10*MN],
+              stima[12*MN+1:10*MN+12*MN, 12*MN+1:10*MN+12*MN],
+              stima[12*MN+1:10*MN+12*MN, 12*MN+12*MN+1:12*MN+12*MN+10*MN],
+              stima[12*MN+1:10*MN+12*MN, 12*MN+12*MN+12*MN+1:12*MN+12*MN+12*MN+10*MN])
+  res3 = hcat(stima[12*MN+12*MN+1:10*MN+12*MN+12*MN, 1:10*MN],
+              stima[12*MN+12*MN+1:10*MN+12*MN+12*MN, 12*MN+1:10*MN+12*MN],
+              stima[12*MN+12*MN+1:10*MN+12*MN+12*MN, 12*MN+12*MN+1:12*MN+12*MN+10*MN],
+              stima[12*MN+12*MN+1:10*MN+12*MN+12*MN, 12*MN+12*MN+12*MN+1:12*MN+12*MN+12*MN+10*MN])
+  res4 = hcat(stima[12*MN+12*MN+12*MN+1:10*MN+12*MN+12*MN+12*MN, 1:10*MN],
+              stima[12*MN+12*MN+12*MN+1:10*MN+12*MN+12*MN+12*MN, 12*MN+1:10*MN+12*MN],
+              stima[12*MN+12*MN+12*MN+1:10*MN+12*MN+12*MN+12*MN, 12*MN+12*MN+1:12*MN+12*MN+10*MN],
+              stima[12*MN+12*MN+12*MN+1:10*MN+12*MN+12*MN+12*MN, 12*MN+12*MN+12*MN+1:12*MN+12*MN+12*MN+10*MN])
+  [res1; res2; res3; res4]             
 end
 
 """
@@ -576,10 +594,10 @@ function 𝐌4⁻¹ₚₘₗ(𝛀::NTuple{4,DiscreteDomain}, 𝐪𝐫, ρ)
   ρᵥ² = I(2)⊗spdiagm(vec(1 ./ρ₂.(Ω₂.(𝐪𝐫₂))))
   ρᵥ³ = I(2)⊗spdiagm(vec(1 ./ρ₃.(Ω₃.(𝐪𝐫₃))))
   ρᵥ⁴ = I(2)⊗spdiagm(vec(1 ./ρ₄.(Ω₄.(𝐪𝐫₄))))
-  blockdiag(blockdiag(Id₁, ρᵥ¹, Id₁, Id₁, Id₁, Id₁), 
-            blockdiag(Id₂, ρᵥ², Id₂, Id₂, Id₂, Id₂),
-            blockdiag(Id₃, ρᵥ³, Id₃, Id₃, Id₃, Id₃),
-            blockdiag(Id₄, ρᵥ⁴, Id₄, Id₄, Id₄, Id₄))
+  blockdiag(blockdiag(Id₁, ρᵥ¹, Id₁, Id₁, Id₁), 
+            blockdiag(Id₂, ρᵥ², Id₂, Id₂, Id₂),
+            blockdiag(Id₃, ρᵥ³, Id₃, Id₃, Id₃),
+            blockdiag(Id₄, ρᵥ⁴, Id₄, Id₄, Id₄))
 end 
 
 """
@@ -645,7 +663,7 @@ xy₄ = Ω₄.(𝐪𝐫₄);
 stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ, 𝒫₃ᴾᴹᴸ, 𝒫₄ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)), (𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄));
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
-const Δt = 0.15*(40/round(Int64, 1.1*N - 0.1))/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
+const Δt = 0.1*(40/round(Int64, 1.1*N - 0.1))/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
 tf = 1.0;
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
@@ -655,10 +673,10 @@ plt3 = Vector{Plots.Plot}(undef,3);
 # Begin time loop
 let
   t = 0.0
-  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
-  X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
-  X₀³ = vcat(eltocols(vec(𝐔.(xy₃))), eltocols(vec(𝐏.(xy₃))), eltocols(vec(𝐕.(xy₃))), eltocols(vec(𝐖.(xy₃))), eltocols(vec(𝐐.(xy₃))), eltocols(vec(𝐑.(xy₃))));
-  X₀⁴ = vcat(eltocols(vec(𝐔.(xy₄))), eltocols(vec(𝐏.(xy₄))), eltocols(vec(𝐕.(xy₄))), eltocols(vec(𝐖.(xy₄))), eltocols(vec(𝐐.(xy₄))), eltocols(vec(𝐑.(xy₄))));
+  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))));
+  X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))));
+  X₀³ = vcat(eltocols(vec(𝐔.(xy₃))), eltocols(vec(𝐏.(xy₃))), eltocols(vec(𝐕.(xy₃))), eltocols(vec(𝐖.(xy₃))), eltocols(vec(𝐐.(xy₃))));
+  X₀⁴ = vcat(eltocols(vec(𝐔.(xy₄))), eltocols(vec(𝐏.(xy₄))), eltocols(vec(𝐕.(xy₄))), eltocols(vec(𝐖.(xy₄))), eltocols(vec(𝐐.(xy₄))));
 
   X₀ = vcat(X₀¹, X₀², X₀³, X₀⁴)
   k₁ = zeros(Float64, length(X₀))
@@ -677,10 +695,10 @@ let
     t += Δt    
     (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
-    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-    u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-    u1ref₃,u2ref₃ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₂.mn, 12);
-    u1ref₄,u2ref₄ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₂.mn, 12);
+    u1ref₁,u2ref₁ = split_solution(X₀[1:10*(prod(𝛀₁.mn))], 𝛀₁.mn, 10);
+    u1ref₂,u2ref₂ = split_solution(X₀[10*(prod(𝛀₁.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))], 𝛀₂.mn, 10);
+    u1ref₃,u2ref₃ = split_solution(X₀[10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))], 𝛀₂.mn, 10);
+    u1ref₄,u2ref₄ = split_solution(X₀[10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))+10*(prod(𝛀₄.mn))], 𝛀₂.mn, 10);
     
     U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
     U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
@@ -709,10 +727,10 @@ let
   global Xref = X₀
 end;
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-u1ref₃,u2ref₃ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₂.mn, 12);
-u1ref₄,u2ref₄ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₂.mn, 12);
+u1ref₁,u2ref₁ = split_solution(Xref[1:10*(prod(𝛀₁.mn))], 𝛀₁.mn, 10);
+u1ref₂,u2ref₂ = split_solution(Xref[10*(prod(𝛀₁.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))], 𝛀₂.mn, 10);
+u1ref₃,u2ref₃ = split_solution(Xref[10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))], 𝛀₂.mn, 10);
+u1ref₄,u2ref₄ = split_solution(Xref[10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))+1:10*(prod(𝛀₁.mn))+10*(prod(𝛀₂.mn))+10*(prod(𝛀₃.mn))+10*(prod(𝛀₄.mn))], 𝛀₂.mn, 10);
 
 U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
 U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
