@@ -279,28 +279,28 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   sbp_q₁ = SBP_1_2_CONSTANT_0_1(m₁)
   sbp_r₁ = SBP_1_2_CONSTANT_0_1(n₁)
   sbp_2d₁ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₁, sbp_r₁)
-  𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, 𝐇r₀⁻¹₁, 𝐇rₙ⁻¹₁ = sbp_2d₁.norm
+  𝐇q₀⁻¹₁, 𝐇qₙ⁻¹₁, _, 𝐇rₙ⁻¹₁ = sbp_2d₁.norm
   Dq₁, Dr₁ = sbp_2d₁.D1
   Dqr₁ = [I(2)⊗Dq₁, I(2)⊗Dr₁]
   n₂, m₂ = size(𝐪𝐫₂)
   sbp_q₂ = SBP_1_2_CONSTANT_0_1(m₂)
   sbp_r₂ = SBP_1_2_CONSTANT_0_1(n₂)
   sbp_2d₂ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₂, sbp_r₂)
-  𝐇q₀⁻¹₂, 𝐇qₙ⁻¹₂, 𝐇r₀⁻¹₂, 𝐇rₙ⁻¹₂ = sbp_2d₂.norm
+  𝐇q₀⁻¹₂, 𝐇qₙ⁻¹₂, _, _ = sbp_2d₂.norm
   Dq₂, Dr₂ = sbp_2d₂.D1
   Dqr₂ = [I(2)⊗Dq₂, I(2)⊗Dr₂]
   n₃, m₃ = size(𝐪𝐫₃)
   sbp_q₃ = SBP_1_2_CONSTANT_0_1(m₃)
   sbp_r₃ = SBP_1_2_CONSTANT_0_1(n₃)
   sbp_2d₃ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₃, sbp_r₃)
-  𝐇q₀⁻¹₃, 𝐇qₙ⁻¹₃, 𝐇r₀⁻¹₃, 𝐇rₙ⁻¹₃ = sbp_2d₃.norm
+  𝐇q₀⁻¹₃, 𝐇qₙ⁻¹₃, _, _ = sbp_2d₃.norm
   Dq₃, Dr₃ = sbp_2d₃.D1
   Dqr₃ = [I(2)⊗Dq₃, I(2)⊗Dr₃]
   n₄, m₄ = size(𝐪𝐫₄)
   sbp_q₄ = SBP_1_2_CONSTANT_0_1(m₄)
   sbp_r₄ = SBP_1_2_CONSTANT_0_1(n₄)
   sbp_2d₄ = SBP_1_2_CONSTANT_0_1_0_1(sbp_q₄, sbp_r₄)
-  𝐇q₀⁻¹₄, 𝐇qₙ⁻¹₄, 𝐇r₀⁻¹₄, 𝐇rₙ⁻¹₄ = sbp_2d₄.norm
+  𝐇q₀⁻¹₄, 𝐇qₙ⁻¹₄, 𝐇r₀⁻¹₄, _ = sbp_2d₄.norm
   Dq₄, Dr₄ = sbp_2d₄.D1
   Dqr₄ = [I(2)⊗Dq₄, I(2)⊗Dr₄]
 
@@ -369,13 +369,13 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   Dx₄, Dy₄ = J_vec_diag₄*Dqr₄;
 
   # Surface Jacobian Matrices on Layer 1
-  SJr₀¹, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
+  _, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 2
-  SJr₀², SJq₀², SJrₙ², SJqₙ² =  𝐉₂⁻¹*Js(𝛀₂, [0,-1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [0,1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
+  _, SJq₀², _, SJqₙ² =  𝐉₂⁻¹*Js(𝛀₂, [0,-1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [0,1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 3
-  SJr₀³, SJq₀³, SJrₙ³, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [0,-1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [0,1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
+  _, SJq₀³, _, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [0,-1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [0,1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 4
-  SJr₀⁴, SJq₀⁴, SJrₙ⁴, SJqₙ⁴ =  𝐉₄⁻¹*Js(𝛀₄, [0,-1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [-1,0];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [0,1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [1,0];  X=I(2))
+  SJr₀⁴, SJq₀⁴, _, SJqₙ⁴ =  𝐉₄⁻¹*Js(𝛀₄, [0,-1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [-1,0];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [0,1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [1,0];  X=I(2))
 
   # We build the governing equations on both layer simultaneously
   # Equation 1: ∂u/∂t = p
@@ -439,42 +439,46 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   EQ6₃ = sum(es .⊗ eq6s₃)
   EQ6₄ = sum(es .⊗ eq6s₄)
 
-  # PML characteristic boundary conditions
+  # Traction free boundary condition on Top
+  Trₙ¹ = Tᴱ(Pqr₁, 𝛀₁, [0;1]).A
+  Trₙᴾᴹᴸ₁₁, Trₙᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;1]).A 
+  es = [E1(2,i,(6,6)) for i=[1,3,4]];
+  𝐓rₙ¹ = [Trₙ¹, Trₙᴾᴹᴸ₁₁, Trₙᴾᴹᴸ₂₁]
+  # The SAT Terms on the boundary 
+  SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,3).*fill((I(2)⊗𝐇rₙ⁻¹₁),3));
+  SAT₁ = sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*𝐓rₙ¹));  
+
+  # PML characteristic boundary conditions on Left and Right
   es = [E1(2,i,(6,6)) for i=1:6];
   PQRᵪ¹ = Pqr₁, Pᴾᴹᴸqr₁, 𝐙₁₂¹, 𝛔₁₂¹, 𝛕₁₂¹, 𝐉₁;
-  χq₀¹, χr₀¹, χqₙ¹, χrₙ¹ = χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [-1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,-1]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [0,1]).A;
+  χq₀¹, χqₙ¹ = χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [-1,0]).A, χᴾᴹᴸ(PQRᵪ¹, 𝛀₁, [1,0]).A
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₁ = (fill(SJq₀¹,6).*fill((I(2)⊗𝐇q₀⁻¹₁),6));
-  SJ_𝐇qₙ⁻¹₁ = (fill(SJqₙ¹,6).*fill((I(2)⊗𝐇qₙ⁻¹₁),6));
-  SJ_𝐇r₀⁻¹₁ = (fill(SJr₀¹,6).*fill((I(2)⊗𝐇r₀⁻¹₁),6));
-  SJ_𝐇rₙ⁻¹₁ = (fill(SJrₙ¹,6).*fill((I(2)⊗𝐇rₙ⁻¹₁),6));
-  SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹));
+  SJ_𝐇qₙ⁻¹₁ = (fill(SJqₙ¹,6).*fill((I(2)⊗𝐇qₙ⁻¹₁),6));  
+  SAT₁ += sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹))
   
+  # PML characteristic boundary conditions
+  es = [E1(2,i,(6,6)) for i=1:6];
   PQRᵪ² = Pqr₂, Pᴾᴹᴸqr₂, 𝐙₁₂², 𝛔₁₂², 𝛕₁₂², 𝐉₂;
-  χq₀², χr₀², χqₙ², χrₙ² = χᴾᴹᴸ(PQRᵪ², 𝛀₂, [-1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,-1]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [0,1]).A;
+  χq₀², χqₙ² = χᴾᴹᴸ(PQRᵪ², 𝛀₂, [-1,0]).A, χᴾᴹᴸ(PQRᵪ², 𝛀₂, [1,0]).A
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₂ = (fill(SJq₀²,6).*fill((I(2)⊗𝐇q₀⁻¹₂),6));
   SJ_𝐇qₙ⁻¹₂ = (fill(SJqₙ²,6).*fill((I(2)⊗𝐇qₙ⁻¹₂),6));
-  SJ_𝐇r₀⁻¹₂ = (fill(SJr₀²,6).*fill((I(2)⊗𝐇r₀⁻¹₂),6));
-  SJ_𝐇rₙ⁻¹₂ = (fill(SJrₙ²,6).*fill((I(2)⊗𝐇rₙ⁻¹₂),6));
   SAT₂ = sum(es.⊗(SJ_𝐇q₀⁻¹₂.*χq₀²)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₂.*χqₙ²));
 
   PQRᵪ³ = Pqr₃, Pᴾᴹᴸqr₃, 𝐙₁₂³, 𝛔₁₂³, 𝛕₁₂³, 𝐉₃;
-  χq₀³, χr₀³, χqₙ³, χrₙ³ = χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [-1,0]).A, χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [0,-1]).A, χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [1,0]).A, χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [0,1]).A;
+  χq₀³, χqₙ³ = χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [-1,0]).A, χᴾᴹᴸ(PQRᵪ³, 𝛀₃, [1,0]).A
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₃ = (fill(SJq₀³,6).*fill((I(2)⊗𝐇q₀⁻¹₃),6));
   SJ_𝐇qₙ⁻¹₃ = (fill(SJqₙ³,6).*fill((I(2)⊗𝐇qₙ⁻¹₃),6));
-  SJ_𝐇r₀⁻¹₃ = (fill(SJr₀³,6).*fill((I(2)⊗𝐇r₀⁻¹₃),6));
-  SJ_𝐇rₙ⁻¹₃ = (fill(SJrₙ³,6).*fill((I(2)⊗𝐇rₙ⁻¹₃),6));
   SAT₃ = sum(es.⊗(SJ_𝐇q₀⁻¹₃.*χq₀³)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₃.*χqₙ³));
 
   PQRᵪ⁴ = Pqr₄, Pᴾᴹᴸqr₄, 𝐙₁₂⁴, 𝛔₁₂⁴, 𝛕₁₂⁴, 𝐉₄;
-  χq₀⁴, χr₀⁴, χqₙ⁴, χrₙ⁴ = χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [-1,0]).A, χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [0,-1]).A, χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [1,0]).A, χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [0,1]).A;
+  χq₀⁴, χr₀⁴, χqₙ⁴ = χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [-1,0]).A, χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [0,-1]).A, χᴾᴹᴸ(PQRᵪ⁴, 𝛀₄, [1,0]).A
   # The SAT Terms on the boundary 
   SJ_𝐇q₀⁻¹₄ = (fill(SJq₀⁴,6).*fill((I(2)⊗𝐇q₀⁻¹₄),6));
   SJ_𝐇qₙ⁻¹₄ = (fill(SJqₙ⁴,6).*fill((I(2)⊗𝐇qₙ⁻¹₄),6));
   SJ_𝐇r₀⁻¹₄ = (fill(SJr₀⁴,6).*fill((I(2)⊗𝐇r₀⁻¹₄),6));
-  SJ_𝐇rₙ⁻¹₄ = (fill(SJrₙ⁴,6).*fill((I(2)⊗𝐇rₙ⁻¹₄),6));
   SAT₄ = sum(es.⊗(SJ_𝐇q₀⁻¹₄.*χq₀⁴)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₄.*χqₙ⁴)) + sum(es.⊗(SJ_𝐇r₀⁻¹₄.*χr₀⁴));
 
   # The interface part
@@ -625,7 +629,7 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 401;
+N = 21;
 𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),N));
 𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),N));
 𝛀₃ = DiscreteDomain(domain₃, (round(Int64, 1.1*N - 0.1),N));
@@ -645,8 +649,8 @@ xy₄ = Ω₄.(𝐪𝐫₄);
 stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ, 𝒫₃ᴾᴹᴸ, 𝒫₄ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)), (𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄));
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
-const Δt = 0.15*(40/round(Int64, 1.1*N - 0.1))/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
-tf = 1.0;
+const Δt = 0.1*(40/round(Int64, 1.1*N - 0.1))/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
+tf = 9.0;
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime)
 
