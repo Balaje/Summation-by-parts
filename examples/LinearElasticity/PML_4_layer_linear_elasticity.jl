@@ -16,7 +16,6 @@ PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
-using LoopVectorization
 
 """
 Flatten the 2d function as a single vector for the time iterations.
@@ -535,7 +534,7 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐓rᵢ²ᵀ = blockdiag(𝐓rᵀ₀², 𝐓rᵀₙ³)   
   𝐓rᵢ³ᵀ = blockdiag(𝐓rᵀ₀³, 𝐓rᵀₙ⁴)   
   h = 40/(max(n₁, n₂, n₃, n₄)-1)
-  ζ₀ = 800/h  
+  ζ₀ = 600/h  
   # Assemble the interface SAT
   𝐉₁₂ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
   𝐉₂₃ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₃⁻¹)
@@ -629,19 +628,19 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 21;
-𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),N));
-𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),N));
-𝛀₃ = DiscreteDomain(domain₃, (round(Int64, 1.1*N - 0.1),N));
-𝛀₄ = DiscreteDomain(domain₄, (round(Int64, 1.1*N - 0.1),N));
+N = 401;
+𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝛀₃ = DiscreteDomain(domain₃, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝛀₄ = DiscreteDomain(domain₄, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 Ω₂(qr) = S(qr, 𝛀₂.domain);
 Ω₃(qr) = S(qr, 𝛀₃.domain);
 Ω₄(qr) = S(qr, 𝛀₄.domain);
-𝐪𝐫₁ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
-𝐪𝐫₂ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
-𝐪𝐫₃ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
-𝐪𝐫₄ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
+𝐪𝐫₁ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝐪𝐫₂ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝐪𝐫₃ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝐪𝐫₄ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
 xy₁ = Ω₁.(𝐪𝐫₁);
 xy₂ = Ω₂.(𝐪𝐫₂);
 xy₃ = Ω₃.(𝐪𝐫₃);
@@ -649,10 +648,10 @@ xy₄ = Ω₄.(𝐪𝐫₄);
 stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ, 𝒫₃ᴾᴹᴸ, 𝒫₄ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)), (𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄));
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
-const Δt = 0.1*(40/round(Int64, 1.1*N - 0.1))/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
-tf = 9.0;
+const Δt = 0.2*(40/(N-1))/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
+tf = 20.0;
 ntime = ceil(Int, tf/Δt)
-maxvals = zeros(Float64, ntime)
+maxvals = zeros(Float64, ntime);
 
 plt3 = Vector{Plots.Plot}(undef,3);
 
@@ -673,13 +672,13 @@ let
   count = 1;
   # @gif for i=1:ntime
   Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
-  Hr = SBP_1_2_CONSTANT_0_1(N).norm;
+  Hr = SBP_1_2_CONSTANT_0_1(round(Int64, (N-1)/4+1)).norm;
   Hqr = Hq ⊗ Hr
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     X₀ = RK4_1!(M, sol, Δt)    
     t += Δt    
-    (i%25==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+    (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
