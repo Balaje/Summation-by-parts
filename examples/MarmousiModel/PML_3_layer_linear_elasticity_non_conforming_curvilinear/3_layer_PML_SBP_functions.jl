@@ -314,7 +314,7 @@ function RK4_1!(Δt, M, sol)
   # k4 step
   mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
   # Final step
-  @turbo for i=1:lastindex(X₀)
+  for i=1:lastindex(X₀)
     X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
   end
   X₀
