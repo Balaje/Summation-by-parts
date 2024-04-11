@@ -22,6 +22,7 @@ Flatten the 2d function as a single vector for the time iterations.
   (...Basically convert vector of vectors to matrix...)
 """
 eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+eltocols(v::Vector{MVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
 
 """
 Get the x-and-y coordinates from coordinates
@@ -610,6 +611,40 @@ function RK4_1!(M, sol, Δt)
 end
 
 """
+Right hand side function
+"""
+function f(t::Float64, x::SVector{2,Float64}, params)
+  s₁, s₂, M₀ = params
+  @SVector[-1/(2π*√(s₁*s₂))*exp(-(x[1]-20)^2/(2s₁) - (x[2]+15)^2/(2s₂))*(x[1]-20)/s₁*exp(-(t-0.215)^2/0.15)*M₀,
+           -1/(2π*√(s₁*s₂))*exp(-(x[1]-20)^2/(2s₁) - (x[2]+15)^2/(2s₂))*(x[2]+15)/s₂*exp(-(t-0.215)^2/0.15)*M₀]
+end
+
+"""
+A non-allocating implementation of the RK4 scheme with forcing
+"""
+function RK4_1!(MK, sol, Δt, F, M)  
+  X₀, k₁, k₂, k₃, k₄ = sol
+  F₁, F₂, F₃, F₄ = F
+  # k1 step  
+  # k₁ .= M⁻¹*K*X₀ + M⁻¹*F₁
+  mul!(k₁, MK, X₀); mul!(k₁, M, F₁, 1, 1)
+  # k2 step
+  # k₂ .= M⁻¹K*(X₀ + 0.5*Δt*k₁) + M⁻¹*F₂
+  mul!(k₂, MK, k₁, 0.5*Δt, 0.0); mul!(k₂, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
+  # k3 step
+  # k₃ .= M⁻¹K*(X₀ + 0.5*Δt*k₂) + M⁻¹*F₃
+  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₃, 1, 1)
+  # k4 step
+  # k₄ .= M⁻¹K*(X₀ + Δt*k₃) + M⁻¹*F₃
+  mul!(k₄, MK, k₃, Δt, 0.0); mul!(k₄, MK, X₀, 1, 1); mul!(k₂, M, F₄, 1, 1)
+  # Final step
+  for i=1:lastindex(X₀)
+    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
+  end
+  X₀
+end
+
+"""
 Function to split the solution into the corresponding variables
 """
 function split_solution(X, MN, P)    
@@ -622,6 +657,7 @@ end
 Initial conditions
 """
 𝐔(x) = @SVector [exp(-5*((x[1]-20)^2 + (x[2]+15)^2)), exp(-5*((x[1]-20)^2 + (x[2]+15)^2))]
+# 𝐔(x) = @SVector [0.0, 0.0]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
@@ -649,7 +685,7 @@ stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
 const Δt = 0.2*(40/(N-1))/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
-tf = 20.0;
+tf = 10.0;
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime);
 
@@ -674,8 +710,21 @@ let
   Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
   Hr = SBP_1_2_CONSTANT_0_1(round(Int64, (N-1)/4+1)).norm;
   Hqr = Hq ⊗ Hr
+  function 𝐅(t, xy, Z)  
+    xy₁, xy₂, xy₃, xy₄ = xy    
+    [Z; eltocols(f.(Ref(t), vec(xy₁), Ref(param))); Z; Z; Z; Z;
+     Z; eltocols(f.(Ref(t), vec(xy₂), Ref(param))); Z; Z; Z; Z;
+     Z; eltocols(f.(Ref(t), vec(xy₃), Ref(param))); Z; Z; Z; Z;
+     Z; eltocols(f.(Ref(t), vec(xy₄), Ref(param))); Z; Z; Z; Z]
+  end
+  # const param = (20/(N-1), 20/(N-1), 1000)
+  xys =  xy₁, xy₂, xy₃, xy₄
+  Z = zeros(2*length(xy₁))
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
+    # # This block is for the moment-source function
+    # Fs = (𝐅(t, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+Δt, xys, Z))
+    # X₀ = RK4_1!(M, sol, Δt, Fs, massma)    
     X₀ = RK4_1!(M, sol, Δt)    
     t += Δt    
     (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
@@ -690,7 +739,7 @@ let
     U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)
     U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)
     
-    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)))
+    if((i==ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)) || (i == ceil(Int64, 9/Δt)))
       plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet)
