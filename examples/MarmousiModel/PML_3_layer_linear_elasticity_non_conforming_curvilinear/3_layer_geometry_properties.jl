@@ -14,7 +14,6 @@ PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
-using LoopVectorization
 
 using Interpolations
 
