@@ -86,7 +86,7 @@ The PML damping
 """
 const Lᵥ = 4π
 const Lₕ = 4π
-const δ = 0.0*4π  
+const δ = 0.1*4π  
 const δ′ = δ # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 0*((max(cs₁, cs₂))*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -394,7 +394,7 @@ getY(C) = C[2];
 # Define the two domains #
 ##########################
 # Define the domain for PML computation
-cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q,  0.8π*exp(-40π*(q-0.5)^2)]
+cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q,  0.0π*exp(-40π*(q-0.5)^2)]
 c₀¹_pml(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹_pml(q) = cᵢ_pml(q)
 c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r]
@@ -406,7 +406,7 @@ c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
 c₃²_pml(q) = cᵢ_pml(q)
 domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
 # Define the domain for full elasticity computation
-cᵢ(q) = @SVector [3(Lₕ+δ′)*q,  0.8π*exp(-40*9*π*(q-1/6)^2)]
+cᵢ(q) = @SVector [3(Lₕ+δ′)*q,  0.0π*exp(-40*9*π*(q-1/6)^2)]
 c₀¹(r) = @SVector [0.0, (Lᵥ)*r]
 c₁¹(q) = cᵢ(q)
 c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r]
@@ -560,6 +560,8 @@ end
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,N₂))), getY.(cᵢ.(LinRange(0,1,N₂))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((0,cᵢ_pml(1.0)[1]))
 ylims!((c₀²_pml(0.0)[2], c₀¹_pml(1.0)[2]))
+xlabel!("\$x\$")
+ylabel!("\$y\$")
 # title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
 
 plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet, levels=40, cbar=:none)
@@ -571,14 +573,16 @@ if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.plot!([Lᵥ+δ′,Lᵥ+δ′], [-Lₕ-δ′, Lₕ+δ′], label="PML", lc=:black, lw=1, ls=:dash)  
 end
 Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
+xlabel!("\$x\$")
+ylabel!("\$y\$")
 # plt34 = Plots.plot(plt4, plt3, size=(800,300))
 
 # plt5 = Plots.plot()
 if (δ > 0)
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
 else
-  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=0.5, legendfontsize=5, ls=:dash)
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=1, legendfontsize=10, ls=:dash)
 end
 ylims!(plt5, (10^-8, 1))
-xlabel!(plt5, "Time \$ t \$")
+xlabel!(plt5, "Time")
 ylabel!(plt5, "Maximum Error")
