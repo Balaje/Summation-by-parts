@@ -534,8 +534,8 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐓rᵢ¹ᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
   𝐓rᵢ²ᵀ = blockdiag(𝐓rᵀ₀², 𝐓rᵀₙ³)   
   𝐓rᵢ³ᵀ = blockdiag(𝐓rᵀ₀³, 𝐓rᵀₙ⁴)   
-  h = 40/(max(n₁, n₂, n₃, n₄)-1)
-  ζ₀ = 600/h  
+  h = norm(xy₁[1,1] - xy₁[1,2])
+  ζ₀ = 30*5.196/h  
   # Assemble the interface SAT
   𝐉₁₂ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
   𝐉₂₃ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₃⁻¹)
@@ -554,7 +554,7 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
                    (EQ1₃ + EQ2₃ + EQ3₃ + EQ4₃ + EQ5₃ + EQ6₃),
                    (EQ1₄ + EQ2₄ + EQ3₄ + EQ4₄ + EQ5₄ + EQ6₄));  
   SATₙ = blockdiag(SAT₁, SAT₂, SAT₃, SAT₄)
-  bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ;
+  bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ;  
 end
 
 """
@@ -656,15 +656,15 @@ end
 """
 Initial conditions
 """
-𝐔(x) = @SVector [exp(-5*((x[1]-20)^2 + (x[2]+15)^2)), exp(-5*((x[1]-20)^2 + (x[2]+15)^2))]
-# 𝐔(x) = @SVector [0.0, 0.0]
+# 𝐔(x) = @SVector [exp(-5*((x[1]-20)^2 + (x[2]+15)^2)), exp(-5*((x[1]-20)^2 + (x[2]+15)^2))]
+𝐔(x) = @SVector [0.0, 0.0]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
 𝐖(x) = @SVector [0.0, 0.0]
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 401;
+N = 81;
 𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
 𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
 𝛀₃ = DiscreteDomain(domain₃, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
@@ -685,7 +685,7 @@ stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
 const Δt = 0.2*(40/(N-1))/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
-tf = 10.0;
+tf = 1.0;
 ntime = ceil(Int, tf/Δt)
 maxvals = zeros(Float64, ntime);
 
@@ -717,15 +717,15 @@ let
      Z; eltocols(f.(Ref(t), vec(xy₃), Ref(param))); Z; Z; Z; Z;
      Z; eltocols(f.(Ref(t), vec(xy₄), Ref(param))); Z; Z; Z; Z]
   end
-  # const param = (20/(N-1), 20/(N-1), 1000)
+  param = (20/(N-1), 20/(N-1), 1000)
   xys =  xy₁, xy₂, xy₃, xy₄
   Z = zeros(2*length(xy₁))
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     # # This block is for the moment-source function
-    # Fs = (𝐅(t, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+Δt, xys, Z))
-    # X₀ = RK4_1!(M, sol, Δt, Fs, massma)    
-    X₀ = RK4_1!(M, sol, Δt)    
+    Fs = (𝐅((i-1)Δt, xys, Z), 𝐅((i-0.5)Δt, xys, Z), 𝐅((i-0.5)Δt, xys, Z), 𝐅(i*Δt, xys, Z))
+    X₀ = RK4_1!(M, sol, Δt, Fs, massma)    
+    # X₀ = RK4_1!(M, sol, Δt)    
     t += Δt    
     (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
