@@ -30,31 +30,31 @@ Get the x-and-y coordinates from coordinates
 getX(C) = C[1]; getY(C) = C[2];
 
 # Define the domain
-interface₁(q) = @SVector [44*q, -10.0]
-interface₂(q) = @SVector [44*q, -20.0]
-interface₃(q) = @SVector [44*q, -30.0]
+interface₁(q) = @SVector [-4 + 48*q, -10.0]
+interface₂(q) = @SVector [-4 + 48*q, -20.0]
+interface₃(q) = @SVector [-4 + 48*q, -30.0]
 
-c₀¹(r) = @SVector [0.0, 10*(r-1)] # Left
+c₀¹(r) = @SVector [-4.0, 10*(r-1)] # Left
 c₁¹(q) = interface₁(q) # Bottom
 c₂¹(r) = @SVector [44.0, 10*(r-1)] # Right
-c₃¹(q) = @SVector [44*q, 0.0] # Top
+c₃¹(q) = @SVector [-4 + 48*q, 0.0] # Top
 domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
 
-c₀²(r) = @SVector [0.0, 10*r-20] # Left
+c₀²(r) = @SVector [-4.0, 10*r-20] # Left
 c₁²(q) = interface₂(q) # Bottom
 c₂²(r) = @SVector [44.0, 10*r-20] # Right
 c₃²(q) = interface₁(q) # Top
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
-c₀³(r) = @SVector [0.0, 10*r-30] # Left
+c₀³(r) = @SVector [-4.0, 10*r-30] # Left
 c₁³(q) = interface₃(q) # Bottom
 c₂³(r) = @SVector [44.0, 10*r-30] # Right
 c₃³(q) = interface₂(q) # Top
 domain₃ = domain_2d(c₀³, c₁³, c₂³, c₃³)
 
-c₀⁴(r) = @SVector [0.0, 10*r-40] # Left
-c₁⁴(q) = @SVector [44*q, -40.0] # Bottom
-c₂⁴(r) = @SVector [44.0, 10*r-40] # Right
+c₀⁴(r) = @SVector [-4.0, -44 + 14*r] # Left
+c₁⁴(q) = @SVector [-4 + 48*q, -44.0] # Bottom
+c₂⁴(r) = @SVector [44.0, -44 + 14*r] # Right
 c₃⁴(q) = interface₃(q) # Top
 domain₄ = domain_2d(c₀⁴, c₁⁴, c₂⁴, c₃⁴)
 
@@ -183,6 +183,19 @@ Vertical PML strip
 function σ(x)
   if((x[1] ≈ L) || x[1] > L)
     return σ₀*((x[1] - L)/δ)^3  
+  elseif((x[1] ≈ 0.0) || x[1] < 0.0)
+    return σ₀*((0.0 - x[1])/δ)^3
+  else
+    return 0.0
+  end
+end
+
+"""
+Horizontal PML strip
+"""
+function τ(x)
+  if((x[2] ≈ -L) || x[2] < -L)
+    return σ₀*(((-L) - x[2])/δ)^3
   else
     return 0.0
   end
@@ -310,8 +323,8 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐉₁⁻¹ = 𝐉₁\(I(size(𝐉₁,1))) 
   # Impedance matrices
   𝐙₁₂¹ = 𝐙((Z₁¹,Z₂¹), Ω₁, 𝐪𝐫₁);
-  𝛔₁₂¹ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->σ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
-  𝛕₁₂¹ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->zero(SMatrix{2,2,Float64,4})), Ω₁, 𝐪𝐫₁)
+  𝛔₁₂¹ = 𝐙((x->τ(x)*Z₁¹(x), x->σ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
+  𝛕₁₂¹ = 𝐙((x->τ(x)*σ(x)*Z₁¹(x), x->τ(x)*σ(x)*Z₂¹(x)), Ω₁, 𝐪𝐫₁)
   𝛔ᵥ¹ = I(2) ⊗ spdiagm(σ.(Ω₁.(vec(𝐪𝐫₁))));  𝛔ₕ¹ = spzeros(size(𝛔ᵥ¹))
   𝛒₁ = I(2) ⊗ spdiagm(ρ₁.(Ω₁.(vec(𝐪𝐫₁))))
   # Get the transformed gradient
@@ -326,8 +339,8 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐉₂⁻¹ = 𝐉₂\(I(size(𝐉₂,1))) 
   # Impedance matrices
   𝐙₁₂² = 𝐙((Z₁²,Z₂²), Ω₂, 𝐪𝐫₂);
-  𝛔₁₂² = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->σ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)
-  𝛕₁₂² = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->zero(SMatrix{2,2,Float64,4})), Ω₂, 𝐪𝐫₂)  
+  𝛔₁₂² = 𝐙((x->τ(x)*Z₁²(x), x->σ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)
+  𝛕₁₂² = 𝐙((x->τ(x)*σ(x)*Z₁²(x), x->τ(x)*σ(x)*Z₂²(x)), Ω₂, 𝐪𝐫₂)  
   𝛔ᵥ² = I(2) ⊗ spdiagm(σ.(Ω₂.(vec(𝐪𝐫₂))));  𝛔ₕ² = spzeros(size(𝛔ᵥ²))
   𝛒₂ = I(2) ⊗ spdiagm(ρ₂.(Ω₂.(vec(𝐪𝐫₂))))
   # Get the transformed gradient
@@ -342,8 +355,8 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐉₃⁻¹ = 𝐉₃\(I(size(𝐉₃,1))) 
   # Impedance matrices
   𝐙₁₂³ = 𝐙((Z₁³,Z₂³), Ω₃, 𝐪𝐫₃);
-  𝛔₁₂³ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->σ(x)*Z₂³(x)), Ω₃, 𝐪𝐫₃)
-  𝛕₁₂³ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->zero(SMatrix{2,2,Float64,4})), Ω₃, 𝐪𝐫₃)  
+  𝛔₁₂³ = 𝐙((x->τ(x)*Z₁³(x), x->σ(x)*Z₂³(x)), Ω₃, 𝐪𝐫₃)
+  𝛕₁₂³ = 𝐙((x->τ(x)*σ(x)*Z₁³(x), x->τ(x)*σ(x)*Z₂³(x)), Ω₃, 𝐪𝐫₃)  
   𝛔ᵥ³ = I(2) ⊗ spdiagm(σ.(Ω₃.(vec(𝐪𝐫₃))));  𝛔ₕ³ = spzeros(size(𝛔ᵥ³))
   𝛒₃ = I(2) ⊗ spdiagm(ρ₃.(Ω₃.(vec(𝐪𝐫₃))))
   # Get the transformed gradient
@@ -358,8 +371,8 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐉₄⁻¹ = 𝐉₄\(I(size(𝐉₄,1))) 
   # Impedance matrices
   𝐙₁₂⁴ = 𝐙((Z₁⁴,Z₂⁴), Ω₄, 𝐪𝐫₄);
-  𝛔₁₂⁴ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->σ(x)*Z₂⁴(x)), Ω₄, 𝐪𝐫₄)
-  𝛕₁₂⁴ = 𝐙((x->zero(SMatrix{2,2,Float64,4}), x->zero(SMatrix{2,2,Float64,4})), Ω₄, 𝐪𝐫₄)  
+  𝛔₁₂⁴ = 𝐙((x->τ(x)*Z₁⁴(x), x->σ(x)*Z₂⁴(x)), Ω₄, 𝐪𝐫₄)
+  𝛕₁₂⁴ = 𝐙((x->σ(x)*τ(x)*Z₁⁴(x), x->σ(x)*τ(x)*Z₂⁴(x)), Ω₄, 𝐪𝐫₄)  
   𝛔ᵥ⁴ = I(2) ⊗ spdiagm(σ.(Ω₄.(vec(𝐪𝐫₄))));  𝛔ₕ⁴ = spzeros(size(𝛔ᵥ⁴))
   𝛒₄ = I(2) ⊗ spdiagm(ρ₄.(Ω₄.(vec(𝐪𝐫₄))))
   # Get the transformed gradient
@@ -369,13 +382,13 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   Dx₄, Dy₄ = J_vec_diag₄*Dqr₄;
 
   # Surface Jacobian Matrices on Layer 1
-  _, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
+  SJq₀¹, SJrₙ¹, SJqₙ¹ = 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 2
-  _, SJq₀², _, SJqₙ² =  𝐉₂⁻¹*Js(𝛀₂, [0,-1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [0,1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
+  SJq₀², SJqₙ² = 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 3
-  _, SJq₀³, _, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [0,-1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [0,1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
+  SJq₀³, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 4
-  SJr₀⁴, SJq₀⁴, _, SJqₙ⁴ =  𝐉₄⁻¹*Js(𝛀₄, [0,-1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [-1,0];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [0,1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [1,0];  X=I(2))
+  SJr₀⁴, SJq₀⁴, SJqₙ⁴ =  𝐉₄⁻¹*Js(𝛀₄, [0,-1];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [-1,0];  X=I(2)), 𝐉₄⁻¹*Js(𝛀₄, [1,0];  X=I(2))
 
   # We build the governing equations on both layer simultaneously
   # Equation 1: ∂u/∂t = p
@@ -534,7 +547,7 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
   𝐓rᵢ¹ᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
   𝐓rᵢ²ᵀ = blockdiag(𝐓rᵀ₀², 𝐓rᵀₙ³)   
   𝐓rᵢ³ᵀ = blockdiag(𝐓rᵀ₀³, 𝐓rᵀₙ⁴)   
-  h = norm(xy₁[1,1] - xy₁[1,2])
+  h = norm(Ω₁(𝐪𝐫₁[1,1]) - Ω₁(𝐪𝐫₁[1,2]))
   ζ₀ = 30*5.196/h  
   # Assemble the interface SAT
   𝐉₁₂ = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
@@ -554,7 +567,11 @@ function 𝐊4ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::NTuple{4,DiscreteDom
                    (EQ1₃ + EQ2₃ + EQ3₃ + EQ4₃ + EQ5₃ + EQ6₃),
                    (EQ1₄ + EQ2₄ + EQ3₄ + EQ4₄ + EQ5₄ + EQ6₄));  
   SATₙ = blockdiag(SAT₁, SAT₂, SAT₃, SAT₄)
-  bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ;  
+  bulk - SATᵢ¹ - SATᵢ² - SATᵢ³ - SATₙ
+  # (SAT₁, SAT₂, SAT₃, SAT₄), (SATᵢ¹, SATᵢ², SATᵢ³), 
+  # ((EQ1₁ + EQ2₁ + EQ3₁ + EQ4₁ + EQ5₁ + EQ6₁), (EQ1₂ + EQ2₂ + EQ3₂ + EQ4₂ + EQ5₂ + EQ6₂),
+  # (EQ1₃ + EQ2₃ + EQ3₃ + EQ4₃ + EQ5₃ + EQ6₃), (EQ1₄ + EQ2₄ + EQ3₄ + EQ4₄ + EQ5₄ + EQ6₄)),
+  # blockdiag(I(12)⊗𝐇₁⁻¹₁, I(12)⊗𝐇₂⁻¹₁)*𝐉₁₂*(0.5*B̂₁*𝐓rᵢ¹ - 0.5*𝐓rᵢ¹ᵀ*B̂ᵀ₁ - ζ₀*B̃₁)
 end
 
 """
@@ -624,7 +641,7 @@ A non-allocating implementation of the RK4 scheme with forcing
 """
 function RK4_1!(MK, sol, Δt, F, M)  
   X₀, k₁, k₂, k₃, k₄ = sol
-  F₁, F₂, F₃, F₄ = F
+  F₁, F₂, F₄ = F
   # k1 step  
   # k₁ .= M⁻¹*K*X₀ + M⁻¹*F₁
   mul!(k₁, MK, X₀); mul!(k₁, M, F₁, 1, 1)
@@ -633,7 +650,7 @@ function RK4_1!(MK, sol, Δt, F, M)
   mul!(k₂, MK, k₁, 0.5*Δt, 0.0); mul!(k₂, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
   # k3 step
   # k₃ .= M⁻¹K*(X₀ + 0.5*Δt*k₂) + M⁻¹*F₃
-  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₃, 1, 1)
+  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
   # k4 step
   # k₄ .= M⁻¹K*(X₀ + Δt*k₃) + M⁻¹*F₃
   mul!(k₄, MK, k₃, Δt, 0.0); mul!(k₄, MK, X₀, 1, 1); mul!(k₂, M, F₄, 1, 1)
@@ -664,19 +681,22 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 81;
-𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝛀₃ = DiscreteDomain(domain₃, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝛀₄ = DiscreteDomain(domain₄, (round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+h = 0.5;
+Nx = ceil(Int64, 48/h) + 1;
+Ny = ceil(Int64, 10/h) + 1;
+Ny1 = ceil(Int64, 14/h) + 1;
+𝛀₁ = DiscreteDomain(domain₁, (Nx, Ny));
+𝛀₂ = DiscreteDomain(domain₂, (Nx, Ny));
+𝛀₃ = DiscreteDomain(domain₃, (Nx, Ny));
+𝛀₄ = DiscreteDomain(domain₄, (Nx, Ny1));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
 Ω₂(qr) = S(qr, 𝛀₂.domain);
 Ω₃(qr) = S(qr, 𝛀₃.domain);
 Ω₄(qr) = S(qr, 𝛀₄.domain);
-𝐪𝐫₁ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝐪𝐫₂ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝐪𝐫₃ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
-𝐪𝐫₄ = generate_2d_grid((round(Int64, 1.1*N - 0.1),round(Int64, (N-1)/4+1)));
+𝐪𝐫₁ = generate_2d_grid((Nx, Ny));
+𝐪𝐫₂ = generate_2d_grid((Nx, Ny));
+𝐪𝐫₃ = generate_2d_grid((Nx, Ny));
+𝐪𝐫₄ = generate_2d_grid((Nx, Ny1));
 xy₁ = Ω₁.(𝐪𝐫₁);
 xy₂ = Ω₂.(𝐪𝐫₂);
 xy₃ = Ω₃.(𝐪𝐫₃);
@@ -684,12 +704,15 @@ xy₄ = Ω₄.(𝐪𝐫₄);
 stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ, 𝒫₃ᴾᴹᴸ, 𝒫₄ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)), (𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄));
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
-const Δt = 0.2*(40/(N-1))/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
-tf = 1.0;
+Δt = 0.2*h/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
+tf = 300.0
 ntime = ceil(Int, tf/Δt)
+Δt = tf/ntime;
 maxvals = zeros(Float64, ntime);
 
-plt3 = Vector{Plots.Plot}(undef,3);
+const param = (0.5*h, 0.5*h, 1000)
+
+plt3 = Vector{Plots.Plot}(undef,3+ceil(Int64, tf/10));
 
 # Begin time loop
 let
@@ -707,55 +730,63 @@ let
   M = massma*stima
   count = 1;
   # @gif for i=1:ntime
-  Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
-  Hr = SBP_1_2_CONSTANT_0_1(round(Int64, (N-1)/4+1)).norm;
+  Hq = SBP_1_2_CONSTANT_0_1(Nx).norm;
+  Hr = SBP_1_2_CONSTANT_0_1(Ny).norm;
+  Hr1 = SBP_1_2_CONSTANT_0_1(Ny1).norm;
   Hqr = Hq ⊗ Hr
-  function 𝐅(t, xy, Z)  
+  Hqr1 = Hq ⊗ Hr1
+  function 𝐅(t, xy, Z2) 
+    Z, Z1 = Z2
     xy₁, xy₂, xy₃, xy₄ = xy    
     [Z; eltocols(f.(Ref(t), vec(xy₁), Ref(param))); Z; Z; Z; Z;
      Z; eltocols(f.(Ref(t), vec(xy₂), Ref(param))); Z; Z; Z; Z;
      Z; eltocols(f.(Ref(t), vec(xy₃), Ref(param))); Z; Z; Z; Z;
-     Z; eltocols(f.(Ref(t), vec(xy₄), Ref(param))); Z; Z; Z; Z]
+     Z1; eltocols(f.(Ref(t), vec(xy₄), Ref(param))); Z1; Z1; Z1; Z1]
   end
-  param = (20/(N-1), 20/(N-1), 1000)
   xys =  xy₁, xy₂, xy₃, xy₄
   Z = zeros(2*length(xy₁))
+  Z1 = zeros(2*length(xy₄))
   for i=1:ntime
     sol = X₀, k₁, k₂, k₃, k₄
     # # This block is for the moment-source function
-    Fs = (𝐅((i-1)Δt, xys, Z), 𝐅((i-0.5)Δt, xys, Z), 𝐅((i-0.5)Δt, xys, Z), 𝐅(i*Δt, xys, Z))
-    X₀ = RK4_1!(M, sol, Δt, Fs, massma)    
+    Fs = (𝐅((i-1)*Δt, xys, (Z,Z1)), 𝐅((i-0.5)Δt, xys, (Z,Z1)), 𝐅(i*Δt, xys, (Z,Z1)))
+    X₀ = RK4_1!(M, sol, Δt, Fs, massma)
     # X₀ = RK4_1!(M, sol, Δt)    
     t += Δt    
-    (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+    (i%ceil(Int64,ntime/20)==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-    u1ref₃,u2ref₃ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₂.mn, 12);
-    u1ref₄,u2ref₄ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₂.mn, 12);
+    u1ref₃,u2ref₃ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₃.mn, 12);
+    u1ref₄,u2ref₄ = split_solution(X₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₄.mn, 12);
     
     U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
     U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
     U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)
     U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)
     
-    if((i==ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)) || (i == ceil(Int64, 9/Δt)))
+    if((i==ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)) || (i == ceil(Int64, 9/Δt)) || ((i*Δt)%10 ≈ 0.0))
       plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet)
       Plots.contourf!(plt3[count], getX.(xy₄), getY.(xy₄), reshape(U4,size(xy₄)...), colormap=:jet)
       Plots.vline!(plt3[count], [L], label="\$ x \\ge "*string(round(L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-      Plots.plot!(plt3[count], getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, size=(400,500), legend=:none)
-      Plots.plot!(plt3[count], getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, size=(400,500), legend=:none)
-      Plots.plot!(plt3[count], getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2, size=(400,500), legend=:none)
-      xlims!(plt3[count], (0,L+δ))
-      ylims!(plt3[count], (-L,0))
+      Plots.vline!(plt3[count], [0], label="\$ x \\ge "*string(round(0, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.hline!(plt3[count], [-L], label="\$ y \\ge "*string(round(-L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.plot!(plt3[count], getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, legend=:none)
+      Plots.plot!(plt3[count], getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, legend=:none)
+      Plots.plot!(plt3[count], getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2,  aspect_ratio=1.09, legend=:none)
+      xlims!(plt3[count], (0-δ,L+δ))
+      ylims!(plt3[count], (-L-δ,0))
       xlabel!(plt3[count], "\$x\$")
       ylabel!(plt3[count], "\$y\$")
       count += 1
     end
 
-    maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
+    maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ +
+                      u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂ + 
+                      u1ref₃'*Hqr*u1ref₃ + u2ref₃'*Hqr*u2ref₃ + 
+                      u1ref₄'*Hqr1*u1ref₄ + u2ref₄'*Hqr1*u2ref₄)
   end
   # end  every 10  
   global Xref = X₀
@@ -763,31 +794,33 @@ end;
 
 u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
 u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-u1ref₃,u2ref₃ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₂.mn, 12);
-u1ref₄,u2ref₄ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₂.mn, 12);
+u1ref₃,u2ref₃ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₃.mn, 12);
+u1ref₄,u2ref₄ = split_solution(Xref[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))+12*(prod(𝛀₄.mn))], 𝛀₄.mn, 12);
 
-U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
-U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
-U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)
-U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)
+U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)*sqrt(0.5)
+U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)*sqrt(0.5)
+U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)*sqrt(0.5)
+U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)*sqrt(0.5)
 
 plt3_1 = Plots.plot();
-Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet)
-Plots.contourf!(plt3_1, getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet)
-Plots.contourf!(plt3_1, getX.(xy₄), getY.(xy₄), reshape(U4,size(xy₄)...), colormap=:jet)
+Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet,levels=400)
+Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet,levels=400)
+Plots.contourf!(plt3_1, getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet,levels=400)
+Plots.contourf!(plt3_1, getX.(xy₄), getY.(xy₄), reshape(U4,size(xy₄)...), colormap=:jet,levels=400)
 Plots.vline!(plt3_1, [L], label="\$ x \\ge "*string(round(L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.plot!(plt3_1, getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, size=(400,500), legend=:none)
-Plots.plot!(plt3_1, getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, size=(400,500), legend=:none)
-Plots.plot!(plt3_1, getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2, size=(400,500), legend=:none)
-xlims!(plt3_1, (0,L+δ))
-ylims!(plt3_1, (-L,0.0))
+Plots.vline!(plt3_1, [0], label="\$ x \\ge "*string(round(0, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.hline!(plt3_1, [-L], label="\$ y \\ge "*string(round(-L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.plot!(plt3_1, getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, legend=:none)
+Plots.plot!(plt3_1, getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, legend=:none)
+Plots.plot!(plt3_1, getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2, legend=:none, aspect_ratio=1.09)
+xlims!(plt3_1, (0-δ,L+δ))
+ylims!(plt3_1, (-L-δ,0.0))
 xlabel!(plt3_1, "\$x\$")
 ylabel!(plt3_1, "\$y\$")
 # c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
 # Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
 
-plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=2, yaxis=:log10)
+plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, leabel="", lw=1, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
-Plots.xlims!(plt5, (0,tf))
+# Plots.xlims!(plt5, (0,1000))
