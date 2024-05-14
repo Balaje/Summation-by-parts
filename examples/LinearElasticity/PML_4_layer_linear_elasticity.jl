@@ -607,24 +607,12 @@ end
 A non-allocating implementation of the RK4 scheme
 """
 function RK4_1!(M, sol, Δt)  
-  X₀, k₁, k₂, k₃, k₄ = sol
-  # k1 step  
-  # k₁ .= M*X₀
-  mul!(k₁, M, X₀);
-  # k2 step
-  # k₂ .= M*(X₀ + 0.5*Δt*k₁)
-  mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
-  # k3 step
-  # k₃ .= M*(X₀ + 0.5*Δt*k₂)
-  mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
-  # k4 step
-  # k₄ .= M*(X₀ + Δt*k₃)
-  mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
-  # Final step
-  for i=1:lastindex(X₀)
-    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
-  end
-  X₀
+  X₀, k₁, k₂, k₃, k₄ = sol  
+  k₁ .= M*(X₀)
+  k₂ .= M*(X₀+0.5*Δt*k₁)
+  k₃ .= M*(X₀+0.5*Δt*k₂)
+  k₄ .= M*(X₀+Δt*k₃)
+  X₀ .+= (Δt/6)*(k₁ + 2*k₂ + 2*k₃ + k₄)
 end
 
 """
@@ -642,23 +630,11 @@ A non-allocating implementation of the RK4 scheme with forcing
 function RK4_1!(MK, sol, Δt, F, M)  
   X₀, k₁, k₂, k₃, k₄ = sol
   F₁, F₂, F₄ = F
-  # k1 step  
-  # k₁ .= M⁻¹*K*X₀ + M⁻¹*F₁
-  mul!(k₁, MK, X₀); mul!(k₁, M, F₁, 1, 1)
-  # k2 step
-  # k₂ .= M⁻¹K*(X₀ + 0.5*Δt*k₁) + M⁻¹*F₂
-  mul!(k₂, MK, k₁, 0.5*Δt, 0.0); mul!(k₂, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
-  # k3 step
-  # k₃ .= M⁻¹K*(X₀ + 0.5*Δt*k₂) + M⁻¹*F₃
-  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
-  # k4 step
-  # k₄ .= M⁻¹K*(X₀ + Δt*k₃) + M⁻¹*F₃
-  mul!(k₄, MK, k₃, Δt, 0.0); mul!(k₄, MK, X₀, 1, 1); mul!(k₂, M, F₄, 1, 1)
-  # Final step
-  for i=1:lastindex(X₀)
-    X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
-  end
-  X₀
+  k₁ .= MK*(X₀) + M*F₁
+  k₂ .= MK*(X₀+0.5*Δt*k₁) + M*F₂
+  k₃ .= MK*(X₀+0.5*Δt*k₂) + M*F₂
+  k₄ .= MK*(X₀+Δt*k₃) + M*F₄
+  X₀ .+= (Δt/6)*(k₁ + 2*k₂ + 2*k₃ + k₄)
 end
 
 """
@@ -681,7 +657,7 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-h = 0.5;
+h = 0.1;
 Nx = ceil(Int64, 48/h) + 1;
 Ny = ceil(Int64, 10/h) + 1;
 Ny1 = ceil(Int64, 14/h) + 1;
@@ -705,7 +681,7 @@ stima = 𝐊4ₚₘₗ((𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄), (𝒫₁ᴾᴹᴸ, 
 massma = 𝐌4⁻¹ₚₘₗ((𝛀₁, 𝛀₂, 𝛀₃, 𝛀₄), (𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃, 𝐪𝐫₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 # Define the time stepping
 Δt = 0.2*h/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
-tf = 300.0
+tf = 1000.0
 ntime = ceil(Int, tf/Δt)
 Δt = tf/ntime;
 maxvals = zeros(Float64, ntime);
@@ -820,7 +796,7 @@ ylabel!(plt3_1, "\$y\$")
 # c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
 # Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
 
-plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, leabel="", lw=1, yaxis=:log10)
+plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=1, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
 # Plots.xlims!(plt5, (0,1000))
