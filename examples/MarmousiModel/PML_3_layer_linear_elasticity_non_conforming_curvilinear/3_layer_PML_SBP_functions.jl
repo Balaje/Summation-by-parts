@@ -130,11 +130,11 @@ function 𝐊3ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛒, 𝛀::Tuple{Discrete
   Dx₃, Dy₃ = J_vec_diag₃*Dqr₃;
 
   # Surface Jacobian Matrices on Layer 1
-  SJr₀¹, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
+  _, SJq₀¹, SJrₙ¹, SJqₙ¹ =  𝐉₁⁻¹*Js(𝛀₁, [0,-1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [-1,0];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [0,1];  X=I(2)), 𝐉₁⁻¹*Js(𝛀₁, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 2
-  SJr₀², SJq₀², SJrₙ², SJqₙ² =  𝐉₂⁻¹*Js(𝛀₂, [0,-1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [0,1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
+  _, SJq₀², _, SJqₙ² =  𝐉₂⁻¹*Js(𝛀₂, [0,-1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [-1,0];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [0,1];  X=I(2)), 𝐉₂⁻¹*Js(𝛀₂, [1,0];  X=I(2))
   # Surface Jacobian Matrices on Layer 2
-  SJr₀³, SJq₀³, SJrₙ³, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [0,-1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [0,1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
+  SJr₀³, SJq₀³, _, SJqₙ³ =  𝐉₃⁻¹*Js(𝛀₃, [0,-1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [-1,0];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [0,1];  X=I(2)), 𝐉₃⁻¹*Js(𝛀₃, [1,0];  X=I(2))
 
   # We build the governing equations on both layer simultaneously
   # Equation 1: ∂u/∂t = p
@@ -287,7 +287,7 @@ Inverse of the mass matrix
 function 𝐌3⁻¹ₚₘₗ(𝛀::Tuple{DiscreteDomain,DiscreteDomain,DiscreteDomain}, 𝐪𝐫, 𝛒)
   ρ₁, ρ₂, ρ₃ = 𝛒
   𝛀₁, 𝛀₂, 𝛀₃ = 𝛀
-  𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃ = 𝐪𝐫
+  # 𝐪𝐫₁, 𝐪𝐫₂, 𝐪𝐫₃ = 𝐪𝐫
   m₁, n₁ = 𝛀₁.mn
   m₂, n₂ = 𝛀₂.mn
   m₃, n₃ = 𝛀₃.mn
@@ -329,9 +329,14 @@ end
 Right hand side function
 """
 function f(t::Float64, x::SVector{2,Float64}, params)
-  s₁, s₂, M₀ = params
-  @SVector[-1/(2π*√(s₁*s₂))*exp(-(x[1]-14.43844)^2/(2s₁) - (x[2]-(-1.5))^2/(2s₂))*(x[1]-14.43843)/s₁*exp(-(t-0.215)^2/0.15)*M₀,
-           -1/(2π*√(s₁*s₂))*exp(-(x[1]-14.43844)^2/(2s₁) - (x[2]-(-1.5))^2/(2s₂))*(x[2]-(-1.5))/s₂*exp(-(t-0.215)^2/0.15)*M₀]
+  s₁, s₂, M₀, pos_x, pos_y = params
+  @assert length(pos_x) == length(pos_y)
+  res = @SVector [0.0, 0.0]
+  for i=1:lastindex(pos_x)
+    res += @SVector[-1/(2π*√(s₁*s₂))*exp(-(x[1]-pos_x[i]*(16.9864))^2/(2s₁) - (x[2]-(pos_y[i])*(-3.4972))^2/(2s₂))*(x[1]-pos_x[i]*(16.9864))/s₁*exp(-(t-0.215)^2/0.15)*M₀,
+                    -1/(2π*√(s₁*s₂))*exp(-(x[1]-pos_x[i]*(16.9864))^2/(2s₁) - (x[2]-(pos_y[i])*(-3.4972))^2/(2s₂))*(x[2]-pos_y[i]*(-3.4972))/s₂*exp(-(t-0.215)^2/0.15)*M₀]
+  end
+  res
 end
 
 """
@@ -339,8 +344,8 @@ A non-allocating implementation of the RK4 scheme with forcing
 """
 function RK4_1!(MK, sol, Δt, F, M)  
   X₀, k₁, k₂, k₃, k₄ = sol
-  F₁, F₂, F₃, F₄ = F
-  # k1 step  
+  F₁, F₂, F₄ = F
+  #= # k1 step  
   # k₁ .= M⁻¹*K*X₀ + M⁻¹*F₁
   mul!(k₁, MK, X₀); mul!(k₁, M, F₁, 1, 1)
   # k2 step
@@ -348,7 +353,7 @@ function RK4_1!(MK, sol, Δt, F, M)
   mul!(k₂, MK, k₁, 0.5*Δt, 0.0); mul!(k₂, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
   # k3 step
   # k₃ .= M⁻¹K*(X₀ + 0.5*Δt*k₂) + M⁻¹*F₃
-  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₃, 1, 1)
+  mul!(k₃, MK, k₂, 0.5*Δt, 0.0); mul!(k₃, MK, X₀, 1, 1); mul!(k₂, M, F₂, 1, 1)
   # k4 step
   # k₄ .= M⁻¹K*(X₀ + Δt*k₃) + M⁻¹*F₃
   mul!(k₄, MK, k₃, Δt, 0.0); mul!(k₄, MK, X₀, 1, 1); mul!(k₂, M, F₄, 1, 1)
@@ -356,7 +361,12 @@ function RK4_1!(MK, sol, Δt, F, M)
   for i=1:lastindex(X₀)
     X₀[i] = X₀[i] + (Δt/6)*(k₁[i] + 2*k₂[i] + 2*k₃[i] + k₄[i])
   end
-  X₀
+  X₀ =#
+  k₁ .= MK*(X₀) + M*F₁
+  k₂ .= MK*(X₀ + 0.5*Δt*k₁) + M*F₂
+  k₃ .= MK*(X₀ + 0.5*Δt*k₂) + M*F₂
+  k₄ .= MK*(X₀ + Δt*k₃) + M*F₄
+  X₀ .+= (Δt/6)*(k₁ + 2*k₂ + 2*k₃ + k₄)
 end
 
 """

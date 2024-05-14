@@ -1,5 +1,5 @@
-include("./3_layer_geometry_properties.jl")
-include("./3_layer_PML_SBP_functions.jl")
+include("./3_layer_geometry_properties.jl");
+include("./3_layer_PML_SBP_functions.jl");
 
 cp₁ = maximum(vp₁); cs₁ = maximum(vs₁);
 cp₂ = maximum(vp₂); cs₂ = maximum(vs₂);
@@ -76,9 +76,10 @@ const h = norm(XZ₃[end,1] - XZ₃[end-1,1]);
 const Δt = 0.2*h/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2)));
 tf = 1.0
 ntime = ceil(Int, tf/Δt)
-const param = (0.1*norm(XZ₂[1,1] - XZ₂[1,2]), 0.1*norm(XZ₂[1,1] - XZ₂[2,1]), 10)
+params = (0.5*norm(XZ₂[1,1] - XZ₂[1,2]), 0.5*norm(XZ₂[1,1] - XZ₂[2,1]), 10, (0.5), (2*0.12858))
+ntime1 = ceil(Int64, ntime/10);
 
-plt3 = Vector{Plots.Plot}(undef,8);
+plt3 = Vector{Plots.Plot}(undef,9);
 
 # scalefontsizes()
 let
@@ -99,56 +100,58 @@ let
   function 𝐅(t, xy, Z)  
     xy₁, xy₂, xy₃ = xy    
     Z₁, Z₂, Z₃ = Z
-    [Z₁; eltocols(f.(Ref(t), vec(xy₁), Ref(param))); Z₁; Z₁; Z₁; Z₁;
-     Z₂; eltocols(f.(Ref(t), vec(xy₂), Ref(param))); Z₂; Z₂; Z₂; Z₂;
-     Z₃; eltocols(f.(Ref(t), vec(xy₃), Ref(param))); Z₃; Z₃; Z₃; Z₃]
+    [Z₁; eltocols(f.(Ref(t), vec(xy₁), Ref(params))); Z₁; Z₁; Z₁; Z₁;
+     Z₂; eltocols(f.(Ref(t), vec(xy₂), Ref(params))); Z₂; Z₂; Z₂; Z₂;
+     Z₃; eltocols(f.(Ref(t), vec(xy₃), Ref(params))); Z₃; Z₃; Z₃; Z₃]
   end
   # @gif for i=1:ntime
   xys =  XZ₁, XZ₂, XZ₃
   Z = zeros(2*length(XZ₁)),zeros(2*length(XZ₂)),zeros(2*length(XZ₃))
-  for i=1:ntime
+  for i=1:100
     sol = Z₀, k₁, k₂, k₃, k₄
     # Z₀ = RK4_1!(Δt, M, sol)    
-    Fs = (𝐅(t, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+Δt, xys, Z))
+    Fs = (𝐅(t, xys, Z), 𝐅(t+0.5Δt, xys, Z), 𝐅(t+Δt, xys, Z))
     Z₀ = RK4_1!(M, sol, Δt, Fs, massma)        
+    #Z₀ = massma*Z₀
     t += Δt        
     (i%100 == 0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(Z₀)))
 
     # Plotting part for 
-    u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-    u1ref₂,u2ref₂ =  split_solution(Z₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-    u1ref₃,u2ref₃ =  split_solution(Z₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₃.mn, 12);
-    absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
-    absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
-    absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
+    # u1ref₁,u2ref₁ = split_solution(Z₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+    # u1ref₂,u2ref₂ = split_solution(Z₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
+    # u1ref₃,u2ref₃ = split_solution(Z₀[12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))+12*(prod(𝛀₃.mn))], 𝛀₃.mn, 12);
+    # absu1 = sqrt.((u1ref₁.^2) + (u2ref₁.^2)) ;
+    # absu2 = sqrt.((u1ref₂.^2) + (u2ref₂.^2)) ;
+    # absu3 = sqrt.((u1ref₃.^2) + (u2ref₃.^2)) ;
 
-    # Add code to plot to generate the GIFs
-    if((i == ceil(Int64, 1/Δt)) || (i == ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)) ||  (i == ceil(Int64, 7/Δt)) ||  (i == ceil(Int64, 9/Δt)) ||  (i == ceil(Int64, 11/Δt)) ||  (i == ceil(Int64, 13/Δt)) ||  (i == ceil(Int64, 15/Δt))) 
-      XC₁ = getX.(XZ₁); ZC₁ = getY.(XZ₁) 
-      XC₂ = getX.(XZ₂); ZC₂ = getY.(XZ₂) 
-      XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
-      plt3[count] = Plots.plot()
-      Plots.contourf!(plt3[count], XC₁, ZC₁, reshape(absu1, size(XC₁)...), label="", colormap=:jet)
-      Plots.contourf!(plt3[count], XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:jet)
-      Plots.contourf!(plt3[count], XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:jet)
-      # Plots.annotate!(plt3[count], 10, -0.2, ("Layer 1", 10, :white))
-      # Plots.annotate!(plt3[count], 10, -1.8, ("Layer 2", 10, :white))
-      # Plots.annotate!(plt3[count], 14, -3.2, ("Layer 3", 10, :white))
-      # Plots.annotate!(plt3[count], 16.2, -2, ("\$ \\sigma_0^v = 8\$", 10, :white))
-      Plots.plot!(plt3[count], [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:white, label="")
-      Plots.plot!(plt3[count], [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:white, label="")
-      Plots.vline!(plt3[count], [(x₁[1]+0.9*Lₕ)], lw=1, lc=:white, ls=:dash, label="")
-      Plots.vline!(plt3[count], [(x₁[1]+0.1*Lₕ)], lw=1, lc=:white, ls=:dash, label="", legend=:topleft, size=(900,200))      
-      Plots.xlims!(plt3[count], (0.0,x₁[end]))
-      Plots.ylims!(plt3[count], (z₂[1],z₁[end]))
-      Plots.xlabel!(plt3[count], "\$x\$ (in km)")
-      Plots.ylabel!(plt3[count], "\$z\$ (in km)")
-      count+=1
-    end
+    # # Add code to plot to generate the GIFs
+    # # if((i == ceil(Int64, 0.1/Δt)) || (i == ceil(Int64, 0.2/Δt)) || (i == ceil(Int64, 0.3/Δt)) ||  (i == ceil(Int64, 0.4/Δt)) ||  (i == ceil(Int64, 0.5/Δt)) ||  (i == ceil(Int64, 0.6/Δt)) ||  (i == ceil(Int64, 0.7/Δt)) ||  (i == ceil(Int64, 0.8/Δt))) 
+    # if(ceil(i%ntime1) == 0.0)
+    #   XC₁ = getX.(XZ₁); ZC₁ = getY.(XZ₁) 
+    #   XC₂ = getX.(XZ₂); ZC₂ = getY.(XZ₂) 
+    #   XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
+    #   plt3[count] = Plots.plot()
+    #   Plots.contourf!(plt3[count], XC₁, ZC₁, reshape((absu1), size(XC₁)...), label="", colormap=:jet)
+    #   Plots.contourf!(plt3[count], XC₂, ZC₂, reshape((absu2), size(XC₂)...), label="", colormap=:jet)
+    #   Plots.contourf!(plt3[count], XC₃, ZC₃, reshape((absu3), size(XC₃)...), label="", colormap=:jet)
+    #   # Plots.annotate!(plt3[count], 10, -0.2, ("Layer 1", 10, :white))
+    #   # Plots.annotate!(plt3[count], 10, -1.8, ("Layer 2", 10, :white))
+    #   # Plots.annotate!(plt3[count], 14, -3.2, ("Layer 3", 10, :white))
+    #   # Plots.annotate!(plt3[count], 16.2, -2, ("\$ \\sigma_0^v = 8\$", 10, :white))
+    #   Plots.plot!(plt3[count], [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:white, label="")
+    #   Plots.plot!(plt3[count], [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:white, label="")
+    #   Plots.vline!(plt3[count], [(x₁[1]+0.9*Lₕ)], lw=1, lc=:white, ls=:dash, label="")
+    #   Plots.vline!(plt3[count], [(x₁[1]+0.1*Lₕ)], lw=1, lc=:white, ls=:dash, label="", legend=:topleft, size=(900,200))      
+    #   Plots.xlims!(plt3[count], (0.0,x₁[end]))
+    #   Plots.ylims!(plt3[count], (z₂[1],z₁[end]))
+    #   Plots.xlabel!(plt3[count], "\$x\$ (in km)")
+    #   Plots.ylabel!(plt3[count], "\$z\$ (in km)")
+    #   count+=1
+    # end
 
-    maxvals₁[i] = sqrt(norm(u1ref₁,2)^2 + norm(u2ref₁)^2)
-    maxvals₂[i] = sqrt(norm(u1ref₂,2)^2 + norm(u2ref₂)^2)
-    maxvals₃[i] = sqrt(norm(u1ref₃,2)^2 + norm(u2ref₃)^2)
+    # maxvals₁[i] = sqrt(norm(u1ref₁)^2 + norm(u2ref₁)^2)
+    # maxvals₂[i] = sqrt(norm(u1ref₂)^2 + norm(u2ref₂)^2)
+    # maxvals₃[i] = sqrt(norm(u1ref₃)^2 + norm(u2ref₃)^2)
   end
   # end every 10
 end  
@@ -168,34 +171,22 @@ XC₃ = getX.(XZ₃); ZC₃ = getY.(XZ₃)
 # scalefontsizes()
 
 plt3_1 = Plots.plot();
+# 
 Plots.contourf!(plt3_1, XC₁, ZC₁, reshape(absu1, size(XC₁)...), label="", colormap=:jet)
 Plots.contourf!(plt3_1, XC₂, ZC₂, reshape(absu2, size(XC₂)...), label="", colormap=:jet)
 Plots.contourf!(plt3_1, XC₃, ZC₃, reshape(absu3, size(XC₃)...), label="", colormap=:jet)
-# Plots.annotate!(plt3_1, 10, -0.2, ("Layer 1", 15, :white))
-# Plots.annotate!(plt3_1, 10, -1.8, ("Layer 2", 15, :white))
-# Plots.annotate!(plt3_1, 14, -3.2, ("Layer 3", 15, :white))
-# Plots.annotate!(plt3_1, 16.2, -2, ("PML", 15, :white, :bold))
 Plots.plot!(plt3_1, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:white, label="")
 Plots.plot!(plt3_1, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:white, label="")
 Plots.vline!(plt3_1, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:white, ls=:dash, label="")
-Plots.vline!(plt3_1, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:white, ls=:dash, label="", legend=:topleft, size=(900,200))
+Plots.vline!(plt3_1, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:white, ls=:dash, label="", legend=:topleft, size=(600,200))
 # Plots.vspan!(plt3_1, [(x₁[1]+0.9*Lₕ),x₁[end]], fillalpha=0.5, fillcolor=:orange, label="")
 Plots.xlims!(plt3_1, (x₁[1],x₁[end]))
 Plots.ylims!(plt3_1, (z₂[1],z₁[end]))
 Plots.xlabel!(plt3_1, "\$x\$ (in km)")
 Plots.ylabel!(plt3_1, "\$z\$ (in km)")
 
-plt4 = Plots.contourf(X₂, Z₂, rho₂, label="", colormap=:jet)
-Plots.contourf!(plt4, X₁, Z₁, rho₁, label="", colormap=:jet)
-# Plots.annotate!(plt4, 16.2, -1.5, ("\\textbf{PML}", 15, :black))
-# Plots.annotate!(plt4, 0.8, -1, ("\\textbf{PML}", 15, :white))
-# Plots.annotate!(plt4, 3, -0.2, ("\\textbf{Layer 1}", 15, :white))
-# Plots.annotate!(plt4, 3, -1, ("\\textbf{Layer 2}", 15, :white))
-# Plots.annotate!(plt4, 14, -3.2, ("\\textbf{Layer 3}", 15, :black))
-# Plots.plot!(plt4, [0,x₁[end]],[-3.34,-2.47], lw=2, lc=:black, label="", xtickfont=:black)
-# Plots.plot!(plt4, [0,x₁[end]],[z₁[1],z₁[1]], lw=2, lc=:white, label="", xtickfont=:black)
-# Plots.vline!(plt4, [(x₁[1]+0.9*Lₕ)], lw=1, lc=:black, ls=:dash, label="")
-# Plots.vline!(plt4, [(x₁[1]+0.1*Lₕ)], lw=1, lc=:black, ls=:dash, label="", legend=:topleft, size=(600,600))
+plt4 = Plots.contourf(X₂, Z₂, vp₂, label="", colormap=:jet)
+Plots.contourf!(plt4, X₁, Z₁, vp₁, label="", colormap=:jet, size=(600,200))
 Plots.xlims!(plt4, (x₁[1],x₁[end]))
 Plots.ylims!(plt4, (z₂[1],z₁[end]))
 Plots.xlabel!(plt4, "\$x\$ (in km)")

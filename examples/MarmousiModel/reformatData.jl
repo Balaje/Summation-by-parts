@@ -58,7 +58,7 @@ rho = reverse(rho, dims=1)
 vp = reverse(vp, dims=1)
 vs = reverse(vs, dims=1)
 
-downSamplings = [10]
+downSamplings = [5]
 for i = 1:lastindex(downSamplings)
   global d = downSamplings[i];
   X_e,Z_e,rho_e,vp_e,vs_e = downSample(X_el, Z_el, rho_el, vp_el, vs_el, d);

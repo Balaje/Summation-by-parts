@@ -63,9 +63,9 @@ c₂³(r) = @SVector [x₂[end], z₂[1] + (cᵢ(1)[2] - z₂[1])*r] # Right bou
 c₃³(q) = cᵢ(q) # Top boundary
 domain₃ = domain_2d(c₀³, c₁³, c₂³, c₃³)
 
-M₁, N₁ = 21, 301;
-M₂, N₂ = 51, 301;
-M₃, N₃ = 21, 301;
+M₁, N₁ = 41, 1201;
+M₂, N₂ = 201, 1201;
+M₃, N₃ = 41, 1201;
 
 𝛀₁ = DiscreteDomain(domain₁, (N₁,M₁));
 𝛀₂ = DiscreteDomain(domain₂, (N₂,M₂));
