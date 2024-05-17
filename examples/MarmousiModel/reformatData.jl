@@ -58,7 +58,7 @@ rho = reverse(rho, dims=1)
 vp = reverse(vp, dims=1)
 vs = reverse(vs, dims=1)
 
-downSamplings = [5]
+downSamplings = [10]
 for i = 1:lastindex(downSamplings)
   global d = downSamplings[i];
   X_e,Z_e,rho_e,vp_e,vs_e = downSample(X_el, Z_el, rho_el, vp_el, vs_el, d);
@@ -94,17 +94,17 @@ vs = vars["vs"]
 X = vars["X"]
 Z = vars["Z"]
 rho = vars["rho"]
-plt1 = contourf(X[1,:]/1000, Z[:,1]/1000, vp/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
+plt1 = Plots.contourf(X[1,:]/1000, Z[:,1]/1000, vp/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
 xlabel!(plt1, "Distance (km)");
 ylabel!(plt1, "Depth (km)");
 title!(plt1, "Cₚ (km/s)")
 
-plt2 = contourf(X[1,:]/1000, Z[:,1]/1000, vs/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
+plt2 = Plots.contourf(X[1,:]/1000, Z[:,1]/1000, vs/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
 xlabel!(plt2, "Distance (km)");
 ylabel!(plt2, "Depth (km)");
 title!(plt2, "Cₛ (km/s)")
 
-plt3 = contourf(X[1,:]/1000, Z[:,1]/1000, rho/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
+plt3 = Plots.contourf(X[1,:]/1000, Z[:,1]/1000, rho/1000, lw=0.1, size=(800,400), bottom_margin=8*Plots.mm, xtickfontsize=12, ytickfontsize=12, top_margin=5*Plots.mm, xguidefontsize=12, yguidefontsize=12, left_margin=8*Plots.mm);
 xlabel!(plt3, "Distance (km)");
 ylabel!(plt3, "Depth (km)");
 title!(plt3, "ρ (kg/m³)")
