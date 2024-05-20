@@ -10,7 +10,7 @@ The PML damping
 const Lᵥ = abs(z₂[1]-z₁[end])
 const Lₕ = x₁[end] - x₁[1]
 const δ = 0.1*(Lₕ)
-const σ₀ᵛ = 0*(max(cp₁, cp₂))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ᵛ = 4*(max(cp₁, cp₂))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = 0*(max(cp₁, cp₂))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
@@ -88,6 +88,8 @@ let
   X₀ = vcat(eltocols(vec(𝐔.(XZ₂))), eltocols(vec(𝐏.(XZ₂))), eltocols(vec(𝐕.(XZ₂))), eltocols(vec(𝐖.(XZ₂))), eltocols(vec(𝐐.(XZ₂))), eltocols(vec(𝐑.(XZ₂))))
   Y₀ = vcat(eltocols(vec(𝐔.(XZ₃))), eltocols(vec(𝐏.(XZ₃))), eltocols(vec(𝐕.(XZ₃))), eltocols(vec(𝐖.(XZ₃))), eltocols(vec(𝐐.(XZ₃))), eltocols(vec(𝐑.(XZ₃))))
   global Z₀ = vcat(W₀, X₀, Y₀)
+  # t = tf
+  # global Z₀ = Z₀
   global maxvals = zeros(Float64, ntime)
   k₁ = zeros(Float64, length(Z₀))
   k₂ = zeros(Float64, length(Z₀))
