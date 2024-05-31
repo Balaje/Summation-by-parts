@@ -1,3 +1,15 @@
+# Install pyplot for this to work ....
+using PyPlot
+using Plots
+pyplot()
+using LaTeXStrings
+
+PyPlot.matplotlib[:rc]("text", usetex=true) 
+PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
+PyPlot.matplotlib[:rc]("font",family="serif",size=20)
+
+using DelimitedFiles
+
 function get_data_from_plot(plt)
   (plt.series_list[1].plotattributes[:x].surf, plt.series_list[1].plotattributes[:y].surf, plt.series_list[1].plotattributes[:z].surf), 
   (plt.series_list[2].plotattributes[:x].surf, plt.series_list[2].plotattributes[:y].surf, plt.series_list[2].plotattributes[:z].surf)
@@ -41,11 +53,11 @@ function write_data_to_disk(filename, plt)
 end
 
 time_t = 4.5;
-XYZ₁ = readdlm("./marmousi-paper-images\\DATA\\marmousi_sol_"*string(time_t)*"_layer_1.txt");
-XYZ₂ = readdlm("./marmousi-paper-images\\DATA\\marmousi_sol_"*string(time_t)*"_layer_2.txt");
+XYZ₁ = readdlm("./marmousi-paper-images/DATA/marmousi_sol_"*string(time_t)*"_layer_1.txt");
+XYZ₂ = readdlm("./marmousi-paper-images/DATA/marmousi_sol_"*string(time_t)*"_layer_2.txt");
 X₁ = XYZ₁[:,1]; Y₁ = XYZ₁[:,2]; Z₁ = XYZ₁[:,3];
 X₂ = XYZ₂[:,1]; Y₂ = XYZ₂[:,2]; Z₂ = XYZ₂[:,3];
-MN = readdlm("./marmousi-paper-images\\DATA\\grid.txt")
+MN = readdlm("./marmousi-paper-images/DATA/grid.txt")
 M₁ = Int64(MN[1,1]); N₁ = Int64(MN[1,2]);
 M₂ = Int64(MN[2,1]); N₂ = Int64(MN[2,2]);
 
