@@ -19,7 +19,7 @@ function plot_solution_log_scale(data1, data2, clims, n, nlevels)
   XC₁, ZC₁, absu1 = data1
   XC₂, ZC₂, absu2 = data2
   plt3_1 = Plots.plot();
-
+  
   if(clims==Nothing)
     Plots.contourf!(plt3_1, XC₁, ZC₁, (absu1), label="", colormap=:jet)
     Plots.contourf!(plt3_1, XC₂, ZC₂, (absu2), label="", colormap=:jet)
@@ -52,25 +52,32 @@ function write_data_to_disk(filename, plt)
   end
 end
 
-time_t = 4.5;
-XYZ₁ = readdlm("./marmousi-paper-images/DATA/marmousi_sol_"*string(time_t)*"_layer_1.txt");
-XYZ₂ = readdlm("./marmousi-paper-images/DATA/marmousi_sol_"*string(time_t)*"_layer_2.txt");
-X₁ = XYZ₁[:,1]; Y₁ = XYZ₁[:,2]; Z₁ = XYZ₁[:,3];
-X₂ = XYZ₂[:,1]; Y₂ = XYZ₂[:,2]; Z₂ = XYZ₂[:,3];
-MN = readdlm("./marmousi-paper-images/DATA/grid.txt")
-M₁ = Int64(MN[1,1]); N₁ = Int64(MN[1,2]);
-M₂ = Int64(MN[2,1]); N₂ = Int64(MN[2,2]);
+for i=1:1
+  time_t = 0.5;
+  XYZ₁ = readdlm("./marmousi-solution-data/marmousi-paper-images-0.1h/DATA/marmousi-sol-0.5h-"*string(time_t)*"_layer_1.txt");
+  XYZ₂ = readdlm("./marmousi-solution-data/marmousi-paper-images-0.1h/DATA/marmousi-sol-0.5h-"*string(time_t)*"_layer_2.txt");
+  X₁ = XYZ₁[:,1]; Y₁ = XYZ₁[:,2]; Z₁ = XYZ₁[:,3];
+  X₂ = XYZ₂[:,1]; Y₂ = XYZ₂[:,2]; Z₂ = XYZ₂[:,3];
+  # MN = readdlm("./marmousi-paper-images/DATA/grid.txt")
+  MN = [201 1201; 41 1201]
+  M₁ = Int64(MN[1,1]); N₁ = Int64(MN[1,2]);
+  M₂ = Int64(MN[2,1]); N₂ = Int64(MN[2,2]);
+  
+  clims = :default
+  global plot_ms = Plots.contourf(reshape(X₁,(M₁,N₁)), reshape(Y₁,(M₁,N₁)), reshape(Z₁,(M₁,N₁)), colormap=:jet, size=(600,200), clims=clims);
+  Plots.contourf!(plot_ms, reshape(X₂, (M₂,N₂)), reshape(Y₂,(M₂,N₂)),  reshape(Z₂,(M₂,N₂)), colormap=:jet);
+  if(clims!=:default)
+    c_ticks = (LinRange(clims...,3), string.(round.(LinRange(clims...,3), digits=2)));
+    Plots.plot!(plot_ms, colorbar_ticks=c_ticks)
+  end
+  Plots.plot!(plot_ms, [0,16.9864],[-3.34,-2.47], lw=1, lc=:red, label="")
+  # Plots.plot!(plot_ms, [0,16.9864],[-3.4972,-3.4972], lw=1, lc=:red, label="")
+  Plots.vline!(plot_ms, [(0.9*16.9864)], lw=1, lc=:red, ls=:dash, label="")
+  Plots.vline!(plot_ms, [(0.1*16.9864)], lw=1, lc=:red, ls=:dash, label="", legend=:topleft, size=(600,200))  
+  Plots.xlims!(plot_ms, (0,16.9864))
+  Plots.ylims!(plot_ms, (-3.4972,-0.44964))
+  Plots.xlabel!(plot_ms, "\$x\$")
+  Plots.ylabel!(plot_ms, "\$y\$")
 
-clims = (0.0, 0.5)
-plot_ms = Plots.contour(reshape(X₁,(M₁,N₁)), reshape(Y₁,(M₁,N₁)), reshape(Z₁,(M₁,N₁)), colormap=:jet, size=(600,200), clims=clims, levels=50);
-Plots.contour!(plot_ms, reshape(X₂, (M₂,N₂)), reshape(Y₂,(M₂,N₂)),  reshape(Z₂,(M₂,N₂)), colormap=:jet, levels=50);
-c_ticks = (LinRange(clims...,3), string.(round.(LinRange(clims...,3), digits=2)));
-Plots.plot!(plot_ms, colorbar_ticks=c_ticks)
-Plots.plot!(plot_ms, [0,16.9864],[-3.34,-2.47], lw=1, lc=:red, label="")
-Plots.plot!(plot_ms, [0,16.9864],[-3.4972,-3.4972], lw=1, lc=:red, label="")
-Plots.vline!(plot_ms, [(0.9*16.9864)], lw=1, lc=:red, ls=:dash, label="")
-Plots.vline!(plot_ms, [(0.1*16.9864)], lw=1, lc=:red, ls=:dash, label="", legend=:topleft, size=(600,200))  
-Plots.xlims!(plot_ms, (0,16.9864))
-Plots.ylims!(plot_ms, (-3.4972,-0.44964))
-Plots.xlabel!(plot_ms, "\$x\$")
-Plots.ylabel!(plot_ms, "\$z\$")
+  # Plots.savefig(plot_ms, "./marmousi-solution-data/marmousi-paper-images-0.1h/marmousi-sol-0.5h-t-"*string(time_t)*".pdf");
+end

@@ -1,5 +1,5 @@
-# include("2d_elasticity_problem.jl");
 using SBP
+using SplitApplyCombine
 using StaticArrays
 using LinearAlgebra
 using SparseArrays
@@ -15,56 +15,6 @@ PyPlot.matplotlib[:rc]("text", usetex=true)
 PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
-using SplitApplyCombine
-# using LoopVectorization
-
-"""
-Flatten the 2d function as a single vector for the time iterations.
-  (...Basically convert vector of vectors to matrix...)
-"""
-eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
-
-"""
-Get the x-and-y coordinates from coordinates
-"""
-getX(C) = C[1]; getY(C) = C[2];
-
-# Define the domain
-cᵢ(q) = @SVector [4.4π*q, 0.8π*exp(-40π*(q-0.5)^2)]
-c₀¹(r) = @SVector [0.0, 4π*r]
-c₁¹(q) = cᵢ(q)
-c₂¹(r) = @SVector [4.4π, 4π*r]
-c₃¹(q) = @SVector [4.4π*q, 4π]
-domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
-c₀²(r) = @SVector [0.0, 4π*r - 4π]
-c₁²(q) = @SVector [4.4π*q, -4π]
-c₂²(r) = @SVector [4.4π, 4π*r-4π]
-c₃²(q) = cᵢ(q)
-domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
-
-
-##### ##### ##### ##### ##### ##### 
-# EXAMPLE OF AN ANISOTROPIC DOMAIN
-##### ##### ##### ##### ##### ##### 
-# """
-# Material properties coefficients of an anisotropic material
-# """
-# c₁₁¹(x) = 4.0
-# c₂₂¹(x) = 20.0
-# c₃₃¹(x) = 2.0
-# c₁₂¹(x) = 3.8
-
-# c₁₁²(x) = 4*c₁₁¹(x)
-# c₂₂²(x) = 4*c₂₂¹(x)
-# c₃₃²(x) = 4*c₃₃¹(x)
-# c₁₂²(x) = 4*c₁₂¹(x)
-
-# ρ₁(x) = 1.0
-# ρ₂(x) = 0.25
-
-##### ##### ##### ##### ##### ##### 
-# EXAMPLE OF AN ISOTROPIC DOMAIN
-##### ##### ##### ##### ##### ##### 
 """
 Density function 
 """
@@ -97,6 +47,25 @@ c₂₂²(x) = 2*μ₂(x)+λ₂(x)
 c₃₃²(x) = μ₂(x)
 c₁₂²(x) = λ₂(x)
 
+##### ##### ##### ##### ##### ##### 
+# EXAMPLE OF AN ANISOTROPIC DOMAIN
+##### ##### ##### ##### ##### ##### 
+# """
+# Material properties coefficients of an anisotropic material
+# """
+# c₁₁¹(x) = 4.0
+# c₂₂¹(x) = 20.0
+# c₃₃¹(x) = 2.0
+# c₁₂¹(x) = 3.8
+
+# c₁₁²(x) = 4*c₁₁¹(x)
+# c₂₂²(x) = 4*c₂₂¹(x)
+# c₃₃²(x) = 4*c₃₃¹(x)
+# c₁₂²(x) = 4*c₁₂¹(x)
+
+# ρ₁(x) = 1.0
+# ρ₂(x) = 0.25
+
 cpx₁ = √(c₁₁¹(1.0)/ρ₁(1.0))
 cpy₁ = √(c₂₂¹(1.0)/ρ₁(1.0))
 csx₁ = √(c₃₃¹(1.0)/ρ₁(1.0))
@@ -116,30 +85,31 @@ The PML damping
 """
 const Lᵥ = 4π
 const Lₕ = 4π
-const δ = 0.1*Lᵥ
-const σ₀ᵛ = 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
-const σ₀ʰ = 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const δ = 0.1*4π  
+const δ′ = δ # For constructing the geometry
+const σ₀ᵛ = (δ > 0.0) ? 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
+const σ₀ʰ = (δ > 0.0) ? 0*((max(cs₁, cs₂))*1)/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const α = σ₀ᵛ*0.05; # The frequency shift parameter
 
 """
 Vertical PML strip
 """
 function σᵥ(x)
-  if((x[1] ≈ Lᵥ) || x[1] > Lᵥ)
-    return σ₀ᵛ*((x[1] - Lᵥ)/δ)^3  
-  else
-    return 0.0
+  if((x[1] ≈ Lₕ) || x[1] > Lₕ)
+    return (δ > 0.0) ? σ₀ᵛ*((x[1] - Lₕ)/δ)^3 : 0.0
+  elseif((x[1] ≈ δ) || x[1] < δ)
+    # return (δ > 0.0) ? σ₀ᵛ*((δ - x[1])/δ)^3 : 0.0
+    0.0
+  else 
+    return 0.0      
   end
 end
 
-"""
-Horizontal PML strip
-"""
 function σₕ(x)
-  if((x[2] ≈ Lₕ) || (x[2] > Lₕ))
-    return σ₀ʰ*((x[2] - Lₕ)/δ)^3  
-  elseif( (x[2] ≈ -Lₕ) || (x[2] < -Lₕ) )
-    return σ₀ʰ*abs((x[2] + Lₕ)/δ)^3  
+  if((x[2] ≈ Lᵥ) || (x[2] > Lᵥ))
+    return (δ > 0.0) ? σ₀ʰ*((x[2] - Lᵥ)/δ)^3 : 0.0
+  elseif( (x[2] ≈ -Lᵥ) || (x[2] < -Lᵥ) )
+    return (δ > 0.0) ? σ₀ʰ*abs((x[2] + Lᵥ)/δ)^3 : 0.0
   else  
     return 0.0
   end  
@@ -164,7 +134,7 @@ where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and th
 𝒫₂ᴾᴹᴸ(x) = @SMatrix [-σᵥ(x)*c₁₁²(x) + σₕ(x)*c₁₁²(x) 0 0 0; 0 -σᵥ(x)*c₃₃²(x) + σₕ(x)*c₃₃²(x) 0 0; 0 0 σᵥ(x)*c₃₃²(x) - σₕ(x)*c₃₃²(x)  0; 0 0 0 σᵥ(x)*c₂₂²(x) - σₕ(x)*c₂₂²(x)];
 
 """
-Material velocity tensors
+Impedance matrices
 """
 Z₁¹(x) = @SMatrix [√(c₁₁¹(x)*ρ₁(x))  0;  0 √(c₃₃¹(x)*ρ₁(x))]
 Z₂¹(x) = @SMatrix [√(c₃₃¹(x)*ρ₁(x))  0;  0 √(c₂₂¹(x)*ρ₁(x))]
@@ -172,10 +142,11 @@ Z₂¹(x) = @SMatrix [√(c₃₃¹(x)*ρ₁(x))  0;  0 √(c₂₂¹(x)*ρ₁(x
 Z₁²(x) = @SMatrix [√(c₁₁²(x)*ρ₂(x))  0;  0 √(c₃₃²(x)*ρ₂(x))]
 Z₂²(x) = @SMatrix [√(c₃₃²(x)*ρ₂(x))  0;  0 √(c₂₂²(x)*ρ₂(x))]
 
+
 """
 Function to obtain the PML stiffness matrix
 """
-function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫)
+function 𝐊2ₚₘₗ_nc(𝒫, 𝒫ᴾᴹᴸ, 𝛔, Z₁₂, 𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, α)
   # Extract domains
   𝛀₁, 𝛀₂ = 𝛀
   Ω₁(qr) = S(qr, 𝛀₁.domain);
@@ -190,6 +161,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
 
   𝒫₁, 𝒫₂ = 𝒫
   𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ = 𝒫ᴾᴹᴸ
+  σᵥ, σₕ = 𝛔
 
   # Get the bulk terms for layer 1
   Pqr₁ = P2R.(𝒫₁,Ω₁,𝐪𝐫₁);
@@ -320,8 +292,8 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   Eᵢ¹ = E1(2,1,(6,6)) ⊗ I(2)
   Eᵢ² = E1(1,1,(6,6)) ⊗ I(2)
   # Get the jump matrices
-  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ¹)
-  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], ConformingInterface(); X=Eᵢ²)
+  B̂,  B̃, _ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ¹)
+  B̂ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = SATᵢᴱ(𝛀₁, 𝛀₂, [0; -1], [0; 1], NonConformingInterface(); X=Eᵢ²)
   # Traction on interface From Layer 1
   Tr₀¹ = Tᴱ(Pqr₁, 𝛀₁, [0;-1]).A
   Tr₀ᴾᴹᴸ₁₁, Tr₀ᴾᴹᴸ₂₁ = Tᴾᴹᴸ(Pᴾᴹᴸqr₁, 𝛀₁, [0;-1]).A  
@@ -335,7 +307,7 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   es = [E1(2,i,(6,6)) for i=[1,3,4]]; 𝐓rᵀₙ² = sum(es .⊗ [(Trₙ²)', (Trₙᴾᴹᴸ₁₂)', (Trₙᴾᴹᴸ₂₂)'])
   𝐓rᵢ = blockdiag(𝐓r₀¹, 𝐓rₙ²)      
   𝐓rᵢᵀ = blockdiag(𝐓rᵀ₀¹, 𝐓rᵀₙ²)   
-  h = norm(xy₁[1,2] - xy₁[1,1])
+  h = 4π/(max(m₁,n₁,m₂,n₂)-1)
   ζ₀ = 400/h  
   # Assemble the interface SAT
   𝐉 = blockdiag(E1(2,2,(6,6)) ⊗ 𝐉₁⁻¹, E1(2,2,(6,6)) ⊗ 𝐉₂⁻¹)
@@ -347,10 +319,11 @@ function 𝐊2ₚₘₗ(𝒫, 𝒫ᴾᴹᴸ, Z₁₂, 𝛀::Tuple{DiscreteDomain
   bulk - SATᵢ - SATₙ;
 end
 
+
 """
-Inverse of the mass matrix
+Inverse of the mass matrix for the PML case
 """
-function 𝐌2⁻¹ₚₘₗ(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, ρ)
+function 𝐌2⁻¹ₚₘₗ_nc(𝛀::Tuple{DiscreteDomain,DiscreteDomain}, 𝐪𝐫, ρ)
   ρ₁, ρ₂ = ρ
   𝛀₁, 𝛀₂ = 𝛀
   𝐪𝐫₁, 𝐪𝐫₂ = 𝐪𝐫
@@ -371,16 +344,12 @@ A non-allocating implementation of the RK4 scheme
 function RK4_1!(M, sol, Δt)  
   X₀, k₁, k₂, k₃, k₄ = sol
   # k1 step  
-  # k₁ .= M*X₀
   mul!(k₁, M, X₀);
   # k2 step
-  # k₂ .= M*(X₀ + 0.5*Δt*k₁)
   mul!(k₂, M, k₁, 0.5*Δt, 0.0); mul!(k₂, M, X₀, 1, 1);
   # k3 step
-  # k₃ .= M*(X₀ + 0.5*Δt*k₂)
   mul!(k₃, M, k₂, 0.5*Δt, 0.0); mul!(k₃, M, X₀, 1, 1);
   # k4 step
-  # k₄ .= M*(X₀ + Δt*k₃)
   mul!(k₄, M, k₃, Δt, 0.0); mul!(k₄, M, X₀, 1, 1);
   # Final step
   for i=1:lastindex(X₀)
@@ -388,6 +357,12 @@ function RK4_1!(M, sol, Δt)
   end
   X₀
 end
+
+"""
+Flatten the 2d function as a single vector for the time iterations.
+  (...Basically convert vector of vectors to matrix...)
+"""
+eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
 
 """
 Function to split the solution into the corresponding variables
@@ -399,8 +374,43 @@ function split_solution(X, MN, P)
 end
 
 """
-Initial conditions
+Get the x-and-y coordinates from coordinates
 """
+getX(C) = C[1];
+getY(C) = C[2];
+
+##########################
+# Define the two domains #
+##########################
+# Define the domain for PML computation
+cᵢ_pml(q) = @SVector [(Lₕ+δ′)*q,  0.8π*exp(-40π*(q-0.5)^2)]
+c₀¹_pml(r) = @SVector [0.0, (Lᵥ)*r]
+c₁¹_pml(q) = cᵢ_pml(q)
+c₂¹_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r]
+c₃¹_pml(q) = @SVector [(Lₕ+δ′)*q, (Lᵥ)]
+domain₁_pml = domain_2d(c₀¹_pml, c₁¹_pml, c₂¹_pml, c₃¹_pml)
+c₀²_pml(r) = @SVector [0.0, (Lᵥ)*r-(Lᵥ)]
+c₁²_pml(q) = @SVector [(Lₕ+δ′)*q, -(Lᵥ)]
+c₂²_pml(r) = @SVector [(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
+c₃²_pml(q) = cᵢ_pml(q)
+domain₂_pml = domain_2d(c₀²_pml, c₁²_pml, c₂²_pml, c₃²_pml)
+# Define the domain for full elasticity computation
+cᵢ(q) = @SVector [3(Lₕ+δ′)*q,  0.8π*exp(-40*9*π*(q-1/6)^2)]
+c₀¹(r) = @SVector [0.0, (Lᵥ)*r]
+c₁¹(q) = cᵢ(q)
+c₂¹(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r]
+c₃¹(q) = @SVector [3(Lₕ+δ′)*q, (Lᵥ)]
+domain₁ = domain_2d(c₀¹, c₁¹, c₂¹, c₃¹)
+c₀²(r) = @SVector [0.0, (Lᵥ)*r-(Lᵥ)]
+c₁²(q) = @SVector [3(Lₕ+δ′)*q, -(Lᵥ)]
+c₂²(r) = @SVector [3(Lₕ+δ′), (Lᵥ)*r-(Lᵥ)]
+c₃²(q) = cᵢ(q)
+domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
+
+
+#######################################
+# Linear system for the PML elasticity
+#######################################
 𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
 𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
 𝐕(x) = @SVector [0.0, 0.0]
@@ -408,153 +418,164 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-scalefontsizes(1.5)
-N = 201;
-𝛀₁ = DiscreteDomain(domain₁, (round(Int64, 1.1*N - 0.1),N));
-𝛀₂ = DiscreteDomain(domain₂, (round(Int64, 1.1*N - 0.1),N));
+N₂ = 81;
+𝛀₁ᴾᴹᴸ = DiscreteDomain(domain₁_pml, (2N₂-1,N₂));
+𝛀₂ᴾᴹᴸ = DiscreteDomain(domain₂_pml, (N₂,N₂));
+𝐪𝐫ᴾᴹᴸ₁ = generate_2d_grid((2N₂-1,N₂))
+𝐪𝐫ᴾᴹᴸ₂ = generate_2d_grid((N₂,N₂))
+Ω₁ᴾᴹᴸ(qr) = S(qr, 𝛀₁ᴾᴹᴸ.domain);
+Ω₂ᴾᴹᴸ(qr) = S(qr, 𝛀₂ᴾᴹᴸ.domain);
+xy₁ᴾᴹᴸ = Ω₁ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ₁); xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(𝐪𝐫ᴾᴹᴸ₂);
+stima2_pml =  𝐊2ₚₘₗ_nc((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), (σᵥ, σₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), (𝐪𝐫ᴾᴹᴸ₁, 𝐪𝐫ᴾᴹᴸ₂), α);
+massma2_pml =  𝐌2⁻¹ₚₘₗ_nc((𝛀₁ᴾᴹᴸ, 𝛀₂ᴾᴹᴸ), (𝐪𝐫ᴾᴹᴸ₁,𝐪𝐫ᴾᴹᴸ₂), (ρ₁, ρ₂));
+
+#######################################
+# Linear system for the Full elasticity
+#######################################
+N₁ = 3N₂-2
+𝛀₁ = DiscreteDomain(domain₁, (2N₁-1,N₂));
+𝛀₂ = DiscreteDomain(domain₂, (N₁,N₂));
 Ω₁(qr) = S(qr, 𝛀₁.domain);
-Ω₂(qr) = S(qr, 𝛀₂.domain);
-𝐪𝐫₁ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
-𝐪𝐫₂ = generate_2d_grid((round(Int64, 1.1*N - 0.1),N));
-xy₁ = Ω₁.(𝐪𝐫₁);
-xy₂ = Ω₂.(𝐪𝐫₂);
-stima = 𝐊2ₚₘₗ((𝒫₁, 𝒫₂), (𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂));
-massma = 𝐌2⁻¹ₚₘₗ((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
-# Define the time stepping
-const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 5.0
+Ω₂(qr) = S(qr, 𝛀₂.domain)
+𝐪𝐫₁ = generate_2d_grid((2N₁-1,N₂))
+𝐪𝐫₂ = generate_2d_grid((N₁,N₂))
+xy₁ = Ω₁.(𝐪𝐫₁); xy₂ = Ω₂.(𝐪𝐫₂);
+
+ℙ₁ᴾᴹᴸ(x) = 0*𝒫₁ᴾᴹᴸ(x)
+ℙ₂ᴾᴹᴸ(x) = 0*𝒫₂ᴾᴹᴸ(x)
+τₕ(x) = 0*σₕ(x)
+τᵥ(x) = 0*σᵥ(x)
+stima2 =  𝐊2ₚₘₗ_nc((𝒫₁, 𝒫₂), (ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ), (τᵥ, τₕ), ((Z₁¹, Z₂¹), (Z₁², Z₂²)), (𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), 0.0);
+massma2 =  𝐌2⁻¹ₚₘₗ_nc((𝛀₁, 𝛀₂), (𝐪𝐫₁, 𝐪𝐫₂), (ρ₁, ρ₂));
+
+const Δt = 0.15*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2);
+tf = 10.0;
 ntime = ceil(Int, tf/Δt)
-maxvals = zeros(Float64, ntime)
+max_abs_error = zeros(Float64, ntime)
 
-plt3 = Vector{Plots.Plot}(undef,3);
 
+comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0)
+indices_x = 1:N₂
+indices_y = 1:2N₂-1
+xy_PML₁ = xy₁ᴾᴹᴸ[comput_domain]
+xy_FULL₁ = xy₁[indices_x, indices_y][comput_domain]
+@assert xy_PML₁ ≈ xy_FULL₁
 # Begin time loop
 let
   t = 0.0
+
+  # Linear Elasticity vectors
   X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
   X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
-  X₀ = vcat(X₀¹, X₀²)
+  global X₀ = vcat(X₀¹, X₀²)
   k₁ = zeros(Float64, length(X₀))
   k₂ = zeros(Float64, length(X₀))
   k₃ = zeros(Float64, length(X₀))
   k₄ = zeros(Float64, length(X₀)) 
-  M = massma*stima
-  count = 1;
-  # @gif for i=1:ntime
-  Hq = SBP_1_2_CONSTANT_0_1(round(Int64,1.1*N - 0.1)).norm;
-  Hr = SBP_1_2_CONSTANT_0_1(N).norm;
-  Hqr = Hq ⊗ Hr
-  @gif for i=1:ntime
-    sol = X₀, k₁, k₂, k₃, k₄
-    X₀ = RK4_1!(M, sol, Δt)    
-    t += Δt    
-    (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+  K = massma2*stima2
 
+  # PML vectors
+  X₀¹_pml = vcat(eltocols(vec(𝐔.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₁ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₁ᴾᴹᴸ))));
+  X₀²_pml = vcat(eltocols(vec(𝐔.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐏.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐕.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐖.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐐.(xy₂ᴾᴹᴸ))), eltocols(vec(𝐑.(xy₂ᴾᴹᴸ))));
+  global X₀_pml = vcat(X₀¹_pml, X₀²_pml)
+  k₁_pml = zeros(Float64, length(X₀_pml))
+  k₂_pml = zeros(Float64, length(X₀_pml))
+  k₃_pml = zeros(Float64, length(X₀_pml))
+  k₄_pml = zeros(Float64, length(X₀_pml)) 
+  K_pml = massma2_pml*stima2_pml  
+
+  for i=1:ntime
+    X₀ = RK4_1!(K, (X₀, k₁, k₂, k₃, k₄), Δt)    
+    X₀_pml = RK4_1!(K_pml, (X₀_pml, k₁_pml, k₂_pml, k₃_pml, k₄_pml), Δt)    
+
+    t += Δt        
+
+    # Extract elasticity solutions
     u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
     u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-    U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
-    U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
-    
-    if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 2/Δt)) || (i == ceil(Int64, 5/Δt)))
-      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
-      Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-      Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-      xlims!(plt3[count], (0,Lᵥ+δ))
-      ylims!(plt3[count], (-Lₕ,Lₕ))
-      xlabel!(plt3[count], "\$x\$")
-      ylabel!(plt3[count], "\$y\$")
-      count += 1
-    end
 
-    plt3_gif = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-    Plots.contourf!(plt3_gif, getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
-    Plots.vline!(plt3_gif, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-    Plots.plot!(plt3_gif, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-    xlims!(plt3_gif, (0,Lᵥ+δ))
-    ylims!(plt3_gif, (-Lₕ,Lₕ))
-    xlabel!(plt3_gif, "\$x\$")
-    ylabel!(plt3_gif, "\$y\$")
+    # Extract PML solutions
+    u1ref₁_pml,u2ref₁_pml = split_solution(X₀_pml[1:12*(prod(𝛀₁ᴾᴹᴸ.mn))], 𝛀₁ᴾᴹᴸ.mn, 12);
+    u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
 
-    maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
-  # end
-  end every 15
-  global Xref = X₀
-end  
+    # Get the domain of interest i.e., Ω - Ωₚₘₗ
+    comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0);
+    indices_x = 1:N₂; indices_y = 1:2N₂-1
+    U_PML₁ = reshape(u1ref₁_pml, size(xy₁ᴾᴹᴸ))[comput_domain]
+    U_FULL₁ = reshape(u1ref₁, size(xy₁))[indices_x, indices_y][comput_domain]
+    DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
+    comput_domain = findall(σᵥ.(xy₂ᴾᴹᴸ) .≈ 0.0)
+    indices_x = 1:N₂; indices_y = 1:N₂
+    U_PML₂ = reshape(u1ref₂_pml, size(xy₂ᴾᴹᴸ))[comput_domain]
+    U_FULL₂ = reshape(u1ref₂, size(xy₂))[indices_x, indices_y][comput_domain]
+    DU_FULL_PML₂ = abs.(U_PML₂-U_FULL₂);
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
-u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
-U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2);
-U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2);
+    comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0);
+    indices_x = 1:N₂; indices_y = 1:2N₂-1    
+    V_PML₁ = reshape(u2ref₁_pml, size(xy₁ᴾᴹᴸ))[comput_domain]
+    V_FULL₁ = reshape(u2ref₁, size(xy₁))[indices_x, indices_y][comput_domain]
+    DV_FULL_PML₁ = abs.(V_PML₁-V_FULL₁);
+    comput_domain = findall(σᵥ.(xy₂ᴾᴹᴸ) .≈ 0.0)
+    indices_x = 1:N₂; indices_y = 1:N₂
+    V_PML₂ = reshape(u2ref₂_pml, size(xy₂ᴾᴹᴸ))[comput_domain]
+    V_FULL₂ = reshape(u2ref₂, size(xy₂))[indices_x, indices_y][comput_domain]
+    DV_FULL_PML₂ = abs.(V_PML₂-V_FULL₂);
 
-plt3_1 = Plots.plot();
-Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet)
-Plots.vline!(plt3_1, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.plot!(plt3_1, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-xlims!(plt3_1, (0,Lᵥ+δ))
-ylims!(plt3_1, (-Lₕ,Lₕ))
-xlabel!(plt3_1, "\$x\$")
-ylabel!(plt3_1, "\$y\$")
-c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
-Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
+    max_abs_error[i] = max(maximum(DU_FULL_PML₁), maximum(DU_FULL_PML₂), maximum(DV_FULL_PML₁), maximum(DV_FULL_PML₂))
 
-plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
-Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="", lc=:green, lw=1, size=(400,500))
-xlims!(plt4, (0-0.4π, 4π+0.8π))
-ylims!(plt4, (-4π-0.8π, 4π+0.8π))
-xlabel!(plt4, "\$ x \$")
-ylabel!(plt4, "\$ y \$")
-
-plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=2, yaxis=:log10)
-Plots.xlabel!(plt5, "Time \$t\$")
-Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
-Plots.xlims!(plt5, (0,tf))
-
-
-
-using DelimitedFiles, Test  
-SKIP_TEST = true
-@testset "Test all the matrix components against the MATLAB version" begin   
-  ijk = readdlm("./examples/LinearElasticity/Test-matrices/stima_pml_example_2_layer.txt",',','\n');
-  lhs_ref = sparse(Int64.(ijk[:,1]), Int64.(ijk[:,2]), ijk[:,3], 20*N^2, 20*N^2);
-  lhs = massma*stima;
-  # First block 
-  # Bulk
-  @test lhs[1:10N^2, 1:10N^2] ≈ lhs_ref[1:10N^2, 1:10N^2] atol=1e-10 skip = SKIP_TEST
-  # Interface SAT terms
-  @test lhs[1:10N^2, 12N^2+1:20N^2] ≈ lhs_ref[1:10N^2, 10N^2+1:18N^2]  atol=1e-10 skip = SKIP_TEST
-
-  # Second block
-  # Interface SAT
-  @test lhs[12N^2+1:22N^2, 1:10N^2] ≈ lhs_ref[10N^2+1:20N^2, 1:10N^2] atol=1e-10 skip = SKIP_TEST
-  # Bulk
-  @test lhs[12N^2+1:22N^2, 12N^2+1:22N^2] ≈ lhs_ref[10N^2+1:20N^2, 10N^2+1:20N^2] atol=1e-10 skip = SKIP_TEST
+    (i%100==0) && println("Done t = "*string(t)*"\t Error = "*string(max_abs_error[i]))
+  end
 end
 
-plt6 = Plots.plot([0, 0], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [0, Lₕ+δ], [Lᵥ, Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [Lₕ, Lₕ], [Lᵥ, -Lᵥ], lw=1, lc=:black, label="", ls=:dash)
-Plots.plot!(plt6, [Lₕ+δ, Lₕ+δ], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [0, Lₕ+δ], [-Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), lc=:red, ls=:dash, lw=1, label="Curvilinear Interface", size=(400,500))
-xlims!(plt6, (0-0.4π, 4π+0.8π))
-ylims!(plt6, (-4π-0.8π, 4π+2.2π))
-Plots.annotate!(plt6, 2.2π, 2π, ("\$ \\Omega_1 \$", 15, :black))
-Plots.annotate!(plt6, 2.2π, -2π, ("\$ \\Omega_2 \$", 15, :black))
-xlabel!(plt6, "\$ x \$")
-ylabel!(plt6, "\$ y \$")
+# Extract elasticity solutions
+u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(𝛀₁.mn))], 𝛀₁.mn, 12);
+u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(𝛀₁.mn))+1:12*(prod(𝛀₁.mn))+12*(prod(𝛀₂.mn))], 𝛀₂.mn, 12);
 
-plt7 = Plots.contourf(getX.(xy₁), getY.(xy₁), σᵥ.(xy₁) .+ 1e-16, colormap=:jet)
-Plots.contourf!(plt7, getX.(xy₂), getY.(xy₂), σᵥ.(xy₂) .+ 1e-16, colormap=:jet)
-Plots.plot!(plt7, [Lₕ, Lₕ], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt7, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), lc=:red, ls=:dash, lw=1, label="Curvilinear Interface", size=(400,500))
-xlims!(plt7, (0-0.4π, 4π+0.8π))
-ylims!(plt7, (-4π-0.8π, 4π+2.2π))
-Plots.annotate!(plt7, 2.2π, 2π, ("\$ \\Omega_1 \$", 15, :white))
-Plots.annotate!(plt7, 2.2π, -2π, ("\$ \\Omega_2 \$", 15, :white))
-xlabel!(plt7, "\$ x \$")
-ylabel!(plt7, "\$ y \$")
+# Extract PML solutions
+u1ref₁_pml,u2ref₁_pml = split_solution(X₀_pml[1:12*(prod(𝛀₁ᴾᴹᴸ.mn))], 𝛀₁ᴾᴹᴸ.mn, 12);
+u1ref₂_pml,u2ref₂_pml = split_solution(X₀_pml[12*(prod(𝛀₁ᴾᴹᴸ.mn))+1:12*(prod(𝛀₁ᴾᴹᴸ.mn))+12*(prod(𝛀₂ᴾᴹᴸ.mn))], 𝛀₂ᴾᴹᴸ.mn, 12);
+
+# Get the domain of interest i.e., Ω - Ωₚₘₗ
+comput_domain = findall(σᵥ.(xy₁ᴾᴹᴸ) .≈ 0.0);
+indices_x = 1:N₂;
+indices_y = 1:2N₂-1;
+U_PML₁ = reshape(u1ref₁_pml, (N₂,2N₂-1))[comput_domain]
+U_FULL₁ = reshape(u1ref₁, (N₂,2N₁-1))[comput_domain]
+DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
+
+plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(sqrt.(u1ref₁_pml.^2 + u2ref₁_pml.^2),size(xy₁ᴾᴹᴸ)), colormap=:jet, levels=50, clims=(0,0.01))
+Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(sqrt.(u1ref₂_pml.^2 + u2ref₂_pml.^2), size(xy₂ᴾᴹᴸ)), colormap=:jet, levels=50, clims=(0,0.01))
+if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
+  Plots.vline!([Lᵥ], label="PML Domain", lc=:black, lw=1, ls=:dash)  
+else
+  Plots.vline!([Lᵥ+δ′], label="ABC", lc=:black, lw=1, ls=:dash)
+end
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,2N₂-1))), getY.(cᵢ.(LinRange(0,1,2N₂-1))), label="Interface", lc=:red, lw=2, size=(800,500))
+xlims!((0,cᵢ_pml(1.0)[1]))
+ylims!((c₀²_pml(0.0)[2], c₀¹_pml(1.0)[2]))
+xlabel!("\$x\$")
+ylabel!("\$y\$")
+# title!("Truncated domain solution at \$ t = "*string(round(tf,digits=3))*"\$")
+
+plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(sqrt.(u1ref₁.^2 + u2ref₁.^2),size(xy₁)...), colormap=:jet, levels=50, clims=(0,0.01))
+Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(sqrt.(u1ref₂.^2 + u2ref₂.^2), size(xy₂)...), colormap=:jet, levels=50, clims=(0,0.01))
+Plots.plot!(getX.(cᵢ.(LinRange(0,1,N₁))), getY.(cᵢ.(LinRange(0,1,N₁))), label="Interface", lc=:red, lw=2, size=(800,500))
+xlims!((cᵢ(0)[1],cᵢ(1.0)[1]))
+ylims!((c₀²(0.0)[2], c₀¹(1.0)[2]))
+if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
+  Plots.plot!([Lᵥ+δ′,Lᵥ+δ′], [-Lₕ-δ′, Lₕ+δ′], label="PML", lc=:black, lw=1, ls=:dash)  
+end
+Plots.plot!([Lᵥ,Lᵥ], [-Lₕ-δ′, Lₕ+δ′], label="Truncated Region", lc=:green, lw=1, ls=:solid)
+xlabel!("\$x\$")
+ylabel!("\$y\$")
+# plt34 = Plots.plot(plt4, plt3, size=(800,300))
+
+# plt5 = Plots.plot()
+if (δ > 0)
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
+else
+  Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="ABC", color=:blue, lw=1, legendfontsize=10, ls=:dash)
+end
+ylims!(plt5, (10^-8, 1))
+xlabel!(plt5, "Time t")
+ylabel!(plt5, "Maximum Error")
