@@ -1,9 +1,8 @@
 module nd_SBP
 
-import SBP.SBP_1d: INTERPOLATION_4, E1, ⊗
-import SBP.TransfiniteInterpolation: J, J⁻¹, get_property_matrix_on_grid
+import SummationByPartsPML.SBP_1d: δᵢⱼ, ⊗
 
-export _surface_jacobian, N2S, jump
+export normal_to_side, compute_jump_operators
 
 using LinearAlgebra
 using SparseArrays

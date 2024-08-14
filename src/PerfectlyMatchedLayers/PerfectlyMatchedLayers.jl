@@ -1,10 +1,10 @@
 module PerfectlyMatchedLayers
 
-import SBP.SBP_1d: SBP_TYPE, SBP_1_2_CONSTANT_0_1, ⊗
-import SBP.SBP_2d: SBP_1_2_CONSTANT_0_1_0_1, Dqq, Drr, Dqr, Drq, generate_2d_grid, Js, Tᴱ, E1
-import SBP.TransfiniteInterpolation: J, J⁻¹, J⁻¹s, get_property_matrix_on_grid, DiscreteDomain
+import SummationByPartsPML.SBP_1d: SBP_TYPE, SBP4_1D, ⊗
+import SummationByPartsPML.SBP_2d: SBP4_2D, SBP4_2D_Dqq, SBP4_2D_Drr, SBP4_2D_Dqr, SBP4_2D_Drq, reference_grid_2d, surface_jacobian, elasticity_traction_operator, δᵢⱼ
+import SummationByPartsPML.TransfiniteInterpolation: transfinite_interpolation_jacobian, inverse_transfinite_interpolation_jacobian, get_property_matrix_on_grid, transform_material_properties
 
-export P2Rᴾᴹᴸ, Pᴾᴹᴸ, 𝐙, Tᴾᴹᴸ, χᴾᴹᴸ
+export transform_material_properties_pml, elasticity_pml_operator, compute_impedance_function, elasticity_traction_pml_operator, elasticity_absorbing_boundary_pml_operator
 
 using SparseArrays
 using LinearAlgebra

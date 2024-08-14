@@ -1,12 +1,12 @@
 """
 SBP operators in two-dimensions obtained using Kronecker Product of 1d operators
 """
-struct SBP_1_2_CONSTANT_0_1_0_1 <: SBP_TYPE
-  D1::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
-  D2::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
-  S::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
-  norm::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
-  E::Tuple{SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}, SparseMatrixCSC{Float64,Int64}}
+struct SBP4_2D <: SBP_TYPE
+  D1::NTuple{2,SparseMatrixCSC{Float64,Int64}}
+  D2::NTuple{2,SparseMatrixCSC{Float64,Int64}}
+  S::NTuple{2,SparseMatrixCSC{Float64,Int64}}
+  norm::NTuple{4,SparseMatrixCSC{Float64,Int64}}
+  E::NTuple{5,SparseMatrixCSC{Float64,Int64}}
 end
 
 """
@@ -17,31 +17,33 @@ Construct the 2d sbp operator using the 1d versions
 - norm: Contains the inverse of the diagonal norms on the trace.
 - E: Matrix that computes the restriction of the solution on the trace.
 """
-function SBP_1_2_CONSTANT_0_1_0_1(sbp_q::SBP_1_2_CONSTANT_0_1, sbp_r::SBP_1_2_CONSTANT_0_1)
+function SBP4_2D(sbp_q::SBP4_1D, sbp_r::SBP4_1D)
   # Extract all the matrices from the 1d version
   Hq = sbp_q.norm;  Hr = sbp_r.norm
   Dq = sbp_q.D1; Dr = sbp_r.D1
   Dqq = sbp_q.D2[1]; Drr = sbp_r.D2[1]
   Sq = sbp_q.S; 
   Sr = sbp_r.S; 
-  Iq = sbp_q.E[1]; E₀q = sbp_q.E[2]; Eₙq = sbp_q.E[3];   
-  Ir = sbp_r.E[1]; E₀r = sbp_r.E[2]; Eₙr =  sbp_r.E[3]
+  Iq, E0q, Enq = sbp_q.E;
+  Ir, E0r, Enr = sbp_r.E;
   # Create the 2d operators from the 1d operators
-  𝐃𝐪 = Dq ⊗ Ir; 𝐃𝐫 = Iq ⊗ Dr
-  𝐒𝐪 = Sq ⊗ Ir; 𝐒𝐫 = Iq ⊗ Sr
-  𝐃𝐪𝐪 = Dqq ⊗ Ir; 𝐃𝐫𝐫 = Iq ⊗ Drr
-  𝐄₀q = E₀q ⊗ Ir; 𝐄ₙq = Eₙq ⊗ Ir
-  𝐄₀r = Iq ⊗ E₀r; 𝐄ₙr = Iq ⊗ Eₙr
-  𝐇𝐪₀ = ((Hq\Iq)*E₀q) ⊗ Ir; 𝐇𝐫₀ = Iq ⊗ ((Hr\Ir)*E₀r)
-  𝐇𝐪ₙ = ((Hq\Iq)*Eₙq) ⊗ Ir; 𝐇𝐫ₙ = Iq ⊗ ((Hr\Ir)*Eₙr)
-  𝐄 = Iq ⊗ Ir
-  SBP_1_2_CONSTANT_0_1_0_1( (𝐃𝐪,𝐃𝐫), (𝐃𝐪𝐪, 𝐃𝐫𝐫), (𝐒𝐪,𝐒𝐫), (𝐇𝐪₀,𝐇𝐪ₙ,𝐇𝐫₀,𝐇𝐫ₙ), (𝐄, 𝐄₀q, 𝐄₀r, 𝐄ₙq, 𝐄ₙr) )
+  Dq2 = Dq ⊗ Ir; Dr2 = Iq ⊗ Dr
+  Sq2 = Sq ⊗ Ir; Sr2 = Iq ⊗ Sr
+  Dqq2 = Dqq ⊗ Ir; Drr2 = Iq ⊗ Drr
+  E0q2 = E0q ⊗ Ir; Enq2 = Enq ⊗ Ir
+  E0r2 = Iq ⊗ E0r; Enr2 = Iq ⊗ Enr
+
+  Hq02 = ((Hq\Iq)*E0q) ⊗ Ir; Hr02 = Iq ⊗ ((Hr\Ir)*E0r)
+  Hqn2 = ((Hq\Iq)*E0q) ⊗ Ir; Hrn2 = Iq ⊗ ((Hr\Ir)*Enr)
+  Iqr = Iq ⊗ Ir
+
+  SBP4_2D( (Dq2, Dr2), (Dqq2, Drr2), (Sq2, Sr2), (Hq02, Hqn2, Hr02, Hrn2), (Iqr, E0q2, E0r2, Enq2, Enr2))
 end
 
 """
 Function to generate the 2d grid on the reference domain (0,1)×(0,1)
 """
-function generate_2d_grid(mn::Tuple{Int64,Int64})
+function reference_grid_2d(mn::Tuple{Int64,Int64})
   m,n = mn
   q = LinRange(0,1,m); r = LinRange(0,1,n)
   qr = [@SVector [q[j],r[i]] for i=1:n, j=1:m];
@@ -49,89 +51,73 @@ function generate_2d_grid(mn::Tuple{Int64,Int64})
 end
 
 """
-Function to transform the material properties in the physical grid to the reference grid.
-  res = P2R(𝒫, 𝒮, qr)
-  Input: 1) 𝒫 is the material property tensor
-         2) 𝒮 is the function that returns the physical coordinates as a function of reference coordinates
-         3) qr is a point in the reference domain 
-"""
-function P2R(𝒫, 𝒮, qr)
-  x = 𝒮(qr)
-  invJ = J⁻¹(qr, 𝒮)
-  detJ = (det∘J)(qr, 𝒮)
-  S = invJ ⊗ I(2)
-  m,n = size(S)
-  SMatrix{m,n,Float64}(S'*𝒫(x)*S)*detJ
-end
-
-"""
-Dqq(A::AbstractMatrix{Float64}): 
-- Constructs the operator that approximates Dqqᴬ ≈ ∂/∂q(a(q,r)∂/∂q)
+SBP4_2D_Dqq(A::AbstractMatrix{Float64}): 
+- Constructs the operator ≈ ∂/∂q(a(q,r)∂/∂q)
     where Aᵢⱼ = a(qᵢ,rⱼ)
     The result is a sparse matrix that is stored in the field A.
 """
-struct Dqq <: SBP_TYPE
+struct SBP4_2D_Dqq <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
-function Dqq(a_qr::AbstractMatrix{Float64})    
+function SBP4_2D_Dqq(a_qr::AbstractMatrix{Float64})    
   m,n = size(a_qr)
-  D2q = [SBP_2_VARIABLE_0_1(n, a_qr[i,:]).D2 for i=1:m]
-  Er = [E1(i,i,(m,m)) for i=1:m]
-  Dqq(sum(D2q .⊗ Er))
+  D2q = [SBP4_VARIABLE_1D(n, a_qr[i,:]).D2 for i=1:m]
+  Er = [δᵢⱼ(i,i,(m,m)) for i=1:m]
+  SBP4_2D_Dqq(sum(D2q .⊗ Er))
 end
 
 """
-Drr(A::AbstractMatrix{Float64}): 
-- Constructs the operator that approximates Drrᴬ = ∂/∂r(a(q,r)∂/∂r)
+SBP4_2D_Drr(A::AbstractMatrix{Float64}): 
+- Constructs the operator ≈ ∂/∂r(a(q,r)∂/∂r)
     where Aᵢⱼ = a(qᵢ,rⱼ)
 The result is a sparse matrix that is stored in the field A.    
 """
-struct Drr <: SBP_TYPE
+struct SBP4_2D_Drr <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
-function Drr(a_qr::AbstractMatrix{Float64})
+function SBP4_2D_Drr(a_qr::AbstractMatrix{Float64})
   m,n = size(a_qr)
-  D2r = [SBP_2_VARIABLE_0_1(m, a_qr[:,i]).D2 for i=1:n]
-  Eq = [E1(i,i,(n,n)) for i=1:n]
-  Drr(sum(Eq .⊗ D2r))
+  D2r = [SBP4_VARIABLE_1D(m, a_qr[:,i]).D2 for i=1:n]
+  Eq = [δᵢⱼ(i,i,(n,n)) for i=1:n]
+  SBP4_2D_Drr(sum(Eq .⊗ D2r))
 end
 
 """
-Dqr(A::AbstractMatrix{Float64}): 
-- Constructs the operator that approximates Dqrᴬ = ∂/∂q(a(q,r)∂/∂r)
+SBP4_2D_Dqr(A::AbstractMatrix{Float64}): 
+- Constructs the operator ≈ ∂/∂q(a(q,r)∂/∂r)
     where Aᵢⱼ = a(qᵢ,rⱼ)
 The result is a sparse matrix that is stored in the field A.    
 """
-struct Dqr <: SBP_TYPE
+struct SBP4_2D_Dqr <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
-function Dqr(a_qr::AbstractMatrix{Float64})    
+function SBP4_2D_Dqr(a_qr::AbstractMatrix{Float64})    
   A = spdiagm(vec(a_qr))    
   m,n = size(a_qr)
-  sbp_q = SBP_1_2_CONSTANT_0_1(n)
-  sbp_r = SBP_1_2_CONSTANT_0_1(m)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r)   
+  sbp_q = SBP4_1D(n)
+  sbp_r = SBP4_1D(m)
+  sbp_2d = SBP4_2D(sbp_q, sbp_r)   
   D1q, D1r = sbp_2d.D1
-  Dqr(D1q*A*D1r)
+  SBP4_2D_Dqr(D1q*A*D1r)
 end
 
 """
-Drq(A::AbstractMatrix{Float64}): 
-- Constructs the operator that approximates Drqᴬ = ∂/∂r(a(q,r)∂/∂q)
+SBP4_2D_Drq(A::AbstractMatrix{Float64}): 
+- Constructs the operator ≈ ∂/∂r(a(q,r)∂/∂q)
     where Aᵢⱼ = a(qᵢ,rⱼ)
 The result is a sparse matrix that is stored in the field A.    
 """
 struct Drq <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
-function Drq(a_qr::AbstractMatrix{Float64})    
+function SBP4_2D_Drq(a_qr::AbstractMatrix{Float64})    
   A = spdiagm(vec(a_qr))    
   m,n = size(a_qr)
-  sbp_q = SBP_1_2_CONSTANT_0_1(n)
-  sbp_r = SBP_1_2_CONSTANT_0_1(m)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
+  sbp_q = SBP4_1D(n)
+  sbp_r = SBP4_1D(m)
+  sbp_2d = SBP4_2D(sbp_q, sbp_r) 
   D1q, D1r = sbp_2d.D1
-  Drq(D1r*A*D1q)
+  SBP4_2D_Drq(D1r*A*D1q)
 end
 
 #######################################################
@@ -140,164 +126,118 @@ end
 """
 Linear Elasticity bulk SBP operator:
 
-1) Pᴱ(Pqr) 
+1) elasticity(Pqr) 
   - Input: (Pqr) is the material property tensor evaluated at every grid points.
   - Output: SparseMatrixCSC{Float64, Int64} containing the individual matrices approximating the derivatives in the elastic wave equations
              ≈ 𝛛/𝛛𝐪(𝐀 𝛛/𝛛𝐪) + 𝛛/𝛛𝐫(𝐁 𝛛/𝛛𝐫) + 𝛛/𝛛𝐪(𝐂 𝛛/𝛛𝐫) + 𝛛/𝛛𝐫(𝐂ᵀ 𝛛/𝛛𝐪)
 """
 
-struct Pᴱ <: SBP_TYPE
+struct elasticity_operator <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
-function Pᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}})
-  P_vec = get_property_matrix_on_grid(Pqr,2)
-  Dᴱ₂ = [Dqq Dqq Dqr Dqr; Dqq Dqq Dqr Dqr; Drq Drq Drr Drr; Drq Drq Drr Drr]
-  D = [Dᴱ₂[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
+function elasticity_operator(P::Function, Ω::Function, qr::AbstractMatrix{SVector{2,Float64}})
+  P_on_grid = transform_material_properties.(P, Ω, qr)
+  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(P_on_grid, 2)))
+
+  Dqq2 = [SBP4_2D_Dqq SBP4_2D_Dqq; 
+          SBP4_2D_Dqq SBP4_2D_Dqq];
+
+  Dqr2 = [SBP4_2D_Dqr SBP4_2D_Dqr; 
+          SBP4_2D_Dqr SBP4_2D_Dqr];
+
+  Drq2 = [SBP4_2D_Drq SBP4_2D_Drq; 
+          SBP4_2D_Drq SBP4_2D_Drq];
+
+  Drr2 = [SBP4_2D_Drr SBP4_2D_Drr; 
+          SBP4_2D_Drr SBP4_2D_Drr]; 
+  
+  De2 = [Dqq2 Dqr2; Drq2 Drr2];
+  
+  D = [De2[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
+
+  # Divergence
   res = [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
         [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
-  Pᴱ(res)
+
+  elasticity_operator(res)
 end
 
 """
 Linear Elasticity traction SBP operator:
 
-1) Tᴱ(Pqr)
+1) elasticity_traction_operator(Pqr)
   - Input: (Pqr) is the material property tensor evaluated at every grid points.
   - Output: Sparse matrices
-              Tᴱ.A = A(I₂⊗Sq) + C(I₂⊗Dr) ≈ 𝐀 𝛛/𝛛𝐪 + 𝐂 𝛛/𝛛𝐫
-              Tᴱ.B = Cᵀ(I₂⊗Dq) + B(I₂⊗Sr) ≈ 𝐂ᵀ 𝛛/𝛛𝐪 + 𝐁 𝛛/𝛛𝐫
+              elasticity_traction_operator.A = A(I₂⊗Sq) + C(I₂⊗Dr) ≈ 𝐀 𝛛/𝛛𝐪 + 𝐂 𝛛/𝛛𝐫
+              elasticity_traction_operator.B = Cᵀ(I₂⊗Dq) + B(I₂⊗Sr) ≈ 𝐂ᵀ 𝛛/𝛛𝐪 + 𝐁 𝛛/𝛛𝐫
             where [A C; Cᵀ B] = spdiagm.(vec.(get_property_matrix_on_grid(Pqr)))
 """
-struct Tᴱ <: SBP_TYPE
+struct elasticity_traction_operator <: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}  
 end
-function Tᴱ(Pqr::Matrix{SMatrix{4,4,Float64,16}}, 𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])    
-  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(Pqr,2)))
-  m,n = 𝛀.mn
-  Ω(qr) = S(qr, 𝛀.domain)
-  sbp_q = SBP_1_2_CONSTANT_0_1(m)
-  sbp_r = SBP_1_2_CONSTANT_0_1(n)
-  sbp_2d = SBP_1_2_CONSTANT_0_1_0_1(sbp_q, sbp_r) 
+function elasticity_traction_operator(P::Function, Ω::Function, qr::AbstractMatrix{SVector{2,Float64}}, 𝐧::AbstractVecOrMat{Int64}; X=[1])    
+  # Compute the material properties on the reference grid
+  P_on_grid = transform_material_properties.(P, Ω, qr)
+  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(P_on_grid, 2)))
+  n,m = size(qr)
+  sbp_q = SBP4_1D(m)
+  sbp_r = SBP4_1D(n)
+  sbp_2d = SBP4_2D(sbp_q, sbp_r) 
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
   # Compute the traction  
-  JJ = Js(𝛀, 𝐧; X=I(2))
+  JJ = surface_jacobian(Ω, qr, 𝐧; X=I(2))
   JJ⁻¹ = JJ\I(size(JJ,1))
-  Pn = ([P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]*𝐧[1] + [P_vec[3,1]   P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]*𝐧[2], 
-        [P_vec[1,3]  P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]*𝐧[1] + [P_vec[3,3]   P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]*𝐧[2])
+  Pn = ([P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]*𝐧[1] + [P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]*𝐧[2], 
+        [P_vec[1,3]  P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]*𝐧[1] + [P_vec[3,3]  P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]*𝐧[2])
   ∇n = ((I(2)⊗Sq)*𝐧[1] + (I(2)⊗Dq)*𝐧[2], (I(2)⊗Dr)*𝐧[1] + (I(2)⊗Sr)*𝐧[2])
   𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
   Tr = JJ⁻¹*𝐓𝐧
-  Tᴱ(X⊗Tr)
+  elasticity_traction_operator(X⊗Tr)
 end
-
-"""
-Get the surface Jacobian matrix defined as 
-  Js[i,i] = 1.0,    i ∉ Boundary(𝐧)  
-          = J⁻¹s(Ω, 𝐧),   i ∈ Boundary(𝐧)
-"""
-function Js(𝛀::DiscreteDomain, 𝐧::AbstractVecOrMat{Int64}; X=[1])
-  𝐧 = vec(𝐧)
-  Ω(qr) = S(qr, 𝛀.domain) 
-  qr = generate_2d_grid(𝛀.mn) 
-  JJ1 = _surface_jacobian(qr, Ω, 𝐧; X=X)  
-  JJ0 = spdiagm(ones(size(JJ1,1)))  
-  i,j,v = findnz(JJ1)
-  for k=1:lastindex(v)
-    JJ0[i[k], j[k]] = v[k]
-  end
-  JJ0
-end
-
-"""
-Get the bulk Jacobian of the transformation
-  Jb[i,i] = J(qr[i,i], Ω)
-"""
-function Jb(𝛀::DiscreteDomain, 𝐪𝐫)
-  Ω(qr) = S(qr, 𝛀.domain)
-  detJ(x) = (det∘J)(x,Ω)    
-  spdiagm([1,1] ⊗ vec(detJ.(𝐪𝐫)))
-end
-
-"""
-Struct to dispatch interface SAT routine SATᵢᴱ for Conforming Interface
-"""
-struct ConformingInterface <: Any end
 
 """
 Function to return the SAT term on the interface. 
-Input: SATᵢᴱ(𝛀₁::DiscreteDomain, 
-             𝛀₂::DiscreteDomain, 
-             𝐧₁::AbstractVecOrMat{Int64}, 
-             𝐧₂::AbstractVecOrMat{Int64}, 
-             ::ConformingInterface)
+Input: interface_SAT_operator(𝛀₁::Tuple{Function, AbstractMatrix{SVector{2,Float64}}}, 
+                              𝛀₂::Tuple{Function, AbstractMatrix{SVector{2,Float64}}}, 
+                              𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64})
 
-The normal 𝐧₁ decides the boundary in Layer 1 on which the interface is situated. 
-The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
+The normal 𝐧₁ (𝐧₂) is the outward normal corresponding to the interface on Layer 1 (Layer 2).  
+The condition 𝐧₂ = -𝐧₁ must be satisfied
 
-The function only works for ::ConformingInterface
+NOTE: 
+1) This function only works for conforming interfaces.
+2) All the normals are specified on the reference grid [0,1]^2
+
+(Needs improvement...)
 """
-function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::ConformingInterface; X=[1])  
-  Ω₁(qr) = S(qr, 𝛀₁.domain)
-  Ω₂(qr) = S(qr, 𝛀₂.domain)
-  # @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
+function interface_SAT_operator(𝛀₁::Tuple{Function, AbstractMatrix{SVector{2,Float64}}}, 𝛀₂::Tuple{Function, AbstractMatrix{SVector{2,Float64}}}, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}; X=[1])  
+  Ω₁, qr₁ = 𝛀₁
+  Ω₂, qr₂ = 𝛀₂
+  
+  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
   # @assert 𝛀₁.mn == 𝛀₂.mn "The interface needs to be conforming"
-  m₁, n₁ = 𝛀₁.mn
-  m₂, n₂ = 𝛀₂.mn
-  sbp_q₁, sbp_r₁ =  SBP_1_2_CONSTANT_0_1(m₁), SBP_1_2_CONSTANT_0_1(n₁)
-  sbp_q₂, sbp_r₂ =  SBP_1_2_CONSTANT_0_1(m₂), SBP_1_2_CONSTANT_0_1(n₂)
+  n₁, m₁ = size(qr₁)
+  n₂, m₂ = size(qr₂)
+  sbp_q₁, sbp_r₁ =  SBP4_1D(m₁), SBP4_1D(n₁)
+  sbp_q₂, sbp_r₂ =  SBP4_1D(m₂), SBP4_1D(n₂)
   B̂, B̃ = jump((m₁,n₁), (m₂,n₂), 𝐧₁; X=X)
   Y = I(size(X,2))
-  n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧₁ .!= [0,0])[1]-1]
-  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]    
-  @assert n1==n2
-  m = n1
-  sbp = SBP_1_2_CONSTANT_0_1(m)   
-  H = sbp.norm
-  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m1,m1,m1), E1(1,1,m1), H).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m2,m2,m2), E1(1,1,m2), H).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))      
+  # Get the axis of the normal 
+  # (0 => x, 1 => y)
+  axis = findall(𝐧₁ .!= [0,0])[1]-1;   
+  # Place the number of points on the corresponding edge at the leading position
+  n1, m1 =  normal_to_side((m₁,n₁), 0, (n₁,m₁))[axis] 
+  n2, m2 =  normal_to_side((m₂,n₂), 0, (n₂,m₂))[axis]
+  # Check if the interface is conforming
+  @assert n1 == n2 "Interface must be conforming (i.e., equal number of grid points on the common edge of both the domains)"
+  # Extract the norm corresponding to the side
+  H = SBP4_1D(n1).norm 
+  # Expand the surface norm on the 2d grid
+  H1 = kron(normal_to_side(δᵢⱼ(m1,m1,(m1,m1)), δᵢⱼ(1,1,(m1,m1)), H).(𝐧₁)...)
+  H2 = kron(normal_to_side(δᵢⱼ(m2,m2,(m2,m2)), δᵢⱼ(1,1,(m2,m2)), H).(𝐧₂)...)
+  D2 = blockdiag(Y⊗(H1*surface_jacobian(Ω₁, qr₁, 𝐧₁)), Y⊗(H2*surface_jacobian(Ω₂, qr₂, 𝐧₂)))
   H₁⁻¹ = (sbp_q₁.norm\I(m₁)) ⊗ (sbp_r₁.norm\I(n₁))
   H₂⁻¹ = (sbp_q₂.norm\I(m₂)) ⊗ (sbp_r₂.norm\I(n₂))
-  (𝐃*B̂, 𝐃*B̃, sparse(H₁⁻¹), sparse(H₂⁻¹))
-end
-
-"""
-Struct to dispatch inteface SAT routine SATᵢᴱ for non-conforming interface 
-"""
-struct NonConformingInterface <: Any end
-
-"""
-Function to return the SAT term on the interface. 
-Input: SATᵢᴱ(𝛀₁::DiscreteDomain, 
-             𝛀₂::DiscreteDomain, 
-             𝐧₁::AbstractVecOrMat{Int64}, 
-             𝐧₂::AbstractVecOrMat{Int64}, 
-             ::NonConformingInterface)
-
-The normal 𝐧₁ decides the boundary in Layer 1 on which the interface is situated. 
-The normal 𝐧₂ must satisfy the condition 𝐧₂ = -𝐧₁
-
-The function only works for ::NonConformingInterface
-"""
-function SATᵢᴱ(𝛀₁::DiscreteDomain, 𝛀₂::DiscreteDomain, 𝐧₁::AbstractVecOrMat{Int64}, 𝐧₂::AbstractVecOrMat{Int64}, ::NonConformingInterface; X=[1])  
-  Ω₁(qr) = S(qr, 𝛀₁.domain)
-  Ω₂(qr) = S(qr, 𝛀₂.domain)
-  @assert 𝐧₁ == -𝐧₂ "Sides chosen should be shared between the two domains"
-  m₁, n₁ = 𝛀₁.mn
-  m₂, n₂ = 𝛀₂.mn
-  qr₁ = generate_2d_grid(𝛀₁.mn)
-  qr₂ = generate_2d_grid(𝛀₂.mn)    
-  n1, m1 =  N2S((m₁,n₁), 0, (n₁,m₁))[findall(𝐧₁ .!= [0,0])[1]-1]
-  n2, m2 =  N2S((m₂,n₂), 0, (n₂,m₂))[findall(𝐧₂ .!= [0,0])[1]-1]  
-  B̂, B̃ = jump((n1,m1), (n2,m2), (qr₁, qr₂), (Ω₁, Ω₂), 𝐧₁; X=X)    
-  sbp_q₁, sbp_r₁ =  SBP_1_2_CONSTANT_0_1(m1), SBP_1_2_CONSTANT_0_1(n1)
-  sbp_q₂, sbp_r₂ =  SBP_1_2_CONSTANT_0_1(m2), SBP_1_2_CONSTANT_0_1(n2)
-  Hq₁ = sbp_q₁.norm;  Hr₁ = sbp_r₁.norm
-  Hq₂ = sbp_q₂.norm;  Hr₂ = sbp_r₂.norm    
-  Y = I(size(X,2))   
-  𝐃 = blockdiag(Y⊗(kron(N2S(E1(m1,m1,m1), E1(1,1,m1), Hr₁).(𝐧₁)...)*Js(𝛀₁, 𝐧₁)), Y⊗(kron(N2S(E1(m2,m2,m2), E1(1,1,m2), Hr₂).(𝐧₂)...)*Js(𝛀₂, 𝐧₂)))  
-  Hq₁⁻¹ = (sbp_q₁.norm\I(m1))
-  Hr₁⁻¹ = (sbp_r₁.norm\I(n1))
-  Hq₂⁻¹ = (sbp_q₂.norm\I(m2))
-  Hr₂⁻¹ = (sbp_r₂.norm\I(n2))
-  (𝐃*B̂, 𝐃*B̃, sparse(Hr₁⁻¹⊗Hq₁⁻¹), sparse(Hr₂⁻¹⊗Hq₂⁻¹))
+  (D2*B̂, D2*B̃, sparse(H₁⁻¹), sparse(H₂⁻¹))
 end
