@@ -20,7 +20,7 @@ struct elasticity_pml_operator <: SBP_TYPE
   A::NTuple{2,SparseMatrixCSC{Float64, Int64}}
 end
 function elasticity_pml_operator(P::Function, Ω::Function, qr::AbstractMatrix{SVector{2,Float64}})
-  P_on_grid = transform_material_properties.(P, Ω, qr)
+  P_on_grid = transform_material_properties_pml.(P, Ω, qr)
   P_vec_diag = spdiagm.(vec.(get_property_matrix_on_grid(P_on_grid, 2)))  
   n,m = size(qr)
   sbp_q = SBP4_1D(m)
@@ -67,7 +67,7 @@ struct elasticity_traction_pml_operator <: SBP_TYPE
   A::NTuple{2,SparseMatrixCSC{Float64, Int64}}
 end
 function elasticity_traction_pml_operator(P::Function, Ω::Function, qr::AbstractMatrix{SVector{2,Float64}}, 𝐧::AbstractVecOrMat{Int64}; X=[1])   
-  P_on_grid = transform_material_properties.(P, Ω, qr)
+  P_on_grid = transform_material_properties_pml.(P, Ω, qr)
   P_vec = spdiagm.(vec.(get_property_matrix_on_grid(P_on_grid,2)))
   # Compute the traction
   𝐧 = reshape(𝐧, (1,2))

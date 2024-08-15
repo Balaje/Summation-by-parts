@@ -1,4 +1,3 @@
-# include("2d_elasticity_problem.jl");
 using SummationByPartsPML
 using StaticArrays
 using LinearAlgebra
@@ -16,20 +15,13 @@ PyPlot.matplotlib[:rc]("mathtext",fontset="cm")
 PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
-# using LoopVectorization
 
-"""
-Flatten the 2d function as a single vector for the time iterations.
-  (...Basically convert vector of vectors to matrix...)
-"""
-eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+include("elastic_wave_operators.jl");
+include("plotting_functions.jl");
 
-"""
-Get the x-and-y coordinates from coordinates
-"""
-getX(C) = C[1]; getY(C) = C[2];
-
+##### ##### ##### ##### 
 # Define the domain
+##### ##### ##### ##### 
 cᵢ(q) = @SVector [4.4π*q, 0.8π*exp(-40π*(q-0.5)^2)]
 c₀¹(r) = @SVector [0.0, 4π*r]
 c₁¹(q) = cᵢ(q)
@@ -173,117 +165,6 @@ Z₁²(x) = @SMatrix [√(c₁₁²(x)*ρ₂(x))  0;  0 √(c₃₃²(x)*ρ₂(x
 Z₂²(x) = @SMatrix [√(c₃₃²(x)*ρ₂(x))  0;  0 √(c₂₂²(x)*ρ₂(x))]
 
 """
-Function to transform the material properties to the reference domain
-"""
-function transform_material_properties_to_reference_domain(props, domain, reference_coords)
-  𝒫, 𝒫ᴾᴹᴸ = props  
-  reference_grid_material_properties = transform_material_properties.(𝒫, domain, reference_coords)
-  reference_grid_material_properties_pml = transform_material_properties_pml.(𝒫ᴾᴹᴸ, domain, reference_coords)
-  reference_grid_material_properties, reference_grid_material_properties_pml
-end
-
-"""
-Function to compute the bulk elasticity operator on the reference grid from the material property functions
-"""
-function compute_bulk_elasticity_operators(props, domain, reference_coords)
-  reference_grid_material_properties, reference_grid_material_properties_pml = transform_material_properties_to_reference_domain(props, domain, reference_coords)
-  bulk_elasticity_operator = elasticity_operator(reference_grid_material_properties).A
-  bulk_elasticity_pml_operator = elasticity_pml_operator(reference_grid_material_properties_pml).A
-  bulk_elasticity_operator, bulk_elasticity_pml_operator
-end
-function compute_bulk_elasticity_operators(material_properties::NTuple{2, Matrix{SMatrix{4, 4, Float64, 16}}})
-  reference_grid_material_properties, reference_grid_material_properties_pml = material_properties
-  bulk_elasticity_operator = elasticity_operator(reference_grid_material_properties).A
-  bulk_elasticity_pml_operator = elasticity_pml_operator(reference_grid_material_properties_pml).A
-  bulk_elasticity_operator, bulk_elasticity_pml_operator
-end
-
-"""
-Function to compute the gradient operators
-"""
-
-function compute_gradient_operators_on_physical_domain(domain, reference_grid)
-  I₂ = Ref(I(2))
-  n, m = size(reference_grid)
-  sbp_q = SBP4_1D(m)
-  sbp_r = SBP4_1D(n)
-  sbp_2d = SBP4_2D(sbp_q, sbp_r)  
-  Dq, Dr = sbp_2d.D1  
-  Dqr = kron.(I₂, [Dq, Dr]) # Each displacement has two fields
-  Jqr = inverse_transfinite_interpolation_jacobian.(reference_grid, domain);
-  J_vec = get_property_matrix_on_grid(Jqr, 2);
-  J_vec_diag = kron.(I₂, spdiagm.(vec.(J_vec)));
-  J_vec_diag*Dqr;
-end
-
-
-"""
-Function to calculate the norm inverse on the four boundaries
-"""
-function get_sbp_norm_2d(sbp_2d::SBP4_2D)
-  sbp_2d.norm
-end
-
-"""
-Function to calculate the SBP operators on the reference grid
-"""
-function get_sbp_operators_on_reference_grid(reference_grid)
-  n, m = size(reference_grid)
-  sbp_q = SBP4_1D(m)
-  sbp_r = SBP4_1D(n)
-  sbp_2d = SBP4_2D(sbp_q, sbp_r) 
-  sbp_2d
-end
-
-"""
-Function to compute the coefficients of the RHS of the PML modified elastic wave equation
-"""
-function get_pml_elastic_wave_coefficients(material_properties, domain, reference_grid)
-  Z₁₂, σₕσᵥ, ρ = material_properties
-  # Extract the material property functions
-  Z₁, Z₂ = Z₁₂  
-  # Extract the PML damping functions
-  σₕ, σᵥ = σₕσᵥ
-  # Extract the density of the materials  
-  𝐙₁₂ = compute_impedance_function((Z₁, Z₂), domain, reference_grid)
-  𝛔₁₂ = compute_impedance_function((x->σₕ(x)*Z₁(x), x->σᵥ(x)*Z₂(x)), domain, reference_grid)
-  𝛕₁₂ = compute_impedance_function((x->σₕ(x)*σᵥ(x)*Z₁(x), x->σₕ(x)*σᵥ(x)*Z₂(x)), domain, reference_grid)
-  𝛔ᵥ = I(2) ⊗ spdiagm(σᵥ.(domain.(vec(reference_grid))))  
-  𝛔ₕ = I(2) ⊗ spdiagm(σₕ.(domain.(vec(reference_grid))))
-  𝛒  = I(2) ⊗ spdiagm(ρ.(domain.(vec(reference_grid))))
-  𝐙₁₂, 𝛔₁₂, 𝛕₁₂, (𝛔ᵥ, 𝛔ₕ), 𝛒
-end
-
-"""
-Function to compute the surface Jacobian
-"""
-function compute_surface_jacobian_matrices_on_domain(domain, reference_coords, J⁻¹)
-  (J⁻¹*surface_jacobian(domain, reference_coords, [-1,0];  X=I(2)), J⁻¹*surface_jacobian(domain, reference_coords, [1,0];  X=I(2)), 
-   J⁻¹*surface_jacobian(domain, reference_coords, [0,-1];  X=I(2)), J⁻¹*surface_jacobian(domain, reference_coords, [0,1];  X=I(2)))
-end
-
-"""
-Function to compute the absorbing boundary conditions on the domain
-"""
-function compute_absorbing_boundary_conditions_on_domain(domain, reference_coords, coeffs)
-  (elasticity_absorbing_boundary_pml_operator(coeffs, domain, reference_coords, [-1,0]).A, 
-   elasticity_absorbing_boundary_pml_operator(coeffs, domain, reference_coords, [1,0]).A, 
-   elasticity_absorbing_boundary_pml_operator(coeffs, domain, reference_coords, [0,-1]).A, 
-   elasticity_absorbing_boundary_pml_operator(coeffs, domain, reference_coords, [0,1]).A)
-end
-
-"""
-Function to compute the surface integration operator for the SAT terms
-"""
-function compute_surface_integration_operators(sbp_2d::SBP4_2D, surface_jacobian_matrices::NTuple{4, AbstractMatrix{Float64}})
-  SJq₀, SJqₙ, SJr₀, SJrₙ = surface_jacobian_matrices
-  𝐇q₀⁻¹, 𝐇qₙ⁻¹, 𝐇r₀⁻¹, 𝐇rₙ⁻¹ = get_sbp_norm_2d(sbp_2d) 
-  I₂ = I(2)
-  (fill(SJq₀*(I₂⊗𝐇q₀⁻¹), 6), fill(SJqₙ*(I₂⊗𝐇qₙ⁻¹), 6),
-   fill(SJr₀*(I₂⊗𝐇r₀⁻¹), 6), fill(SJrₙ*(I₂⊗𝐇rₙ⁻¹), 6))
-end
-
-"""
 Function to obtain the PML stiffness matrix
 """
 function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}, reference_grids::NTuple{2, AbstractMatrix{SVector{2,Float64}}}, material_properties)
@@ -296,8 +177,6 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   # Extract the material property functions
   # (Z₁¹, Z₂¹), (Z₁², Z₂²) = Z₁₂
   Z¹₁₂, Z²₁₂ = Z₁₂
-  Z₁¹, Z₂¹ = Z¹₁₂
-  Z₁², Z₂² = Z²₁₂
   # Extract the elastic material tensors
   𝒫₁, 𝒫₂ = 𝒫
   𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ = 𝒫ᴾᴹᴸ
@@ -308,6 +187,11 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   # Get the discretization 
   n₁, m₁ = size(qr₁)
   n₂, m₂ = size(qr₂)
+
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+  # Compute and transform the PDE to the reference domain
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+
   # Transform the material properties to the reference grid 
   reference_grid_material_properties₁, reference_grid_material_properties_pml₁ = transform_material_properties_to_reference_domain((𝒫₁,𝒫₁ᴾᴹᴸ), Ω₁, qr₁) # Layer 1  
   reference_grid_material_properties₂, reference_grid_material_properties_pml₂ = transform_material_properties_to_reference_domain((𝒫₂,𝒫₂ᴾᴹᴸ), Ω₂, qr₂) # Layer 2  
@@ -329,7 +213,10 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   # Surface Jacobian Matrices 
   SJq₀¹, SJqₙ¹, SJr₀¹, SJrₙ¹ =  compute_surface_jacobian_matrices_on_domain(Ω₁, qr₁, J₁⁻¹) # Layer 1  
   SJq₀², SJqₙ², SJr₀², SJrₙ² =  compute_surface_jacobian_matrices_on_domain(Ω₂, qr₂, J₂⁻¹) # Layer 2
-  # We build the governing equations on both layer using Kronecker products
+
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+  # We build the governing equations on both layers using Kronecker products
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
   # Equation 1: ∂u/∂t = p
   EQ1₁ = δᵢⱼ(1,2,(6,6)) ⊗ (I(2)⊗I(m₁)⊗I(n₁))
   EQ1₂ = δᵢⱼ(1,2,(6,6)) ⊗ (I(2)⊗I(m₂)⊗I(n₂))
@@ -373,25 +260,27 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   EQ6₁ = sum(es .⊗ eq6s₁)
   eq6s₂ = [α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂))]  
   EQ6₂ = sum(es .⊗ eq6s₂)
-  #######
+
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
   # PML characteristic boundary conditions on the outer boundaries of the two layers
-  #######
+  ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
   # On Layer 1:
   es = [δᵢⱼ(2,i,(6,6)) for i=1:6];
-  abc_coeffs₁ = 𝒫₁, 𝒫₁ᴾᴹᴸ, 𝐙₁₂¹, 𝛔₁₂¹, 𝛕₁₂¹, J₁;
+  abc_coeffs₁ = 𝒫₁, 𝒫₁ᴾᴹᴸ, 𝐙₁₂¹, 𝛔₁₂¹, 𝛕₁₂¹, J₁
   χq₀¹, χqₙ¹, _, χrₙ¹ = compute_absorbing_boundary_conditions_on_domain(Ω₁, qr₁, abc_coeffs₁)
   SJ_𝐇q₀⁻¹₁, SJ_𝐇qₙ⁻¹₁, _, SJ_𝐇rₙ⁻¹₁ = compute_surface_integration_operators(sbp_2d₁, (SJq₀¹, SJqₙ¹, SJr₀¹, SJrₙ¹))
   # -- The SAT Terms on the boundary of Layer 1: Obtained after summing up the boundary integral of the absorbing boundary condition
-  SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹));
+  SAT₁ = sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹)) + sum(es.⊗(SJ_𝐇rₙ⁻¹₁.*χrₙ¹))
   # On Layer 2:
   abc_coeffs₂ = 𝒫₂, 𝒫₂ᴾᴹᴸ, 𝐙₁₂², 𝛔₁₂², 𝛕₁₂², J₂;
-  SJ_𝐇q₀⁻¹₂, SJ_𝐇qₙ⁻¹₂, SJ_𝐇r₀⁻¹₂, _ = compute_surface_integration_operators(sbp_2d₂, (SJq₀², SJqₙ², SJr₀², SJrₙ²))
   χq₀², χqₙ², χr₀², _ = compute_absorbing_boundary_conditions_on_domain(Ω₂, qr₂, abc_coeffs₂)
+  SJ_𝐇q₀⁻¹₂, SJ_𝐇qₙ⁻¹₂, SJ_𝐇r₀⁻¹₂, _ = compute_surface_integration_operators(sbp_2d₂, (SJq₀², SJqₙ², SJr₀², SJrₙ²))
   # -- The SAT Terms on the boundary of Layer 2: Obtained after summing up the boundary integral of the absorbing boundary condition
-  SAT₂ = sum(es.⊗(SJ_𝐇q₀⁻¹₂.*χq₀²)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₂.*χqₙ²)) + sum(es.⊗(SJ_𝐇r₀⁻¹₂.*χr₀²));
-  #######
+  SAT₂ = sum(es.⊗(SJ_𝐇q₀⁻¹₂.*χq₀²)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₂.*χqₙ²)) + sum(es.⊗(SJ_𝐇r₀⁻¹₂.*χr₀²))
+
+  ##### ##### ##### ##### ##### ##### ##### ##### 
   # Imposing the interface continuity condition
-  #######
+  ##### ##### ##### ##### ##### ##### ##### ##### 
   # Get the jump matrices
   jump₁, jump₂, _ = interface_SAT_operator((Ω₁,qr₁), (Ω₂,qr₂), [0;-1], [0;1]; X = (δᵢⱼ(2,1,(6,6))⊗I(2)))
   jump₁ᵀ, _, 𝐇₁⁻¹, 𝐇₂⁻¹ = interface_SAT_operator((Ω₁,qr₁), (Ω₂,qr₂), [0;-1], [0;1]; X = (δᵢⱼ(1,1,(6,6))⊗I(2)))  
@@ -410,7 +299,7 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   total_traction_on_layer_2ᵀ = sum(es .⊗ [(traction_on_layer_2)', (pml_traction_on_layer_2[1])', (pml_traction_on_layer_2[2])'])
   interface_traction = blockdiag(total_traction_on_layer_1, total_traction_on_layer_2)      
   interface_tractionᵀ = blockdiag(total_traction_on_layer_1ᵀ, total_traction_on_layer_2ᵀ)   
-  h = norm(Ω₁(qr₁[1,2]) - Ω₂(qr₁[1,1]))
+  h = norm(Ω₁(qr₁[1,2]) - Ω₁(qr₁[1,1]))
   ζ₀ = 400/h  
   # Assemble the interface SAT
   inverse_jacobian = blockdiag(δᵢⱼ(2,2,(6,6))⊗J₁⁻¹, δᵢⱼ(2,2,(6,6))⊗J₂⁻¹)
@@ -442,27 +331,6 @@ function two_layer_elasticity_pml_mass_matrix(domains::NTuple{2, domain_2d}, ref
 end 
 
 """
-The RK4 scheme
-"""
-function RK4_1!(M, sol, Δt)  
-  X₀, k₁, k₂, k₃, k₄ = sol  
-  k₁ .= M*(X₀)
-  k₂ .= M*(X₀+0.5*Δt*k₁)
-  k₃ .= M*(X₀+0.5*Δt*k₂)
-  k₄ .= M*(X₀+Δt*k₃)
-  X₀ .+= (Δt/6)*(k₁ + 2*k₂ + 2*k₃ + k₄)
-end
-
-"""
-Function to split the solution into the corresponding variables
-"""
-function split_solution(X, MN, P)    
-  res = splitdimsview(reshape(X, (prod(MN), P)))
-  u1, u2 = res[1:2]
-  (u1,u2)
-end
-
-"""
 Initial conditions
 """
 𝐔(x) = @SVector [exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2)), exp(-20*((x[1]-2π)^2 + (x[2]-1.6π)^2))]
@@ -472,14 +340,21 @@ Initial conditions
 𝐐(x) = @SVector [0.0, 0.0]
 𝐑(x) = @SVector [0.0, 0.0]
 
-N = 21;
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+# Discretize the domain using the transfinite interpolation using a mapping to the reference grid [0,1]^2 #
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+N = 101;
 Ω₁(qr) = transfinite_interpolation(qr, domain₁);
 Ω₂(qr) = transfinite_interpolation(qr, domain₂);
 qr₁ = reference_grid_2d((round(Int64, 1.1*N - 0.1),N));
 qr₂ = reference_grid_2d((round(Int64, 1.1*N - 0.1),N));
 xy₁ = Ω₁.(qr₁);
 xy₂ = Ω₂.(qr₂);
+n₁, m₁ = size(qr₁); n₂, m₂ = size(qr₂);
 
+##### ##### ##### ##### ##### ##### ##### ##### 
+# Compute the stiffness and mass matrices
+##### ##### ##### ##### ##### ##### ##### ##### 
 𝒫 = 𝒫₁, 𝒫₂
 𝒫ᴾᴹᴸ = 𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ
 Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²)
@@ -488,15 +363,19 @@ Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²)
 stima = two_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂), (qr₁,qr₂), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
 massma = two_layer_elasticity_pml_mass_matrix((domain₁,domain₂), (qr₁,qr₂), (ρ₁, ρ₂));
 
-# Define the time stepping
+##### ##### ##### ##### ##### ##### ##### ##### 
+# Define the time stepping parameters
+##### ##### ##### ##### ##### ##### ##### ##### 
 const Δt = 0.2*norm(xy₁[1,1] - xy₁[1,2])/sqrt(max(cp₁, cp₂)^2 + max(cs₁,cs₂)^2)
-tf = 1.0
+tf = 40.0
 ntime = ceil(Int, tf/Δt)
-maxvals = zeros(Float64, ntime)
+l2norm = zeros(Float64, ntime)
 
 plt3 = Vector{Plots.Plot}(undef,3);
 
+##### ##### ##### ##### 
 # Begin time loop
+##### ##### ##### ##### 
 let
   t = 0.0
   X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
@@ -519,89 +398,60 @@ let
     t += Δt    
     (i%30==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
 
-    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(prod(size(qr₁)))], size(qr₁), 12);
-    u1ref₂,u2ref₂ = split_solution(X₀[12*(prod(size(qr₁)))+1:12*(prod(size(qr₁)))+12*(prod(size(qr₁)))], size(qr₁), 12);
+    ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+    #  Extract the displacement field from the raw solution vector
+    ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(m₁*n₁)], (n₁,m₁), 12);
+    u1ref₂,u2ref₂ = split_solution(X₀[12*(m₁*n₁)+1:12*(m₁*n₁ + m₂*n₂)], (n₂,m₂), 12);
     U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
     U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
     
     if((i==ceil(Int64, 1/Δt)) || (i == ceil(Int64, 2/Δt)) || (i == ceil(Int64, 5/Δt)))
-      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
-      Plots.vline!(plt3[count], [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-      Plots.plot!(plt3[count], getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-      xlims!(plt3[count], (0,Lᵥ+δ))
-      ylims!(plt3[count], (-Lₕ,Lₕ))
-      xlabel!(plt3[count], "\$x\$")
-      ylabel!(plt3[count], "\$y\$")
+      plt3[count] = Plots.plot()
+      plot_displacement_field!(plt3[count], (xy₁,xy₂), (U1,U2), (0.0,Lᵥ), (-Lₕ,Lₕ), (0.0,δ), (0.0,0.0), cᵢ)
       count += 1
     end
 
-    plt3_gif = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-    Plots.contourf!(plt3_gif, getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
-    Plots.vline!(plt3_gif, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-    Plots.plot!(plt3_gif, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-    xlims!(plt3_gif, (0,Lᵥ+δ))
-    ylims!(plt3_gif, (-Lₕ,Lₕ))
-    xlabel!(plt3_gif, "\$x\$")
-    ylabel!(plt3_gif, "\$y\$")
+    ##### ##### ##### ##### ##### ##### ##### ##### 
+    # Uncomment for producing GIFs.
+    # Also uncomment the @gif macro near for loop
+    ##### ##### ##### ##### ##### ##### ##### ##### 
+    # plt3_gif = Plots.plot();
+    # plot_displacement_field!(plt3_gif, (xy₁,xy₂), (U1,U2), (Lₕ,Lᵥ,δ), cᵢ)
 
-    maxvals[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
+    ##### ##### ##### ##### ##### ##### 
+    # Compute the discrete L²-norm
+    ##### ##### ##### ##### ##### ##### 
+    l2norm[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ + u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂)
   end
   # end every 15
-  global Xref = X₀
+  global X₁ = X₀
 end  
 
-u1ref₁,u2ref₁ = split_solution(Xref[1:12*(prod(size(qr₁)))], size(qr₁), 12);
-u1ref₂,u2ref₂ = split_solution(Xref[12*(prod(size(qr₁)))+1:12*(prod(size(qr₁)))+12*(prod(size(qr₁)))], size(qr₁), 12);
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+# Extract the displacement field from the raw solution vector
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
+u1ref₁,u2ref₁ = split_solution(X₁[1:12*(m₁*n₁)], (n₁,m₁), 12);
+u1ref₂,u2ref₂ = split_solution(X₁[12*(m₁*n₁)+1:12*(m₁*n₁ + m₂*n₂)], (n₂,m₂), 12);
 U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
 U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
 
+##### ##### ##### ##### ##### ##### 
+# Plot the displacement field.
+##### ##### ##### ##### ##### ##### 
 plt3_1 = Plots.plot();
-Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
-Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet)
-Plots.vline!(plt3_1, [Lᵥ], label="\$ x \\ge "*string(round(Lᵥ, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
-Plots.plot!(plt3_1, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="Interface", lc=:red, lw=2, size=(400,500), legend=:none)
-xlims!(plt3_1, (0,Lᵥ+δ))
-ylims!(plt3_1, (-Lₕ,Lₕ))
-xlabel!(plt3_1, "\$x\$")
-ylabel!(plt3_1, "\$y\$")
-# c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
-# Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
+plot_displacement_field!(plt3_1, (xy₁,xy₂), (U1,U2), (0.0,Lᵥ), (-Lₕ,Lₕ), (0.0,δ), (0.0,0.0), cᵢ);
 
-plt4 = Plots.scatter(vec(Tuple.(xy₁)), mc=:red, msw=0.01, ms=4, label="")
-Plots.scatter!(vec(Tuple.(xy₂)), mc=:blue, msw=0.01, ms=4, label="", size=(400,500))
-Plots.plot!(getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), label="", lc=:green, lw=1, size=(400,500))
-xlims!(plt4, (0-0.4π, 4π+0.8π))
-ylims!(plt4, (-4π-0.8π, 4π+0.8π))
-xlabel!(plt4, "\$ x \$")
-ylabel!(plt4, "\$ y \$")
+##### ##### ##### ##### ##### ##### #####
+# Plot the discretized physical domain
+##### ##### ##### ##### ##### ##### ##### 
+plt4 = Plots.plot();
+plot_discretization!(plt4, (xy₁,xy₂), (0.0,Lᵥ), (-Lₕ,Lₕ), (0.0,δ), (0.0,0.0), cᵢ)
 
-plt5 = Plots.plot(LinRange(0,tf,ntime), maxvals, label="", lw=2, yaxis=:log10)
+##### ##### ##### ##### ##### ##### #####
+# Plot the norm of the solution vs time
+##### ##### ##### ##### ##### ##### #####
+plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=2, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
 Plots.xlims!(plt5, (0,tf))
-
-
-plt6 = Plots.plot([0, 0], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [0, Lₕ+δ], [Lᵥ, Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [Lₕ, Lₕ], [Lᵥ, -Lᵥ], lw=1, lc=:black, label="", ls=:dash)
-Plots.plot!(plt6, [Lₕ+δ, Lₕ+δ], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, [0, Lₕ+δ], [-Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt6, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), lc=:red, ls=:dash, lw=1, label="Curvilinear Interface", size=(400,500))
-xlims!(plt6, (0-0.4π, 4π+0.8π))
-ylims!(plt6, (-4π-0.8π, 4π+2.2π))
-Plots.annotate!(plt6, 2.2π, 2π, ("\$ \\Omega_1 \$", 15, :black))
-Plots.annotate!(plt6, 2.2π, -2π, ("\$ \\Omega_2 \$", 15, :black))
-xlabel!(plt6, "\$ x \$")
-ylabel!(plt6, "\$ y \$")
-
-plt7 = Plots.contourf(getX.(xy₁), getY.(xy₁), σᵥ.(xy₁) .+ 1e-16, colormap=:jet)
-Plots.contourf!(plt7, getX.(xy₂), getY.(xy₂), σᵥ.(xy₂) .+ 1e-16, colormap=:jet)
-Plots.plot!(plt7, [Lₕ, Lₕ], [Lᵥ, -Lᵥ], lw=2, lc=:black, label="")
-Plots.plot!(plt7, getX.(cᵢ.(LinRange(0,1,100))), getY.(cᵢ.(LinRange(0,1,100))), lc=:red, ls=:dash, lw=1, label="Curvilinear Interface", size=(400,500))
-xlims!(plt7, (0-0.4π, 4π+0.8π))
-ylims!(plt7, (-4π-0.8π, 4π+2.2π))
-Plots.annotate!(plt7, 2.2π, 2π, ("\$ \\Omega_1 \$", 15, :white))
-Plots.annotate!(plt7, 2.2π, -2π, ("\$ \\Omega_2 \$", 15, :white))
-xlabel!(plt7, "\$ x \$")
-ylabel!(plt7, "\$ y \$")

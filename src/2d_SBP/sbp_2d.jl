@@ -34,7 +34,7 @@ function SBP4_2D(sbp_q::SBP4_1D, sbp_r::SBP4_1D)
   E0r2 = Iq ⊗ E0r; Enr2 = Iq ⊗ Enr
 
   Hq02 = ((Hq\Iq)*E0q) ⊗ Ir; Hr02 = Iq ⊗ ((Hr\Ir)*E0r)
-  Hqn2 = ((Hq\Iq)*E0q) ⊗ Ir; Hrn2 = Iq ⊗ ((Hr\Ir)*Enr)
+  Hqn2 = ((Hq\Iq)*Enq) ⊗ Ir; Hrn2 = Iq ⊗ ((Hr\Ir)*Enr)
   Iqr = Iq ⊗ Ir
 
   SBP4_2D( (Dq2, Dr2), (Dqq2, Drr2), (Sq2, Sr2), (Hq02, Hqn2, Hr02, Hrn2), (Iqr, E0q2, E0r2, Enq2, Enr2))
