@@ -20,10 +20,10 @@ function compute_intersection_points(a, b; guess=[0.0,0.0])
 end
 
 function domain_2d(left::Function, bottom::Function, right::Function, top::Function)
-    P1 = SVector{2}(P(left, bottom))
-    P2 = SVector{2}(P(bottom, right))
-    P3 = SVector{2}(P(right, top))
-    P4 = SVector{2}(P(top, left))
+    P1 = SVector{2}(compute_intersection_points(left, bottom))
+    P2 = SVector{2}(compute_intersection_points(bottom, right))
+    P3 = SVector{2}(compute_intersection_points(right, top))
+    P4 = SVector{2}(compute_intersection_points(top, left))
     domain_2d(left, bottom, right, top, (P1, P2, P3, P4))
 end
 
@@ -37,7 +37,7 @@ function transfinite_interpolation(x, domain::domain_2d)
     c₁ = domain.bottom
     c₂ = domain.right
     c₃ = domain.top
-    P₀₁, P₁₂, P₂₃, P₃₀ = domain.Ps
+    P₀₁, P₁₂, P₂₃, P₃₀ = domain.intersection_points
     (1-x[1])*c₀(x[2]) + x[1]*c₂(x[2]) + (1-x[2])*c₁(x[1]) + x[2]*c₃(x[1]) -
         ((1-x[2])*(1-x[1])*P₀₁ + x[2]*x[1]*P₂₃ + x[2]*(1-x[1])*P₃₀ + (1-x[2])*x[1]*P₁₂)
 end
@@ -124,7 +124,7 @@ function surface_jacobian(Ω::Function, qr::AbstractMatrix{SVector{2,Float64}}, 
   # Place the number of points on the corresponding edge at the leading position
   m2, m1 = normal_to_side((m1,m2), 0, (m2,m1))[axis]
   # Fill in the entries of the matrix corresponding to the edge = 1
-  n2s = kron(normal_to_side(δᵢⱼ(m2,m2,m2), δᵢⱼ(1,1,m2), sparse(I(m1))).(𝐧)...)
+  n2s = kron(normal_to_side(δᵢⱼ(m2,m2,(m2,m2)), δᵢⱼ(1,1,(m2,m2)), sparse(I(m1))).(𝐧)...)
   Jn_on_grid = (J_on_grid)*(n_on_grid);
   JJ1 = X⊗sqrt.(sum([(Ji*n2s) for Ji in Jn_on_grid].^2))  
   # Replace "0" with "1"

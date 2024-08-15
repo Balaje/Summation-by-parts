@@ -1,8 +1,8 @@
 module SummationByPartsPML
 
-include("./TransfiniteInterpolation/TransfiniteInterpolation.jl")
 include("./1d_SBP/1d_SBP.jl")
 include("./nd_SBP/nd_SBP.jl")
+include("./TransfiniteInterpolation/TransfiniteInterpolation.jl")
 include("./2d_SBP/2d_SBP.jl")
 include("./PerfectlyMatchedLayers/PerfectlyMatchedLayers.jl")
 

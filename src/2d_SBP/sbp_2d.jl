@@ -107,7 +107,7 @@ SBP4_2D_Drq(A::AbstractMatrix{Float64}):
     where Aᵢⱼ = a(qᵢ,rⱼ)
 The result is a sparse matrix that is stored in the field A.    
 """
-struct Drq <: SBP_TYPE
+struct SBP4_2D_Drq<: SBP_TYPE
   A::SparseMatrixCSC{Float64, Int64}
 end
 function SBP4_2D_Drq(a_qr::AbstractMatrix{Float64})    
@@ -137,28 +137,29 @@ struct elasticity_operator <: SBP_TYPE
 end
 function elasticity_operator(P::Function, Ω::Function, qr::AbstractMatrix{SVector{2,Float64}})
   P_on_grid = transform_material_properties.(P, Ω, qr)
-  P_vec = spdiagm.(vec.(get_property_matrix_on_grid(P_on_grid, 2)))
+  P_vec = get_property_matrix_on_grid(P_on_grid, 2)
+  _compute_divergence_stress_tensor(P_vec)
+end
 
+function elasticity_operator(P_on_grid::AbstractMatrix{SMatrix{4,4,Float64,16}})
+  P_vec = get_property_matrix_on_grid(P_on_grid, 2)
+  _compute_divergence_stress_tensor(P_vec)
+end
+
+function _compute_divergence_stress_tensor(P_vec)
   Dqq2 = [SBP4_2D_Dqq SBP4_2D_Dqq; 
           SBP4_2D_Dqq SBP4_2D_Dqq];
-
   Dqr2 = [SBP4_2D_Dqr SBP4_2D_Dqr; 
-          SBP4_2D_Dqr SBP4_2D_Dqr];
-
+          SBP4_2D_Dqr SBP4_2D_Dqr]
   Drq2 = [SBP4_2D_Drq SBP4_2D_Drq; 
           SBP4_2D_Drq SBP4_2D_Drq];
-
   Drr2 = [SBP4_2D_Drr SBP4_2D_Drr; 
           SBP4_2D_Drr SBP4_2D_Drr]; 
-  
   De2 = [Dqq2 Dqr2; Drq2 Drr2];
-  
   D = [De2[i,j](P_vec[i,j]).A for i=1:4, j=1:4]
-
   # Divergence
   res = [D[1,1] D[1,2]; D[2,1] D[2,2]] + [D[3,3] D[3,4]; D[4,3] D[4,4]] +
         [D[1,3] D[1,4]; D[2,3] D[2,4]] + [D[3,1] D[3,2]; D[4,1] D[4,2]]
-
   elasticity_operator(res)
 end
 
@@ -186,13 +187,13 @@ function elasticity_traction_operator(P::Function, Ω::Function, qr::AbstractMat
   Dq, Dr = sbp_2d.D1
   Sq, Sr = sbp_2d.S
   # Compute the traction  
-  JJ = surface_jacobian(Ω, qr, 𝐧; X=I(2))
-  JJ⁻¹ = JJ\I(size(JJ,1))
+  J = surface_jacobian(Ω, qr, 𝐧; X=I(2))
+  J⁻¹ = J\I(size(J,1))
   Pn = ([P_vec[1,1]  P_vec[1,2]; P_vec[2,1]  P_vec[2,2]]*𝐧[1] + [P_vec[3,1]  P_vec[3,2]; P_vec[4,1]  P_vec[4,2]]*𝐧[2], 
         [P_vec[1,3]  P_vec[1,4]; P_vec[2,3]  P_vec[2,4]]*𝐧[1] + [P_vec[3,3]  P_vec[3,4]; P_vec[4,3]  P_vec[4,4]]*𝐧[2])
   ∇n = ((I(2)⊗Sq)*𝐧[1] + (I(2)⊗Dq)*𝐧[2], (I(2)⊗Dr)*𝐧[1] + (I(2)⊗Sr)*𝐧[2])
   𝐓𝐧 = Pn[1]*∇n[1] + Pn[2]*∇n[2]   
-  Tr = JJ⁻¹*𝐓𝐧
+  Tr = J⁻¹*𝐓𝐧
   elasticity_traction_operator(X⊗Tr)
 end
 
@@ -221,7 +222,7 @@ function interface_SAT_operator(𝛀₁::Tuple{Function, AbstractMatrix{SVector{
   n₂, m₂ = size(qr₂)
   sbp_q₁, sbp_r₁ =  SBP4_1D(m₁), SBP4_1D(n₁)
   sbp_q₂, sbp_r₂ =  SBP4_1D(m₂), SBP4_1D(n₂)
-  B̂, B̃ = jump((m₁,n₁), (m₂,n₂), 𝐧₁; X=X)
+  B̂, B̃ = compute_jump_operators((m₁,n₁), (m₂,n₂), 𝐧₁; X=X)
   Y = I(size(X,2))
   # Get the axis of the normal 
   # (0 => x, 1 => y)
