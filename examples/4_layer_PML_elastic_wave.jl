@@ -193,10 +193,10 @@ The material property tensor with the PML is given as follows:
               0         σᵥ(x)*B(x) - σₕ(x)*B(x)]
 where A(x), B(x), C(x) and σₚ(x) are the material coefficient matrices and the damping parameter in the physical domain
 """
-𝒫₁ᴾᴹᴸ(x) = @SMatrix [-σ(x)*c₁₁¹(x) 0 0 0; 0 -σ(x)*c₃₃¹(x) 0 0; 0 0 σ(x)*c₃₃¹(x)  0; 0 0 0 σ(x)*c₂₂¹(x)];
-𝒫₂ᴾᴹᴸ(x) = @SMatrix [-σ(x)*c₁₁²(x) 0 0 0; 0 -σ(x)*c₃₃²(x) 0 0; 0 0 σ(x)*c₃₃²(x)  0; 0 0 0 σ(x)*c₂₂²(x)];
-𝒫₃ᴾᴹᴸ(x) = @SMatrix [-σ(x)*c₁₁³(x) 0 0 0; 0 -σ(x)*c₃₃³(x) 0 0; 0 0 σ(x)*c₃₃³(x)  0; 0 0 0 σ(x)*c₂₂³(x)];
-𝒫₄ᴾᴹᴸ(x) = @SMatrix [-σ(x)*c₁₁⁴(x) 0 0 0; 0 -σ(x)*c₃₃⁴(x) 0 0; 0 0 σ(x)*c₃₃⁴(x)  0; 0 0 0 σ(x)*c₂₂⁴(x)];
+𝒫₁ᴾᴹᴸ(x) = @SMatrix [(τ(x)-σ(x))*c₁₁¹(x) 0 0 0; 0 (τ(x)-σ(x))*c₃₃¹(x) 0 0; 0 0 -(τ(x)-σ(x))*c₃₃¹(x)  0; 0 0 0 -(τ(x)-σ(x))*c₂₂¹(x)];
+𝒫₂ᴾᴹᴸ(x) = @SMatrix [(τ(x)-σ(x))*c₁₁²(x) 0 0 0; 0 (τ(x)-σ(x))*c₃₃²(x) 0 0; 0 0 -(τ(x)-σ(x))*c₃₃²(x)  0; 0 0 0 -(τ(x)-σ(x))*c₂₂²(x)];
+𝒫₃ᴾᴹᴸ(x) = @SMatrix [(τ(x)-σ(x))*c₁₁³(x) 0 0 0; 0 (τ(x)-σ(x))*c₃₃³(x) 0 0; 0 0 -(τ(x)-σ(x))*c₃₃³(x)  0; 0 0 0 -(τ(x)-σ(x))*c₂₂³(x)];
+𝒫₄ᴾᴹᴸ(x) = @SMatrix [(τ(x)-σ(x))*c₁₁⁴(x) 0 0 0; 0 (τ(x)-σ(x))*c₃₃⁴(x) 0 0; 0 0 -(τ(x)-σ(x))*c₃₃⁴(x)  0; 0 0 0 -(τ(x)-σ(x))*c₂₂⁴(x)];
 
 
 """
@@ -241,8 +241,8 @@ qr₃ = reference_grid_2d((Nx,Ny));
 qr₄ = reference_grid_2d((Nx,Ny1));
 xy₁ = Ω₁.(qr₁);
 xy₂ = Ω₂.(qr₂);
-xy₃ = Ω₂.(qr₃);
-xy₄ = Ω₂.(qr₄);
+xy₃ = Ω₃.(qr₃);
+xy₄ = Ω₄.(qr₄);
 
 ##### ##### ##### ##### ##### ##### ##### ##### 
 # Compute the stiffness and mass matrices
@@ -255,7 +255,6 @@ Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂�
 stima = four_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
 massma = four_layer_elasticity_pml_mass_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 
-#=
 """
 Right hand side function. 
   In this example, we drive the problem using an explosive moment tensor point source.
@@ -270,7 +269,7 @@ end
 # Define the time stepping parameters
 ##### ##### ##### ##### ##### ##### ##### ##### 
 Δt = 0.2*h/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
-tf = 5.0
+tf = 10.0
 ntime = ceil(Int, tf/Δt)
 Δt = tf/ntime;
 l2norm = zeros(Float64, ntime);
@@ -397,4 +396,3 @@ plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=1, yaxis=:log10)
 Plots.xlabel!(plt5, "Time \$t\$")
 Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
 # Plots.xlims!(plt5, (0,1000))
-=#

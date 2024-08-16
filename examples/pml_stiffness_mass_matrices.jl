@@ -256,38 +256,38 @@ function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d
             J₁⁻¹*bulk_elasticity_pml_operator₁[1], 
             J₁⁻¹*bulk_elasticity_pml_operator₁[2], 
             -α*𝛒₁*(𝛔ᵥ¹+𝛔ₕ¹)+𝛒₁*𝛔ᵥ¹*𝛔ₕ¹, 
-            𝛒₁*𝛔ᵥ¹*𝛔ₕ¹];
-  EQ2₁ = sum(es .⊗ eq2s₁);  
+            𝛒₁*𝛔ᵥ¹*𝛔ₕ¹];  
   eq2s₂ = [(J₂⁻¹*bulk_elasticity_operator₂)+α*𝛒₂*(𝛔ᵥ²+𝛔ₕ²)-𝛒₂*𝛔ᵥ²*𝛔ₕ², 
             -𝛒₂*(𝛔ᵥ²+𝛔ₕ²), 
             J₂⁻¹*bulk_elasticity_pml_operator₂[1], 
             J₂⁻¹*bulk_elasticity_pml_operator₂[2], 
             -α*𝛒₂*(𝛔ᵥ²+𝛔ₕ²)+𝛒₂*𝛔ᵥ²*𝛔ₕ², 
-            𝛒₂*𝛔ᵥ²*𝛔ₕ²];  
-  EQ2₂ = sum(es .⊗ eq2s₂);
+            𝛒₂*𝛔ᵥ²*𝛔ₕ²];
   eq2s₃ = [(J₃⁻¹*bulk_elasticity_operator₃)+α*𝛒₃*(𝛔ᵥ³+𝛔ₕ³)-𝛒₃*𝛔ᵥ³*𝛔ₕ³, 
             -𝛒₃*(𝛔ᵥ³+𝛔ₕ³), 
             J₃⁻¹*bulk_elasticity_pml_operator₃[1], 
             J₃⁻¹*bulk_elasticity_pml_operator₃[2], 
             -α*𝛒₃*(𝛔ᵥ³+𝛔ₕ³)+𝛒₃*𝛔ᵥ³*𝛔ₕ³, 
-            𝛒₃*𝛔ᵥ³*𝛔ₕ³];  
-  EQ2₃ = sum(es .⊗ eq2s₃);
+            𝛒₃*𝛔ᵥ³*𝛔ₕ³];
   eq2s₄ = [(J₄⁻¹*bulk_elasticity_operator₄)+α*𝛒₄*(𝛔ᵥ⁴+𝛔ₕ⁴)-𝛒₄*𝛔ᵥ⁴*𝛔ₕ⁴, 
             -𝛒₄*(𝛔ᵥ⁴+𝛔ₕ⁴), 
             J₄⁻¹*bulk_elasticity_pml_operator₄[1], 
             J₄⁻¹*bulk_elasticity_pml_operator₄[2], 
             -α*𝛒₄*(𝛔ᵥ⁴+𝛔ₕ⁴)+𝛒₄*𝛔ᵥ⁴*𝛔ₕ⁴, 
-            𝛒₄*𝛔ᵥ⁴*𝛔ₕ⁴];  
+            𝛒₄*𝛔ᵥ⁴*𝛔ₕ⁴];
+  EQ2₁ = sum(es .⊗ eq2s₁);    
+  EQ2₂ = sum(es .⊗ eq2s₂);                          
+  EQ2₃ = sum(es .⊗ eq2s₃);              
   EQ2₄ = sum(es .⊗ eq2s₄);
   # Equation 3: ∂v/∂t = -(α+σᵥ)v + ∂u/∂x
   es = [δᵢⱼ(3,i,(6,6)) for i=[1,3]];
-  eq3s₁ = [Dx₁, -(α*(I(2)⊗I(m₁)⊗I(n₁)) + 𝛔ᵥ¹)];
-  EQ3₁ = sum(es .⊗ eq3s₁);
+  eq3s₁ = [Dx₁, -(α*(I(2)⊗I(m₁)⊗I(n₁)) + 𝛔ᵥ¹)];  
   eq3s₂ = [Dx₂, -(α*(I(2)⊗I(m₂)⊗I(n₂)) + 𝛔ᵥ²)];  
-  EQ3₂ = sum(es .⊗ eq3s₂);
   eq3s₃ = [Dx₃, -(α*(I(2)⊗I(m₃)⊗I(n₃)) + 𝛔ᵥ³)];  
-  EQ3₃ = sum(es .⊗ eq3s₃);
-  eq3s₄ = [Dx₄, -(α*(I(2)⊗I(m₄)⊗I(n₄)) + 𝛔ᵥ⁴)];  
+  eq3s₄ = [Dx₄, -(α*(I(2)⊗I(m₄)⊗I(n₄)) + 𝛔ᵥ⁴)];
+  EQ3₁ = sum(es .⊗ eq3s₁);  
+  EQ3₂ = sum(es .⊗ eq3s₂);  
+  EQ3₃ = sum(es .⊗ eq3s₃);  
   EQ3₄ = sum(es .⊗ eq3s₄);
   # Equation 4 ∂w/∂t = -(α+σᵥ)w + ∂u/∂y
   es = [δᵢⱼ(4,i,(6,6)) for i=[1,4]]
@@ -302,22 +302,22 @@ function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d
   # Equation 5 ∂q/∂t = α(u-q)
   es = [δᵢⱼ(5,i,(6,6)) for i=[1,5]]
   eq5s₁ = [α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁))]
-  EQ5₁ = sum(es .⊗ eq5s₁)
   eq5s₂ = [α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂))]  
-  EQ5₂ = sum(es .⊗ eq5s₂)
   eq5s₃ = [α*(I(2)⊗I(m₃)⊗I(n₃)), -α*(I(2)⊗I(m₃)⊗I(n₃))]  
-  EQ5₃ = sum(es .⊗ eq5s₃)
-  eq5s₄ = [α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄))]  
+  eq5s₄ = [α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄))]
+  EQ5₁ = sum(es .⊗ eq5s₁)  
+  EQ5₂ = sum(es .⊗ eq5s₂)  
+  EQ5₃ = sum(es .⊗ eq5s₃)  
   EQ5₄ = sum(es .⊗ eq5s₄)
   # Equation 6 ∂q/∂t = α(u-q-r)
   es = [δᵢⱼ(6,i,(6,6)) for i=[1,5,6]]
-  eq6s₁ = [α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁))]
-  EQ6₁ = sum(es .⊗ eq6s₁)
+  eq6s₁ = [α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁)), -α*(I(2)⊗I(m₁)⊗I(n₁))]  
   eq6s₂ = [α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂)), -α*(I(2)⊗I(m₂)⊗I(n₂))]  
-  EQ6₂ = sum(es .⊗ eq6s₂)
   eq6s₃ = [α*(I(2)⊗I(m₃)⊗I(n₃)), -α*(I(2)⊗I(m₃)⊗I(n₃)), -α*(I(2)⊗I(m₃)⊗I(n₃))]  
-  EQ6₃ = sum(es .⊗ eq6s₃)
-  eq6s₄ = [α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄))]  
+  eq6s₄ = [α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄)), -α*(I(2)⊗I(m₄)⊗I(n₄))]
+  EQ6₁ = sum(es .⊗ eq6s₁)  
+  EQ6₂ = sum(es .⊗ eq6s₂)  
+  EQ6₃ = sum(es .⊗ eq6s₃)  
   EQ6₄ = sum(es .⊗ eq6s₄)
 
   ##### ##### ##### ##### ##### ##### ##### ##### 
@@ -327,13 +327,14 @@ function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d
   SJ_𝐇q₀⁻¹₁, SJ_𝐇qₙ⁻¹₁, _, SJ_𝐇rₙ⁻¹₁ = compute_surface_integration_operators(sbp_2d₁, (SJq₀¹, SJqₙ¹, SJr₀¹, SJrₙ¹))
   es = [δᵢⱼ(2,i,(6,6)) for i=[1,3,4]];
   elastic_traction_on_top = elasticity_traction_operator(𝒫₁, Ω₁, qr₁, [0;1]).A
-  pml_elastic_traction_on_top₁, pml_elastic_traction_on_top₂ = elasticity_traction_operator(𝒫₁ᴾᴹᴸ, Ω₁, qr₁, [0;1]).A
+  pml_elastic_traction_on_top₁, pml_elastic_traction_on_top₂ = elasticity_traction_pml_operator(𝒫₁ᴾᴹᴸ, Ω₁, qr₁, [0;1]).A
   Trₙ¹ = [elastic_traction_on_top, pml_elastic_traction_on_top₁, pml_elastic_traction_on_top₂]
   SAT₁ = sum(es.⊗(SJ_𝐇rₙ⁻¹₁[1:3].*Trₙ¹)); 
   ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
   # PML characteristic boundary conditions on the left and right boundaries of the two layers
   ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
   es = [δᵢⱼ(2,i,(6,6)) for i=1:6];
+  abc_coeffs₁ = 𝒫₁, 𝒫₁ᴾᴹᴸ, 𝐙₁₂¹, 𝛔₁₂¹, 𝛕₁₂¹, J₁
   χq₀¹, χqₙ¹, _, _ = compute_absorbing_boundary_conditions_on_domain(Ω₁, qr₁, abc_coeffs₁)  
   # -- The SAT Terms on the boundary of Layer 1: Obtained after summing up the boundary integral of the absorbing boundary condition
   SAT₁ += sum(es.⊗(SJ_𝐇q₀⁻¹₁.*χq₀¹)) + sum(es.⊗(SJ_𝐇qₙ⁻¹₁.*χqₙ¹))
