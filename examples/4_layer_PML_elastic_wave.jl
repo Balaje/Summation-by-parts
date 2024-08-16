@@ -1,5 +1,4 @@
-# include("2d_elasticity_problem.jl");
-using SBP
+using SummationByPartsPML
 using StaticArrays
 using LinearAlgebra
 using SparseArrays
@@ -17,15 +16,14 @@ PyPlot.matplotlib[:rc]("font",family="serif",size=20)
 
 using SplitApplyCombine
 
-"""
-Flatten the 2d function as a single vector for the time iterations.
-  (...Basically convert vector of vectors to matrix...)
-"""
-eltocols(v::Vector{SVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
-eltocols(v::Vector{MVector{dim, T}}) where {dim, T} = vec(reshape(reinterpret(Float64, v), dim, :)');
+include("elastic_wave_operators.jl");
+include("plotting_functions.jl");
+include("pml_stiffness_mass_matrices.jl");
+include("time_discretization.jl");
 
-
+##### ##### ##### ##### 
 # Define the domain
+##### ##### ##### ##### 
 interface₁(q) = @SVector [-4 + 48*q, -10.0]
 interface₂(q) = @SVector [-4 + 48*q, -20.0]
 interface₃(q) = @SVector [-4 + 48*q, -30.0]
@@ -215,3 +213,188 @@ Z₂³(x) = @SMatrix [√(c₃₃³(x)*ρ₃(x))  0;  0 √(c₂₂³(x)*ρ₃(x
 
 Z₁⁴(x) = @SMatrix [√(c₁₁⁴(x)*ρ₄(x))  0;  0 √(c₃₃⁴(x)*ρ₄(x))]
 Z₂⁴(x) = @SMatrix [√(c₃₃⁴(x)*ρ₄(x))  0;  0 √(c₂₂⁴(x)*ρ₄(x))]
+
+"""
+Initial conditions
+"""
+𝐔(x) = @SVector [0.0, 0.0]
+𝐏(x) = @SVector [0.0, 0.0] # = 𝐔ₜ(x)
+𝐕(x) = @SVector [0.0, 0.0]
+𝐖(x) = @SVector [0.0, 0.0]
+𝐐(x) = @SVector [0.0, 0.0]
+𝐑(x) = @SVector [0.0, 0.0]
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
+# Discretize the domain using a mapping to the reference grid [0,1]^2   
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
+h = 0.1
+Nx = ceil(Int64, 48/h) + 1
+Ny = ceil(Int64, 10/h) + 1
+Ny1 = ceil(Int64, 14/h) + 1
+Ω₁(qr) = transfinite_interpolation(qr, domain₁);
+Ω₂(qr) = transfinite_interpolation(qr, domain₂);
+Ω₃(qr) = transfinite_interpolation(qr, domain₃);
+Ω₄(qr) = transfinite_interpolation(qr, domain₄);
+qr₁ = reference_grid_2d((Nx,Ny));
+qr₂ = reference_grid_2d((Nx,Ny));
+qr₃ = reference_grid_2d((Nx,Ny));
+qr₄ = reference_grid_2d((Nx,Ny1));
+xy₁ = Ω₁.(qr₁);
+xy₂ = Ω₂.(qr₂);
+xy₃ = Ω₂.(qr₃);
+xy₄ = Ω₂.(qr₄);
+
+##### ##### ##### ##### ##### ##### ##### ##### 
+# Compute the stiffness and mass matrices
+##### ##### ##### ##### ##### ##### ##### ##### 
+𝒫 = 𝒫₁, 𝒫₂, 𝒫₃, 𝒫₄
+𝒫ᴾᴹᴸ = 𝒫₁ᴾᴹᴸ, 𝒫₂ᴾᴹᴸ, 𝒫₃ᴾᴹᴸ, 𝒫₄ᴾᴹᴸ
+Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)
+σₕσᵥ = τ, σ
+ρ = ρ₁, ρ₂, ρ₃, ρ₄
+stima = four_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
+massma = four_layer_elasticity_pml_mass_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (ρ₁, ρ₂, ρ₃, ρ₄));
+
+#=
+"""
+Right hand side function. 
+  In this example, we drive the problem using an explosive moment tensor point source.
+"""
+function f(t::Float64, x::SVector{2,Float64}, params)
+  s₁, s₂, M₀ = params
+  @SVector[-1/(2π*√(s₁*s₂))*exp(-(x[1]-20)^2/(2s₁) - (x[2]+15)^2/(2s₂))*(x[1]-20)/s₁*exp(-(t-0.215)^2/0.15)*M₀,
+           -1/(2π*√(s₁*s₂))*exp(-(x[1]-20)^2/(2s₁) - (x[2]+15)^2/(2s₂))*(x[2]+15)/s₂*exp(-(t-0.215)^2/0.15)*M₀]
+end
+
+##### ##### ##### ##### ##### ##### ##### ##### 
+# Define the time stepping parameters
+##### ##### ##### ##### ##### ##### ##### ##### 
+Δt = 0.2*h/sqrt(max((cp₁^2+cs₁^2), (cp₂^2+cs₂^2), (cp₃^2+cs₃^2), (cp₄^2+cs₄^2)));
+tf = 5.0
+ntime = ceil(Int, tf/Δt)
+Δt = tf/ntime;
+l2norm = zeros(Float64, ntime);
+
+plt3 = Vector{Plots.Plot}(undef,3+ceil(Int64, tf/10));
+
+# Begin time loop
+let
+  t = 0.0
+  X₀¹ = vcat(eltocols(vec(𝐔.(xy₁))), eltocols(vec(𝐏.(xy₁))), eltocols(vec(𝐕.(xy₁))), eltocols(vec(𝐖.(xy₁))), eltocols(vec(𝐐.(xy₁))), eltocols(vec(𝐑.(xy₁))));
+  X₀² = vcat(eltocols(vec(𝐔.(xy₂))), eltocols(vec(𝐏.(xy₂))), eltocols(vec(𝐕.(xy₂))), eltocols(vec(𝐖.(xy₂))), eltocols(vec(𝐐.(xy₂))), eltocols(vec(𝐑.(xy₂))));
+  X₀³ = vcat(eltocols(vec(𝐔.(xy₃))), eltocols(vec(𝐏.(xy₃))), eltocols(vec(𝐕.(xy₃))), eltocols(vec(𝐖.(xy₃))), eltocols(vec(𝐐.(xy₃))), eltocols(vec(𝐑.(xy₃))));
+  X₀⁴ = vcat(eltocols(vec(𝐔.(xy₄))), eltocols(vec(𝐏.(xy₄))), eltocols(vec(𝐕.(xy₄))), eltocols(vec(𝐖.(xy₄))), eltocols(vec(𝐐.(xy₄))), eltocols(vec(𝐑.(xy₄))));
+
+  X₀ = vcat(X₀¹, X₀², X₀³, X₀⁴)
+  k₁ = zeros(Float64, length(X₀))
+  k₂ = zeros(Float64, length(X₀))
+  k₃ = zeros(Float64, length(X₀))
+  k₄ = zeros(Float64, length(X₀)) 
+  M = massma*stima
+  count = 1;
+  # @gif for i=1:ntime
+  Hq = SBP4_1D(Nx).norm;
+  Hr = SBP4_1D(Ny).norm;
+  Hr1 = SBP4_1D(Ny1).norm;
+  Hqr = Hq ⊗ Hr
+  Hqr1 = Hq ⊗ Hr1
+  function 𝐅(t, xy, Z2) 
+    Z, Z1 = Z2
+    xy₁, xy₂, xy₃, xy₄ = xy    
+    [Z; eltocols(f.(Ref(t), vec(xy₁), Ref((0.5*h, 0.5*h, 1000)))); Z; Z; Z; Z;
+     Z; eltocols(f.(Ref(t), vec(xy₂), Ref((0.5*h, 0.5*h, 1000)))); Z; Z; Z; Z;
+     Z; eltocols(f.(Ref(t), vec(xy₃), Ref((0.5*h, 0.5*h, 1000)))); Z; Z; Z; Z;
+     Z1; eltocols(f.(Ref(t), vec(xy₄), Ref((0.5*h, 0.5*h, 1000)))); Z1; Z1; Z1; Z1]
+  end
+  xys =  xy₁, xy₂, xy₃, xy₄
+  Z = zeros(2*length(xy₁))
+  Z1 = zeros(2*length(xy₄))
+  for i=1:ntime    
+    # # This block is for the moment-source function
+    Fs = (𝐅((i-1)*Δt, xys, (Z,Z1)), 𝐅((i-0.5)Δt, xys, (Z,Z1)), 𝐅(i*Δt, xys, (Z,Z1)))
+    X₀ = RK4_1!(M, (X₀, k₁, k₂, k₃, k₄), Δt, Fs, massma)  
+    t += Δt    
+    (i%ceil(Int64,ntime/20)==0) && println("Done t = "*string(t)*"\t max(sol) = "*string(maximum(X₀)))
+
+    ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+    #  Extract the displacement field from the raw solution vector
+    ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+    u1ref₁,u2ref₁ = split_solution(X₀[1:12*(Nx*Ny)], (Nx,Ny), 12);
+    u1ref₂,u2ref₂ = split_solution(X₀[12*(Nx*Ny)+1:12*(Nx*Ny + Nx*Ny)], (Nx,Ny), 12);
+    u1ref₃,u2ref₃ = split_solution(X₀[12*(Nx*Ny + Nx*Ny)+1:12*(Nx*Ny + Nx*Ny + Nx*Ny)], (Nx,Ny), 12);
+    u1ref₄,u2ref₄ = split_solution(X₀[12*(Nx*Ny + Nx*Ny + Nx*Ny)+1:12*(Nx*Ny + Nx*Ny + Nx*Ny + Nx*Ny1)], (Nx,Ny1), 12);
+    
+    U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)
+    U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)
+    U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)
+    U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)
+    
+    if((i==ceil(Int64, 3/Δt)) || (i == ceil(Int64, 5/Δt)) || (i == ceil(Int64, 9/Δt)) || ((i*Δt)%10 ≈ 0.0))
+      plt3[count] = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
+      Plots.contourf!(plt3[count], getX.(xy₂), getY.(xy₂), reshape(U2,size(xy₂)...), colormap=:jet)
+      Plots.contourf!(plt3[count], getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet)
+      Plots.contourf!(plt3[count], getX.(xy₄), getY.(xy₄), reshape(U4,size(xy₄)...), colormap=:jet)
+      Plots.vline!(plt3[count], [L], label="\$ x \\ge "*string(round(L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.vline!(plt3[count], [0], label="\$ x \\ge "*string(round(0, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.hline!(plt3[count], [-L], label="\$ y \\ge "*string(round(-L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+      Plots.plot!(plt3[count], getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, legend=:none)
+      Plots.plot!(plt3[count], getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, legend=:none)
+      Plots.plot!(plt3[count], getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2,  aspect_ratio=1.09, legend=:none)
+      xlims!(plt3[count], (0-δ,L+δ))
+      ylims!(plt3[count], (-L-δ,0))
+      xlabel!(plt3[count], "\$x\$")
+      ylabel!(plt3[count], "\$y\$")
+      count += 1
+    end
+
+    l2norm[i] = sqrt(u1ref₁'*Hqr*u1ref₁ + u2ref₁'*Hqr*u2ref₁ +
+                      u1ref₂'*Hqr*u1ref₂ + u2ref₂'*Hqr*u2ref₂ + 
+                      u1ref₃'*Hqr*u1ref₃ + u2ref₃'*Hqr*u2ref₃ + 
+                      u1ref₄'*Hqr1*u1ref₄ + u2ref₄'*Hqr1*u2ref₄)
+  end
+  # end  every 10  
+  global Xref = X₀
+end;
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+#  Extract the displacement field from the raw solution vector
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+u1ref₁,u2ref₁ = split_solution(Xref[1:12*(Nx*Ny)], (Nx,Ny), 12);
+u1ref₂,u2ref₂ = split_solution(Xref[12*(Nx*Ny)+1:12*(Nx*Ny + Nx*Ny)], (Nx,Ny), 12);
+u1ref₃,u2ref₃ = split_solution(Xref[12*(Nx*Ny + Nx*Ny)+1:12*(Nx*Ny + Nx*Ny + Nx*Ny)], (Nx,Ny), 12);
+u1ref₄,u2ref₄ = split_solution(Xref[12*(Nx*Ny + Nx*Ny + Nx*Ny)+1:12*(Nx*Ny + Nx*Ny + Nx*Ny + Nx*Ny1)], (Nx,Ny1), 12);
+
+U1 = sqrt.(u1ref₁.^2 + u2ref₁.^2)*sqrt(0.5)
+U2 = sqrt.(u1ref₂.^2 + u2ref₂.^2)*sqrt(0.5)
+U3 = sqrt.(u1ref₃.^2 + u2ref₃.^2)*sqrt(0.5)
+U4 = sqrt.(u1ref₄.^2 + u2ref₄.^2)*sqrt(0.5)
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+# Plot the absolute value of the displacement fields
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+plt3_1 = Plots.plot();
+Plots.contourf!(plt3_1, getX.(xy₁), getY.(xy₁), reshape(U1,size(xy₁)...), colormap=:jet)
+Plots.contourf!(plt3_1, getX.(xy₂), getY.(xy₂), reshape(U2, size(xy₂)...), colormap=:jet)
+Plots.contourf!(plt3_1, getX.(xy₃), getY.(xy₃), reshape(U3,size(xy₃)...), colormap=:jet)
+Plots.contourf!(plt3_1, getX.(xy₄), getY.(xy₄), reshape(U4,size(xy₄)...), colormap=:jet)
+Plots.vline!(plt3_1, [L], label="\$ x \\ge "*string(round(L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.vline!(plt3_1, [0], label="\$ x \\ge "*string(round(0, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.hline!(plt3_1, [-L], label="\$ y \\ge "*string(round(-L, digits=3))*"\$ (PML)", lc=:black, lw=1, ls=:dash)
+Plots.plot!(plt3_1, getX.(interface₁.(LinRange(0,1,100))), getY.(interface₁.(LinRange(0,1,100))), label="Interface 1", lc=:red, lw=2, legend=:none)
+Plots.plot!(plt3_1, getX.(interface₂.(LinRange(0,1,100))), getY.(interface₂.(LinRange(0,1,100))), label="Interface 2", lc=:red, lw=2, legend=:none)
+Plots.plot!(plt3_1, getX.(interface₃.(LinRange(0,1,100))), getY.(interface₃.(LinRange(0,1,100))), label="Interface 3", lc=:red, lw=2, legend=:none, aspect_ratio=1.09)
+xlims!(plt3_1, (0-δ,L+δ))
+ylims!(plt3_1, (-L-δ,0.0))
+xlabel!(plt3_1, "\$x\$")
+ylabel!(plt3_1, "\$y\$")
+# c_ticks = (LinRange(2.5e-6,1.0e-5,5), string.(round.(LinRange(1.01,7.01,5), digits=4)).*"\$ \\times 10^{-7}\$");
+# Plots.plot!(plt3_1, colorbar_ticks=c_ticks)
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+# Plot the l2norm of the displacement as a function of time
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+plt5 = Plots.plot(LinRange(0,tf,ntime), l2norm, label="", lw=1, yaxis=:log10)
+Plots.xlabel!(plt5, "Time \$t\$")
+Plots.ylabel!(plt5, "\$ \\| \\bf{u} \\|_{H} \$")
+# Plots.xlims!(plt5, (0,1000))
+=#
