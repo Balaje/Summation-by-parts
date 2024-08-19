@@ -70,7 +70,7 @@ The PML damping
 """
 const Lᵥ = 4π
 const Lₕ = 4π
-const δ = 0.1*4π  
+const δ = 0.0*4π  
 const δ′ = δ # For constructing the geometry
 const σ₀ᵛ = (δ > 0.0) ? 4*((max(cp₁, cp₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
 const σ₀ʰ = (δ > 0.0) ? 0*((max(cs₁, cs₂)))/(2*δ)*log(10^4) : 0.0 #cₚ,max = 4, ρ = 1, Ref = 10^-4
@@ -182,8 +182,9 @@ xy₂ᴾᴹᴸ = Ω₂ᴾᴹᴸ.(reference_coordsᴾᴹᴸ);
 Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²)
 σₕσᵥ = σₕ, σᵥ
 ρ = ρ₁, ρ₂
+h = norm(xy₁ᴾᴹᴸ[1,2] - xy₁ᴾᴹᴸ[1,1])
 # Compute the stiffness and mass matrices
-stima2_pml =  two_layer_elasticity_pml_stiffness_matrix((domain₁_pml, domain₂_pml), (reference_coordsᴾᴹᴸ, reference_coordsᴾᴹᴸ), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
+stima2_pml =  two_layer_elasticity_pml_stiffness_matrix((domain₁_pml, domain₂_pml), (reference_coordsᴾᴹᴸ, reference_coordsᴾᴹᴸ), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α), 400/h);
 massma2_pml =  two_layer_elasticity_pml_mass_matrix((domain₁_pml, domain₂_pml), (reference_coordsᴾᴹᴸ, reference_coordsᴾᴹᴸ), (ρ₁, ρ₂));
 
 ##### ##### ##### ##### ##### ##### ##### ##### #####
@@ -202,8 +203,9 @@ xy₂ = Ω₂.(reference_coords)
 ℙ = 𝒫₁, 𝒫₂
 ℙᴾᴹᴸ = ℙ₁ᴾᴹᴸ, ℙ₂ᴾᴹᴸ
 τₕτᵥ = τₕ, τᵥ
+h = norm(xy₁[1,2] - xy₁[1,1])
 # Compute the stiffness and mass matrices
-stima2 =  two_layer_elasticity_pml_stiffness_matrix((domain₁, domain₂), (reference_coords, reference_coords), (ℙ, ℙᴾᴹᴸ, Z₁₂, τₕτᵥ, ρ, 0.0));
+stima2 =  two_layer_elasticity_pml_stiffness_matrix((domain₁, domain₂), (reference_coords, reference_coords), (ℙ, ℙᴾᴹᴸ, Z₁₂, τₕτᵥ, ρ, 0.0), 400/h);
 massma2 =  two_layer_elasticity_pml_mass_matrix((domain₁, domain₂), (reference_coords, reference_coords), (ρ₁, ρ₂));
 
 ##### ##### ##### ##### ##### ##### ##### ##### #####
@@ -323,8 +325,8 @@ DU_FULL_PML₁ = abs.(U_PML₁-U_FULL₁);
 ##### ##### ##### ##### #####
 # Plot the PML solution
 ##### ##### ##### ##### #####
-plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(u1ref₁_pml,size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
-Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(u1ref₂_pml, size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
+plt3 = Plots.contourf(getX.(xy₁ᴾᴹᴸ), getY.(xy₁ᴾᴹᴸ), reshape(abs.(u1ref₁_pml),size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
+Plots.contourf!(getX.(xy₂ᴾᴹᴸ), getY.(xy₂ᴾᴹᴸ), reshape(abs.(u1ref₂_pml), size(xy₁ᴾᴹᴸ)...), colormap=:jet, levels=40)
 if ((σ₀ᵛ > 0) || (σ₀ʰ > 0))
   Plots.vline!([Lᵥ], label="PML Domain", lc=:black, lw=1, ls=:dash)  
 else
@@ -339,8 +341,8 @@ ylabel!("\$y\$")
 ##### ##### ##### ##### ##### #####
 # Plot the PML reference solution
 ##### ##### ##### ##### ##### #####
-plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(u1ref₁,size(xy₁)...), colormap=:jet, levels=40, cbar=:none)
-Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(u1ref₂, size(xy₂)...), colormap=:jet, levels=40)
+plt4 = Plots.contourf(getX.(xy₁), getY.(xy₁), reshape(abs.(u1ref₁),size(xy₁)...), colormap=:jet, levels=40, cbar=:none)
+Plots.contourf!(getX.(xy₂), getY.(xy₂), reshape(abs.(u1ref₂), size(xy₂)...), colormap=:jet, levels=40)
 Plots.plot!(getX.(cᵢ.(LinRange(0,1,N₁))), getY.(cᵢ.(LinRange(0,1,N₁))), label="Interface", lc=:red, lw=2, size=(400,500))
 xlims!((cᵢ(0)[1],cᵢ(1.0)[1]))
 ylims!((c₀²(0.0)[2], c₀¹(1.0)[2]))
@@ -354,7 +356,7 @@ ylabel!("\$y\$")
 ##### ##### ##### ##### ##### ##### #####
 # Plot the maximum norm error with time.
 ##### ##### ##### ##### ##### ##### #####
-plt5 = Plots.plot()
+# plt5 = Plots.plot()
 if (δ > 0)
   Plots.plot!(plt5, LinRange(0,tf, ntime), max_abs_error, yaxis=:log10, label="PML", color=:red, lw=2)
 else

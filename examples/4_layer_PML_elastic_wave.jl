@@ -252,7 +252,7 @@ xy₄ = Ω₄.(qr₄);
 Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²), (Z₁³, Z₂³), (Z₁⁴, Z₂⁴)
 σₕσᵥ = τ, σ
 ρ = ρ₁, ρ₂, ρ₃, ρ₄
-stima = four_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
+stima = four_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α), 30*5.196/h);
 massma = four_layer_elasticity_pml_mass_matrix((domain₁,domain₂,domain₃,domain₄), (qr₁,qr₂,qr₃,qr₄), (ρ₁, ρ₂, ρ₃, ρ₄));
 
 """

@@ -196,7 +196,8 @@ n₁, m₁ = size(qr₁); n₂, m₂ = size(qr₂);
 Z₁₂ = (Z₁¹, Z₂¹), (Z₁², Z₂²)
 σₕσᵥ = σₕ, σᵥ
 ρ = ρ₁, ρ₂
-stima = two_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂), (qr₁,qr₂), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α));
+h = norm(xy₁[1,1] - xy₁[1,2]);
+stima = two_layer_elasticity_pml_stiffness_matrix((domain₁,domain₂), (qr₁,qr₂), (𝒫, 𝒫ᴾᴹᴸ, Z₁₂, σₕσᵥ, ρ, α), 400/h);
 massma = two_layer_elasticity_pml_mass_matrix((domain₁,domain₂), (qr₁,qr₂), (ρ₁, ρ₂));
 
 ##### ##### ##### ##### ##### ##### ##### ##### 

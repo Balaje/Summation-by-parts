@@ -3,7 +3,7 @@ Function to obtain the PML stiffness matrix for two-layered medium.
 - We impose the absorbing boundary conditions on all the outer boundaries.
 - At the interface between the layers, we impose continuity of traction and displacements.
 """
-function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}, reference_grids::NTuple{2, AbstractMatrix{SVector{2,Float64}}}, material_properties)
+function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}, reference_grids::NTuple{2, AbstractMatrix{SVector{2,Float64}}}, material_properties, ζ₀::Float64)
   # Extract domain
   domain₁, domain₂ = domains
   Ω₁(qr) = transfinite_interpolation(qr, domain₁)
@@ -135,8 +135,8 @@ function two_layer_elasticity_pml_stiffness_matrix(domains::NTuple{2, domain_2d}
   total_traction_on_layer_2ᵀ = sum(es .⊗ [(traction_on_layer_2)', (pml_traction_on_layer_2[1])', (pml_traction_on_layer_2[2])'])
   interface_traction = blockdiag(total_traction_on_layer_1, total_traction_on_layer_2)      
   interface_tractionᵀ = blockdiag(total_traction_on_layer_1ᵀ, total_traction_on_layer_2ᵀ)   
-  h = norm(Ω₁(qr₁[1,2]) - Ω₁(qr₁[1,1]))
-  ζ₀ = 400/h  
+  # h = norm(Ω₁(qr₁[1,2]) - Ω₁(qr₁[1,1]))
+  # ζ₀ = 400/h  
   # Assemble the interface SAT
   inverse_jacobian = blockdiag(δᵢⱼ(2,2,(6,6))⊗J₁⁻¹, δᵢⱼ(2,2,(6,6))⊗J₂⁻¹)
   interface_jump_terms = (0.5*jump₁*interface_traction - 0.5*interface_tractionᵀ*jump₁ᵀ - ζ₀*jump₂)
@@ -173,7 +173,7 @@ Function to compute the stifness and mass matrices for the 4-layer case:
 2) And use absorbing boundaries on the left, right and bottom boundaries.
 3) At the interfaces, we enforce traction and displacement continuities.
 """
-function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d}, reference_grids::NTuple{4, AbstractMatrix{SVector{2,Float64}}}, material_properties)
+function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d}, reference_grids::NTuple{4, AbstractMatrix{SVector{2,Float64}}}, material_properties, ζ₀::Float64)
   # Extract domain
   domain₁, domain₂, domain₃, domain₄ = domains
   Ω₁(qr) = transfinite_interpolation(qr, domain₁)
@@ -405,8 +405,8 @@ function four_layer_elasticity_pml_stiffness_matrix(domains::NTuple{4, domain_2d
   interface_traction_2ᵀ = blockdiag(total_traction_on_layer_2_bottomᵀ, total_traction_on_layer_3_topᵀ)      
   interface_traction_3 = blockdiag(total_traction_on_layer_3_bottom, total_traction_on_layer_4)      
   interface_traction_3ᵀ = blockdiag(total_traction_on_layer_3_bottomᵀ, total_traction_on_layer_4ᵀ)      
-  h = norm(Ω₁(qr₁[1,2]) - Ω₁(qr₁[1,1]))  
-  ζ₀ = 30*5.196/h  
+  # h = norm(Ω₁(qr₁[1,2]) - Ω₁(qr₁[1,1]))  
+  # ζ₀ = 30*5.196/h  
   # Assemble the interface SAT
   inverse_jacobian_12 = blockdiag(δᵢⱼ(2,2,(6,6))⊗J₁⁻¹, δᵢⱼ(2,2,(6,6))⊗J₂⁻¹)
   inverse_jacobian_23 = blockdiag(δᵢⱼ(2,2,(6,6))⊗J₂⁻¹, δᵢⱼ(2,2,(6,6))⊗J₃⁻¹)

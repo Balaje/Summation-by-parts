@@ -1,4 +1,4 @@
-using SBP
+using SummationByPartsPML
 using StaticArrays
 using LinearAlgebra
 using SparseArrays
@@ -51,21 +51,18 @@ c₂²(r) = @SVector [x₂[end], z₂[1] + (cᵢ(1)[2] - z₂[1])*r] # Right bou
 c₃²(q) = cᵢ(q) # Top boundary
 domain₂ = domain_2d(c₀², c₁², c₂², c₃²)
 
-M₁, N₁ = 201, 1201;
-M₂, N₂ = 41, 1201;
+M₁, N₁ = 601, 101; # 1201 × 201 (in paper) 
+M₂, N₂ = 601, 21; # 1201 × 41 (in paper)
 
-𝛀₁ = DiscreteDomain(domain₁, (N₁,M₁));
-𝛀₂ = DiscreteDomain(domain₂, (N₂,M₂));
-
-Ω₁(qr) = S(qr, 𝛀₁.domain);
-Ω₂(qr) = S(qr, 𝛀₂.domain);
+Ω₁(qr) = transfinite_interpolation(qr, domain₁);
+Ω₂(qr) = transfinite_interpolation(qr, domain₂);
 
 # Reference grids on the two layers
-𝐪𝐫₁ = generate_2d_grid(𝛀₁.mn);
-𝐪𝐫₂ = generate_2d_grid(𝛀₂.mn);
+qr₁ = reference_grid_2d((M₁,N₁));
+qr₂ = reference_grid_2d((M₂,N₂));
 
-XZ₁ = Ω₁.(𝐪𝐫₁);
-XZ₂ = Ω₂.(𝐪𝐫₂);
+XZ₁ = Ω₁.(qr₁);
+XZ₂ = Ω₂.(qr₂);
 
 ###################################################
 # CONSTRUCT THE MATERIAL PROPERTIES ON THE DOMAIN #
@@ -98,5 +95,27 @@ VP2 = LinearInterpolation((x₂,z₂), vp₂', extrapolation_bc=Line());
 VS2 = LinearInterpolation((x₂,z₂), vs₂', extrapolation_bc=Line());
 RHO2 = LinearInterpolation((x₂,z₂), rho₂', extrapolation_bc=Line());
 
-(C₁₁¹, C₂₂¹, C₁₂¹, C₃₃¹), P₁, (Z₁¹, Z₂¹), RHO₁ = get_elastic_constants(VP2, VS2, RHO2, XZ₁)
-(C₁₁², C₂₂², C₁₂², C₃₃²), P₂, (Z₁², Z₂²), RHO₂ = get_elastic_constants(VP2, VS2, RHO2, XZ₂)
+(C₁₁¹, C₂₂¹, C₁₂¹, C₃₃¹), P₁, (𝐙₁¹, 𝐙₂¹), RHO₁ = get_elastic_constants(VP2, VS2, RHO2, XZ₁)
+(C₁₁², C₂₂², C₁₂², C₃₃²), P₂, (𝐙₁², 𝐙₂²), RHO₂ = get_elastic_constants(VP2, VS2, RHO2, XZ₂)
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+# Build a dictionary with the material properties and Physical Coordinates
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### 
+material_properties_on_layer_1 = Dict(XZ₁ .=> P₁);
+material_properties_on_layer_2 = Dict(XZ₂ .=> P₂);
+𝒫₁(x) = material_properties_on_layer_1[x]
+𝒫₂(x) = material_properties_on_layer_2[x]
+
+impedance_matrix_on_layer_1₁ = Dict(XZ₁ .=> 𝐙₁¹)
+impedance_matrix_on_layer_1₂ = Dict(XZ₁ .=> 𝐙₂¹)
+impedance_matrix_on_layer_2₁ = Dict(XZ₂ .=> 𝐙₁²)
+impedance_matrix_on_layer_2₂ = Dict(XZ₂ .=> 𝐙₂²)
+Z₁¹(x) = impedance_matrix_on_layer_1₁[x]
+Z₂¹(x) = impedance_matrix_on_layer_1₂[x]
+Z₁²(x) = impedance_matrix_on_layer_2₁[x]
+Z₂²(x) = impedance_matrix_on_layer_2₂[x]
+
+density_on_layer_1 = Dict(XZ₁ .=> RHO₁)
+density_on_layer_2 = Dict(XZ₂ .=> RHO₂)
+ρ₁(x) = density_on_layer_1[x]
+ρ₂(x) = density_on_layer_2[x]
