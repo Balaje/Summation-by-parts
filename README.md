@@ -59,9 +59,15 @@ Curvilinear domains are implemented using the [transfinite interpolation](https:
 
 ## Convergence of PML
 
+To check the efficacy of the PML, we compare the solution obtained by truncating the domain using the PML and the Characteristic/Absorbing Boundary Condition (ABC). 
+
 ![Two-layer PML solution](./Images/pml-solution.png) | ![Two-layer Full solution](./Images/abc-solution.png) |
 -- | -- |
+
+We then compare the PML/ABC with the standard elastic-wave reference solution computed on a large domain. This is done by restricting the reference solution within the truncated region corresponding to the PML/ABC and then computing the pointwise maximum norm between the PML/ABC solution (geometry shown in the following Figure). We observe that the error corresponding to the PML solution is less than the ABC solution. This is expected since PML damps out most incoming waves compared to ABC, which damps only those incident waves orthogonal to the boundary. This shows that we indeed get better results by using PML to truncate the domain. We observed upto two-orders of magnitude difference in the errors between PML and ABC solution. We also show an example with the orthotropic/curvilinear media in the manuscript.
+
 ![Two-layer PML solution](./Images/full-solution.png) | ![Two-layer Full solution](./Images/PML-vs-ABC.png) |
+-- | -- |
 
 ## 4-layer example
 
