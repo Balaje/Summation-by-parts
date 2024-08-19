@@ -31,21 +31,27 @@ Four examples are considered in the paper.
 
 1) **Two-layer problem:** We consider a two-layer example with discontinuous material properties across an interface. We consider two cases: i) a planar interface and ii) a Gaussian hill interface separating the two layers. We also study the convergence of the PML by comparing with a reference elastic-wave solution computed on a large domain.
 2) **Four-layer problem:** This is an extension of the two-layer example, with four layers separated by planar interface.
-3) **Marmousi model:** We apply the PML method to the Marmousi model, a real-life elastic wave model. 
+3) **Marmousi model:** We apply the PML method to the Marmousi model, a real-life elastic wave model.
 
+For the time stepping, we rewrite the wave equation into a system of first-order PDE and use the fourth-order Runge Kutta scheme to discretize the temporal direction.
 
 ## 2-layer examples
 
 In this example, we consider the two-layer example with a planar interface. We denote the two layers by $\Omega_1 = [0,4\pi] \times [0,4\pi]$ and $\Omega_2 = [0,4\pi] \times [-4\pi,0]$. We consider an isotropic elastic solid with the material parameters $\rho_1 = 1.5, \mu_1 = 4.86, \lambda_1 = 4.8629$ in $\Omega_1$ and $\rho_2 = 3, \mu_2 = 27, \lambda_2 = 26.9952$ in $\Omega_2$. We set the initial displacements as 
+
 $$
+\begin{equation}
 \mathbf{u}_1 = \mathbf{u}_2 = e^{-20\left( (x-2\pi)^2 + (y-1.6\pi)^2 \right)}.
+\end{equation}
 $$
-We impose the characteristic boundary conditions at the left bounadry $x=0$, the bottom boundary $y=-4\pi$, and the top boundary $y=4\pi$. Outside the right boundary $x=4\pi$, we use a PML $[4\pi, 4.4\pi] \times [-4\pi, 4\pi]$ closed by the characteristic boundaries at the PML boundaries. 
+
+We impose the characteristic boundary conditions at the left bounadry $x=0$, the bottom boundary $y=-4\pi$, and the top boundary $y=4\pi$. Outside the right boundary $x=4\pi$, we use a PML $[4\pi, 4.4\pi] \times [-4\pi, 4\pi]$ closed by the characteristic boundaries at the PML boundaries. Following are results of the simulation for the two-layer elastic media with a planar interface.
 
 `t = 1.0` | `t = 2.0` | `t = 40.0` |
 -- | -- | -- |
 ![Two-layer Gaussian 1.0](./Images/2-layer-1.0-uniform.png) | ![Two-layer Gaussian 1.0](./Images/2-layer-2.0-uniform.png) | ![Two-layer Gaussian 1.0](./Images/2-layer-40.0-uniform.png) 
 
+Curvilinear domains are implemented using the [transfinite interpolation](https://en.wikipedia.org/wiki/Transfinite_interpolation) technique. The boundaries of the domain are parametrized as a mapping from the reference domain $[0,1]$ to the physical domain. The transfinite interpolation will then result in a map between the unit square $[0,1]^2$ and the physical domain. The PDE is then transformed to the reference coordinates and then discretized using the summation-by-parts stencil on the unit square $[0,1]^2$. Following is an example of the elastic-wave equation simulated on a curvilinear layered media. We observe that as the wave propagates into the bottom layer, a portion of it is reflected due to the difference in the material properties.
 
 `t = 1.0` | `t = 2.0` | `t = 40.0` |
 -- | -- | -- |
